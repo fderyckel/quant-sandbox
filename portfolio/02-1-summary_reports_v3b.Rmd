@@ -1,0 +1,440 @@
+---
+title: "Summary Reports V3"
+author: "FdR"
+date: "2/13/2022"
+output: html_document
+---
+
+This reports are there to help me make better trading decisions. 
+
+# TODO: 
+
+* On the conform data functions check for 0 or NA
+a graph with volume ... how is the EMA9 volume comparing to the rolling 252 days average volume
+
+
+# Thoughts 
+
+* I have put lots of emphasis on precision (50% on precision and 20% on soft-precision).  Because it is so hard to get it exactly right and because we have so many models that are prediction first a "3" but then a "1" which then is so confusing to deal with ... Maybe it is better to put more emphasis on soft-precision instead of pure precision.  
+
+```{r setup, include=FALSE}
+library(knitr)
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+the_path <- here::here()
+
+source("../functions/summary_reports_v3.R")
+```
+
+# Download data EoD data and create charts 
+
+This is just to download data for which I have a model 
+```{r download_data_1}
+etf_tickers <- c("XLF", "XLI", "XLY", "XLV", "XME", "XLB", "XBI", "IYT", "HACK", "VOX", 
+                 "SMH", "IPAY", "SPY", "QQQ", "XLE", "VDE", "XOP", "GDXJ", "HYG", "EEM", "EWH",
+                 "KWEB", "TLT", "DBB", "DBA", "GRU", "VAW", "ITB", "FXG", "IWD", "IWF")
+
+for (i in 1:length(etf_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(etf_tickers[i])
+    print(glue("just downloaded data for ", etf_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+
+stock_tickers <- c("AMD", "TSM", "BAH", "PYPL", "JPM", "AXP", 
+                   "TFII", "FDX", "CAT", "HAL", "CVX", "PSX", 
+                   "BBWI", "SBUX", "MNST", "DIS", "PARA", 
+                   "GILD", "PKI", "CGC", 
+                   "PAAS", "AA", "VALE", "STLD", "MOS", 
+                   "ATKR", "RYN")
+
+for (i in 1:length(stock_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(stock_tickers[i])
+    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+```
+
+Creating charts for tickers. They are available for review as pdf in the portfolio folder. 
+
+```{r plot_data2}
+tickers = c("AMD", "TSM", "BAH", "PYPL", "AXP", "JPM", 
+            "GILD", "PKI", "BBWI", "SBUX", "MNST", "DIS", "PARA",
+            "FDX", "CAT", "AA", "CVX", "HAL", "MOS", "STLD") 
+
+etf1 = c("QQQ", "QQQ", "SPY", "QQQ", "SPY", "SPY", 
+         "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", 
+         "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY")
+
+etf2 = c("SMH", "SMH", "HACK", "IPAY", "XLF", "XLF", 
+         "XLV", "XLV", "XLY", "XLY", "FXG", "VOX", "VOX", 
+         "IYT", "XLI", "XME", "XLE", "VDE", "VAW", "VAW")
+
+df <- tibble(ticker = tickers, etf1 = etf1, etf2 = etf2) 
+pdf(paste0("charts_", today(), ".pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = tickers[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today())  
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+```{r plot_data3}
+st <- c("ABNB", "GOOG", "AAPL", "PYPL", "PARA", 'PICK', 'DBB', 'GDXJ', 'SILJ', 'COPX', 'KWEB', 'KGRN', 'KURE', 'KBA',  'EEM')
+for (i in 1:length(st)) { 
+  tryCatch({ 
+    get_fmpr_prices(st[i])
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+df <- tibble(ticker = st) 
+pdf(paste0("charts_st_", today(), "2.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = df$ticker[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-241, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-241, end_date = today())
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+Creating charts for etf. They are available for review as pdf in the portfolio folder. 
+
+```{r}
+df <- tibble(ticker = st) 
+pdf(paste0("charts_st_", today(), "2.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = df$ticker[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-241, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-241, end_date = today())
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+
+```{r plot_data}
+df <- tibble(ticker = etf_tickers) 
+pdf(paste0("charts_markets", today(), ".pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = df$ticker[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-600, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-600, end_date = today())
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+ETF with highest monthly returns. 
+
+```{r etf_returns}
+return_ndays <- function(df, ndays = 21) { 
+  yo <- df %>% mutate(returns = log(adjusted / lag(adjusted, n = ndays))) %>% 
+    select(index, returns) %>% 
+    filter(index > today() - 2)
+  return(yo)
+}
+
+etf_returns <- tibble(ticker = etf_tickers) %>% 
+  mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+         return_4w = map(raw_df, function(.x) return_ndays(.x))) %>% 
+  select(-raw_df) %>% 
+  unnest(col = "return_4w") %>% arrange(returns)
+
+```
+
+
+# Evaluates models 
+
+```{r} 
+the_path <- here::here()
+library(tidymodels)
+library(embed)
+
+tickers = c("FDX", 'JPM', "AXP", "GILD","SBUX","BBWI","PARA", "MOS", "AA", "CVX", "PYPL", "AMD", "CAT", "HAL")
+etf1 = c(   "SPY", 'SPY', "SPY", "SPY", "SPY", "SPY", "SPY",  "SPY", "SPY","SPY", "QQQ",  "QQQ", "SPY", "SPY")
+etf2 = c(   "IYT", 'XLF', "XLF", "XLV", "XLY", "XLY", "VOX",  'VAW', "XME","XLE", "IPAY", "SMH", "XLI", "VDE")
+
+yo <- unique(etf2)
+#yo <- c("XME","XLE", "IPAY", "SMH", "XLI", "VDE")
+poss_get_profile = possibly(.f = get_fmpr_profile, otherwise = NA)
+
+for (i in 1:length(yo)) { 
+  df1 <- get_fmpr_etf_holder(yo[i]) |> 
+    select(-updated, -marketValue, -weightPercentage) |> 
+    filter(str_length(asset) <= 4) |> 
+    mutate(profile = map(asset, poss_get_profile))  
+  df2 <- df1 |>  
+    unnest_wider(col = contains("profile")) |> 
+    select(-symbol) |> 
+    arrange(industry, mktCap) 
+  write_csv(df2, paste0("etf/", yo[i], "_", today(), ".csv")) 
+  for (j in 1:nrow(df1)) { 
+    get_fmpr_prices(df1$asset[j]) 
+    print(glue("Downloaded ticker ", df1$asset[j], " for etf ", yo[i])) 
+    }
+} 
+
+```
+
+
+```{r predictions, echo=FALSE, warning=FALSE, message=FALSE}
+
+predictions = tibble(index=NA, ret_5w=NA, ord_class=NA, predictions=NA, 
+                     pred_class=NA, ticker = NA, model=NA)
+
+for (i in 1:length(tickers)) { 
+  tryCatch({ 
+    v6l <- predict_v6_long(tickers[i], tickers[i], etf1[i], etf2[i])
+    predictions <- bind_rows(predictions, v6l)
+    print(glue("Just created predictions for ", tickers[i], " using model V6.2 Long")) 
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
+  #tryCatch({ 
+   # v6s <- predict_v6_short(tickers[i], tickers[i], etf1[i], etf2[i])
+  #  predictions <- bind_rows(predictions, v6s)
+   # print(glue("Just created predictions for ", tickers[i], " using model V6.2 Short"))
+  #}, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
+  tryCatch({   
+    v7l <- predict_v7_long(tickers[i], tickers[i], etf1[i], etf2[i])
+    predictions <- bind_rows(predictions, v7l)
+    print(glue("Just created predictions for ", tickers[i], " using model V7.1 Long with ETF1 = ", 
+               etf1[i], " and ETF2 = ", etf2[i]))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
+    tryCatch({   
+    v8l <- predict_v8_long(tickers[i], tickers[i], etf1[i], etf2[i])
+    predictions <- bind_rows(predictions, v8l)
+    print(glue("Just created predictions for ", tickers[i], " using model V8.1 Long with ETF1 = ", 
+               etf1[i], " and ETF2 = ", etf2[i]))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+yo2 <- predictions %>% #filter(Index >= today() -5) %>% 
+  mutate(date = today()) #%>% arrange(ticker, desc(Index))
+
+yo3 <- yo2 %>% unnest(cols = c(predictions, pred_class)) %>% 
+  mutate(ordered_pred = if_else(.pred_3 > .pred_2 & .pred_2 > .pred_1, 3, 
+                                if_else(.pred_1 > .pred_2 & .pred_2 > .pred_3, 1, 0))) %>% 
+  filter(index >= today() - 50) %>% select(-ord_class) %>% 
+  arrange(desc(index), ticker)
+yo <- yo2 %>% unnest(cols = c(predictions, pred_class))
+write_csv(yo, paste0(the_path, "/portfolio/predictions/predictions_", today(), ".csv"))
+#rm(v2l, v6l, v6s, v7l, yo2)
+
+yo4 <- yo3 %>% 
+  mutate(top_pred = if_else(.pred_1 > .pred_2 & .pred_1 > .pred_3, 1,
+                        if_else(.pred_3 > .pred_1 & .pred_3 > .pred_2, 3, 2)), 
+         mid_pred = case_when(.pred_1 > .pred_2 & .pred_1 < .pred_3 ~ 1, 
+                              .pred_1 < .pred_2 & .pred_1 > .pred_3 ~ 1, 
+                              .pred_2 < .pred_3 & .pred_2 > .pred_1 ~ 2, 
+                              .pred_2 > .pred_3 & .pred_2 < .pred_1 ~ 2, 
+                              TRUE ~ 3), 
+         bottom_pred = if_else(.pred_1 < .pred_2 & .pred_1 < .pred_3, 1, 
+                               if_else(.pred_3 < .pred_1 & .pred_3 < .pred_2, 3, 2)))
+yo5 <- yo4 %>% 
+  group_by(ticker, index) %>% 
+  summarise(top_pred = mean(top_pred), 
+            mid_pred = mean(mid_pred), 
+            bot_pred = mean(bottom_pred)) %>% 
+  mutate(top_2 = (top_pred + mid_pred)/2, 
+         bottom_2 = (mid_pred + bot_pred)/2) %>% 
+  arrange(desc(index), desc(top_pred), desc(mid_pred))
+
+```
+
+What stocks have had improved and deterioriating scores? 
+```{r eval=FALSE}
+yo <- yo5 %>% select(ticker, index, top_pred, mid_pred, bot_pred) %>% 
+  arrange(index) %>% 
+  group_by(ticker) %>% 
+  mutate(ordered_top = if_else(top_pred > mid_pred & mid_pred > bot_pred, 3, 
+                               if_else(bot_pred > mid_pred & mid_pred > top_pred, 1, 0)), 
+         changed_top_pred = if_else(top_pred > lag(top_pred), 1, 
+                                    if_else(top_pred < lag(top_pred), -1, 0)), 
+         changed_bot_pred = if_else(bot_pred > lag(bot_pred), -1, 
+                                    if_else(bot_pred < lag(bot_pred), 1, 0))) %>% 
+  ungroup() %>% 
+  filter(changed_top_pred == 1 | changed_top_pred == -1 | changed_bot_pred == 1 | changed_bot_pred == -1) %>% 
+  group_by(ticker) %>% 
+  arrange(desc(index)) %>% 
+  slice_head(n = 5) %>% 
+  ungroup() %>% 
+  arrange(ticker, desc(index))
+
+```
+
+
+```{r}
+library(dplyr)
+library(readr)
+library(lubridate)
+library(ggplot2)
+library(gridExtra)
+library(bdscale)
+
+the_path <- here::here()
+
+test_files <- list.files(path = paste0(the_path, '/portfolio/predictions'), 
+                         pattern = "predictions.*\\.csv$", # has "test", followed by 0 or more characters,
+                                                            # then ".csv", and then nothing else ($)
+                         full.names = TRUE) # include the directory in the result
+df <- tibble(Index = NA, index = NA, ret_5w = NA, ord_class = NA, 
+             .pred_1 = NA, .pred_2 = NA, .pred_3 = NA, 
+             ticker = NA, model = NA, date = NA)
+for (i in 1:length(test_files)) { 
+  yo <- read_csv(test_files[i]) %>% select(-.pred_class)
+  df <- add_row(df, yo)
+}
+
+tickers = c("FDX", 'JPM', "AXP", "GILD","SBUX","BBWI","PARA", "MOS", "AA", "CVX", "PYPL", "AMD", "CAT", "HAL")
+
+conform_data <- function(ticker, interval, provider){
+  if (interval == "Daily" & provider == "Yahoo"){
+    df <- read_csv(paste0(the_path, "/data_stock_ya/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      na.omit()
+  } else if (interval == "Daily" & provider == "Tiingo"){
+    df <- read_csv(paste0(the_path, "/data_stock_ti/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      na.omit() %>% 
+      rename(index = date, open = adjOpen, high = adjHigh, low = adjLow, close = adjClose, 
+             adjusted = adjClose, volume = adjVolume)    
+  } else if (interval == "Daily" & provider == "fmpr"){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      rename(index = date, adjusted = adjClose)    
+  }
+  df <- df %>% arrange(index)
+  return(df)
+}
+
+create_prices_vs_pred <- function(yo) { 
+    p1 <- ggplot(yo, aes(x = index, y = adjusted)) + 
+      geom_point(aes(col = score)) + 
+      annotate("text", x = yo$index[10], y = 1.1 * yo$adjusted[10], label = yo$ticker[1], color = "black") + 
+      #scale_color_gradientn(colours = terrain.colors(6)) + 
+      scale_color_gradient(low = "red", high = "green") + 
+      scale_x_bd(business.dates=yo$index, max.major.breaks = 20, labels=date_format("%d %b '%y"), expand = c(0,0.1)) + 
+      #ggtitle(label = tickers[i]) + 
+      facet_wrap(~ model, nrow=3) 
+    yo <- grid.arrange(p1)
+    yo
+}
+
+```
+
+```{r}
+pdf(paste0("returns_vs_predictions", today(), ".pdf"), width=13, height=8, onefile = TRUE) 
+for (i in 1:length(tickers)) { 
+  print(tickers[i])
+  yo <- df |> filter(ticker == tickers[i]) |>  
+    mutate(class_pred = if_else(.pred_3 > .pred_2 & .pred_3 > .pred_1, 3, 
+                                if_else(.pred_1 > .pred_2 & .pred_1 > .pred_3, 1, 2))) |> 
+    select(-Index) |> arrange(date) |> group_by(index, model) |> slice(1) |> 
+    select(index, .pred_1, .pred_2, .pred_3, ticker, model, date) |> 
+    mutate(score = case_when(.pred_3 > .pred_2 & .pred_2 > .pred_1 ~ 6, 
+                             .pred_2 > .pred_3 & .pred_3 > .pred_1 ~ 5, 
+                             .pred_3 > .pred_1 & .pred_1 > .pred_2 ~ 4, 
+                             .pred_1 > .pred_3 & .pred_3 > .pred_2 ~ 3, 
+                             .pred_2 > .pred_1 & .pred_1 > .pred_3 ~ 2, 
+                             TRUE ~ 1)) 
+  
+  yo_tick <- conform_data(tickers[i], interval = "Daily", provider = "fmpr") |> select(index, adjusted) 
+  yo_df <- left_join(yo, yo_tick, by = "index") |> filter(index > "2022-07-28") 
+  create_prices_vs_pred(yo_df)
+  Sys.sleep(2) 
+  }
+dev.off()
+```
+
+
+
+# What is the recent historical volatility 
+
+```{r historical_volatility}
+
+library(roll)
+ticker =  c("FDX", 'JPM', "AXP", "GILD", "SBUX","BBWI","PARA", "MOS", "AA", "CVX", "PYPL", "AMD", "CAT", "HAL")
+volat <- tibble(ticker = NA, index = NA, adjusted = NA, ret_5w = NA, mean_ret_5w = NA, sd_ret_5w = NA, ret_7w = NA, 
+                mean_ret_7w = NA, sd_ret_7w = NA,)
+for (i in 1: length(ticker)) { 
+  yo <- conform_data(ticker[i], "Daily", "fmpr") %>% arrange(index) %>% 
+    mutate(ret_5w = round((adjusted / lag(adjusted, n = 26)) - 1, 3), 
+           mean_ret_5w = round(roll_mean(ret_5w, width = 147), 3), 
+           sd_ret_5w = round(roll_sd(ret_5w, width = 147), 3), 
+           ret_7w = round((adjusted / lag(adjusted, n = 37)) - 1, 3), 
+           mean_ret_7w = round(roll_mean(ret_7w, width = 147), 3), 
+           sd_ret_7w = round(roll_sd(ret_7w, width = 147), 3), 
+           ticker = ticker[i]) %>% 
+           select(index, ticker, adjusted, ret_5w, mean_ret_5w, sd_ret_5w, ret_7w, mean_ret_7w, sd_ret_7w)
+  volat <- bind_rows(volat, yo)
+}
+
+volat <- volat %>% arrange(desc(index), desc(sd_ret_5w))
+
+```
+
+
+## Do an etf or ticker contain NA or 0? 
+
+```{r eval=FALSE}
+check_for_na <- function(ticker) { 
+  df <- conform_data(ticker, "Daily", "fmpr") %>% 
+    select(index, open, high, low, close, adjusted) %>% 
+    summarize_all((~ sum(is.na(.))))
+  return(df)
+}
+
+check_for_zero <- function(ticker) { 
+    df <- conform_data(ticker, "Daily", "fmpr") %>% 
+    select(open, high, low, close, adjusted) %>% 
+    filter(if_any(everything(.), ~ . == 0))
+  }
+## checking for 0 or NA
+check_na <- tibble(tickers = c("FDX", "SPY", "IYT")) %>% 
+  mutate(number_na = map(tickers, check_for_na)) %>% 
+  unnest(cols = c(number_na))
+
+check_naa <- tibble(tickers = c("FDX", "SPY", "IYT")) %>% 
+  mutate(number_zero = map(tickers, check_for_zero)) 
+df <- check_naa %>% unnest()
+```
+
+
+
+```{r}
+library(stringr)
+file_n = "/portfolio/predictions/predictions_2022-09-03.csv"
+yo <- read_csv(glue(the_path, file_n)) 
+yo$model <- str_replace_all(yo$model, "V7.1.e Long", "V71e Long")
+yo$model <- str_replace_all(yo$model, "V6.2e Long", "V62e Long")
+yo$model <- str_replace_all(yo$model, "Long Long", "Long")
+write_csv(yo, glue(the_path, file_n))
+  
+```
+

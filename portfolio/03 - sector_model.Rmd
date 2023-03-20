@@ -1,0 +1,335 @@
+---
+title: "Sectors Rotation"
+author: "FdR"
+date: "1/13/2022"
+output: html_document
+---
+
+Trying to model outperforming sectors.  
+Based on a range of a etf, predict which etf will outperform the market in the next month, 3 months, 6 months
+
+
+```{r warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 300)
+library(dplyr)
+library(readr)
+library(purrr)
+library(tidyr)
+library(stringr)
+library(glue)
+
+the_path <- here::here()
+
+source("../functions/fmpr_functions.R")
+source('../functions/chart_plotting_v1.R')
+
+conform_data <- function(ticker, interval, provider) {
+  if (interval == "Daily" & provider == "Yahoo") {
+    df <- read_csv(paste0(the_path, "/data_stock_ya/", ticker, ".csv"), show_col_types = FALSE) |> 
+      na.omit()
+  } else if (interval == "Daily" & provider == "fmpr") {
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
+      rename(index = date, adjusted = adjClose)    
+  }
+  df <- df |> arrange(index)
+  return(df)
+}
+
+```
+
+
+Get an ETF and all its constituents with main metrics on it. 
+
+# Sectors 
+
+## Get names and prices 
+
+```{r}
+etf <- 'HACK'
+market <- 'QQQ'
+
+poss_get_profile = possibly(.f = get_fmpr_profile, otherwise = NA)
+yo <- get_fmpr_etf_holder(etf) |> 
+  select(-updated, -marketValue, -weightPercentage) |> 
+  filter(str_length(asset) <= 4) |> 
+  mutate(profile = map(asset, poss_get_profile)) 
+
+df <- yo |>  
+  unnest_wider(col = contains("profile")) |> select(-symbol) |> 
+    arrange(industry, mktCap)
+write_csv(df, paste0("etf/", etf, "_", today(), ".csv"))
+
+df <- df |> filter(mktCap > 5)
+
+df2 <- df |> filter(peRatioTTM > 0 & pfcfRatioTTM > 0) %>% 
+  mutate(pe_ratio_rank = 1 - percent_rank(peRatioTTM), 
+         pfcf_ratio_rank = 1 - percent_rank(pfcfRatioTTM), 
+         price_to_sale_rank = 1 - percent_rank(priceToSalesRatioTTM), 
+         price_to_book_rank = 1 - percent_rank(pbRatioTTM), 
+         debt_to_asset_rank = 1 - percent_rank(debtToAssetsTTM), 
+         ev_to_ebidta = 1 - percent_rank(enterpriseValueOverEBITDATTM), 
+         score = (pe_ratio_rank + pfcf_ratio_rank + price_to_sale_rank + price_to_book_rank + debt_to_asset_rank + ev_to_ebidta) / 6)
+
+for (i in 1:nrow(df)) {
+  get_fmpr_prices(df$asset[i])
+  print(paste0("Downloaded ticker ", df$asset[i]))
+}
+```
+
+## Make the charts  
+
+```{r}
+pdf(paste0("etf_charts_", etf, ".pdf"), width=13, height=8, onefile = TRUE)
+
+# for XLV
+#df = df |> filter(asset != 'GEHC')
+
+for (i in 1:nrow(df)){ 
+  print(df$asset[i])
+  yo <- tibble(ticker = df$asset[i]) |> 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-365, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-365, end_date = today())
+  create_rel_candlestick_chart(df$asset[i], market, etf, df$asset[i], start_date = today()-365, end_date = today())
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+
+```{r}
+df2 <- df |> filter(peRatioTTM > 0 & pfcfRatioTTM > 0) %>% 
+  mutate(pe_ratio_rank = 1 - percent_rank(peRatioTTM), 
+         pfcf_ratio_rank = 1 - percent_rank(pfcfRatioTTM), 
+         price_to_sale_rank = 1 - percent_rank(priceToSalesRatioTTM), 
+         price_to_book_rank = 1 - percent_rank(pbRatioTTM), 
+         debt_to_asset_rank = 1 - percent_rank(debtToAssetsTTM), 
+         ev_to_ebidta = 1 - percent_rank(enterpriseValueOverEBITDATTM), 
+         score = (pe_ratio_rank + pfcf_ratio_rank + price_to_sale_rank + price_to_book_rank + debt_to_asset_rank + ev_to_ebidta) / 6)
+```
+
+
+
+# Returns and volatility 
+
+```{r}
+## create function that output log-returns and volatility of an asset 
+## we only sample once per week on Tuesday
+get_returns_and_volat <- function(ticker) { 
+  pv <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
+    arrange(date) |> 
+    select(date, adjClose) |> rename(adj_close = adjClose) |> 
+    filter(date > today() - 700) |> 
+    mutate(ret_5d = log(adj_close / lag(adj_close, 5)), 
+           ret_21d = log(adj_close / lag(adj_close, 21)), 
+           ret_37d = log(adj_close / lag(adj_close, 37)), 
+           mean_ret_37d = roll_mean(ret_37d, width = 251), 
+           sd_ret_37d = roll_sd(ret_37d, width = 251), 
+           ret_61d = log(adj_close / lag(adj_close, 61)), 
+           ret_107d = log(adj_close / lag(adj_close, 107)), 
+           days_of_week = wday(date, label = TRUE)) |> 
+    filter(days_of_week == 'Tue')
+  return(pv)
+  }
+
+# apply the functions on all the assets of the etf
+yo <- df |> select(asset, name, industry) |> 
+  mutate(df_prices = map(asset, get_returns_and_volat))
+
+# then apply a ranking on the 7 weeks returns and volatility. 
+yoo <- yo |> unnest(cols = c(df_prices)) |> na.omit() |> 
+  group_by(date) |> 
+  mutate(rank_ret_37d = percent_rank(ret_37d), 
+         rank_sd_ret_37d = percent_rank(sd_ret_37d)) |> 
+  arrange(desc(date), desc(sd_ret_37d)) 
+
+# we take an average of the ranking over the last 6 months. 
+yo_rank <- yoo |> filter(date > today() - 182) |> 
+  group_by(asset, name) |> 
+  summarize(avg_rank_ret = mean(rank_ret_37d), 
+            avg_rank_sd = mean(rank_sd_ret_37d)) |> 
+  ungroup()
+
+yoc <- yo_rank %>% filter((avg_rank_ret > 0.63 | avg_rank_ret < 0.36) & avg_rank_sd > 0.55)
+
+returns <- yoo |> filter(date == '2023-01-31') |> arrange(desc(ret_37d))
+```
+
+
+What I like to do now ... a quick regression 
+Lasso regression based on ranking.  
+Variables: ret_5d, ret_11d, ret_21d, ret_37d, ret_61d, ret_107d, rol_sd_ret_5d, rol_sd_ret_21d, rol_sd_ret_107d
+
+```{r}
+## prepare df for lasso 
+
+prepare_df <- function(ticker) { 
+  pv <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
+    arrange(date) |> 
+    select(date, adjClose) |> rename(adj_close = adjClose) |> 
+    filter(date > today() - 1000) |> 
+    mutate(ret_5d = log(adj_close / lag(adj_close, 5)), 
+           sd_ret_5d = roll_sd(ret_5d, width = 251), 
+           ret_21d = log(adj_close / lag(adj_close, 21)), 
+           sd_ret_21d = roll_sd(ret_21d, width = 251), 
+           sd_ret_21d_lag2w = lag(sd_ret_21d, 11), 
+           ret_37d = log(adj_close / lag(adj_close, 37)), 
+           ema_43d = TTR::EMA(adj_close, n=43), 
+           sd_43d = roll_sd(adj_close, width = 43), 
+           sd_above_mean_ret_43d = (adj_close - ema_43d) / sd_43d,  
+           ret_61d = log(adj_close / lag(adj_close, 61)), 
+           ret_61d_lag2w = lag(ret_61d, 13), 
+           ret_107d = log(adj_close / lag(adj_close, 107)), 
+           sd_ret_107d = roll_sd(ret_107d, width = 251), 
+           sd_ret_107d_lag4w = lag(sd_ret_107d, n = 19), 
+           fut_ret_40d = (lead(adj_close, 40) / adj_close) -1, 
+           fut_ret_40d_class = if_else(fut_ret_40d > 0, 1, 0) |> as.factor(), 
+           days_of_week = wday(date, label = TRUE)) |> 
+    filter(days_of_week == 'Tue') |> 
+    select(-ema_43d, -sd_43d, -days_of_week, -fut_ret_40d, -adj_close)
+  return(pv)
+  }
+
+yo <- df |> select(asset,) |> 
+  mutate(df_prices = map(asset, prepare_df))
+
+yoo <- yo |> unnest(cols = c(df_prices)) |> na.omit() |> 
+  group_by(date) |> 
+  mutate(rank_ret_5d = percent_rank(ret_5d), 
+         rank_sd_ret_5d = percent_rank(sd_ret_5d), 
+         rank_ret_21d = percent_rank(ret_21d), 
+         rank_sd_ret_21d = percent_rank(sd_ret_21d), 
+         rank_sd_ret_21d_lag2w = percent_rank(sd_ret_21d_lag2w), 
+         rank_ret_37d = percent_rank(ret_37d), 
+         rank_sd_above_mean_ret43d = percent_rank(sd_above_mean_ret_43d), 
+         rank_ret_61d = percent_rank(ret_61d), 
+         rank_ret_61d_lag2w = percent_rank(ret_61d_lag2w), 
+         rank_ret_107d = percent_rank(ret_107d), 
+         rank_sd_ret_107d = percent_rank(sd_ret_107d), 
+         rank_sd_ret_107d_lag4w = percent_rank(sd_ret_107d_lag4w)
+         ) |> 
+  select(-ret_5d, -sd_ret_5d, -ret_21d, -sd_ret_21d, -sd_ret_21d_lag2w, -ret_37d, 
+         -sd_above_mean_ret_43d, -ret_61d, 
+         -ret_61d_lag2w, -ret_107d, -sd_ret_107d, -sd_ret_107d_lag4w ) |>
+  arrange(desc(date), desc(rank_ret_37d)) |> ungroup()
+
+yoob <- yo |> unnest(cols = c(df_prices)) |> #na.omit() |> 
+  group_by(date) |> 
+  mutate(rank_ret_5d = percent_rank(ret_5d), 
+         rank_sd_ret_5d = percent_rank(sd_ret_5d), 
+         rank_ret_21d = percent_rank(ret_21d), 
+         rank_sd_ret_21d = percent_rank(sd_ret_21d), 
+         rank_sd_ret_21d_lag2w = percent_rank(sd_ret_21d_lag2w), 
+         rank_ret_37d = percent_rank(ret_37d), 
+         rank_sd_above_mean_ret43d = percent_rank(sd_above_mean_ret_43d), 
+         rank_ret_61d = percent_rank(ret_61d), 
+         rank_ret_61d_lag2w = percent_rank(ret_61d_lag2w), 
+         rank_ret_107d = percent_rank(ret_107d), 
+         rank_sd_ret_107d = percent_rank(sd_ret_107d), 
+         rank_sd_ret_107d_lag4w = percent_rank(sd_ret_107d_lag4w)
+         ) |> 
+  select(-ret_5d, -sd_ret_5d, -ret_21d, -sd_ret_21d, -sd_ret_21d_lag2w, -ret_37d, 
+         -sd_above_mean_ret_43d, -ret_61d, 
+         -ret_61d_lag2w, -ret_107d, -sd_ret_107d, -sd_ret_107d_lag4w ) |>
+  arrange(desc(date), desc(rank_ret_37d)) |> ungroup()
+
+yob <- yo |> unnest(cols = c(df_prices)) |> 
+  arrange(desc(date), desc(ret_21d))
+```
+
+
+
+```{r}
+library(rsample)
+library(recipes)
+library(workflows)
+library(parsnip)
+library(rsample)
+library(tune)
+library(dials)
+library(glmnet)
+
+yoob <- yoo |> select(-date, -asset)
+df_split <- initial_split(yoob, prop = 0.85, strata = fut_ret_40d_class)
+df_training <- training(df_split)
+df_testing <- testing(df_split)
+
+df_recipe <- recipe(fut_ret_40d_class ~ ., data = df_training) 
+
+wf <- workflow() |> add_recipe(df_recipe)
+
+#df_boot <- bootstraps(df_training, strata = fut_ret_40d_class)
+df_vfold <- vfold_cv(df_training, )
+
+model_rf <- rand_forest(mtry= tune(), trees = tune(), min_n = tune()) |> 
+  #linear_reg(penalty = tune(), mixture = 1) |> 
+  set_engine('ranger') |> 
+  set_mode('classification')
+
+#lambda_grid <- grid_regular(penalty(), levels = 50)
+
+
+doParallel::registerDoParallel()
+
+#lasso_grid <- tune_grid(wf |> add_model(model_df), 
+#                        resamples = df_boot, 
+#                        grid = lambda_grid)
+
+#rf_grid <- tune_grid(wf |> add_model(model_rf), resamples = df_vfold, grid = 50)
+rf_grid <- grid_latin_hypercube(min_n(range = c(10, 20)), mtry(range = c(4, 9)), trees(range = c(500, 900)), size = 80)
+tune_rf <- tune_grid(wf |> add_model(model_rf), resamples = df_vfold, grid = rf_grid)
+#lasso_grid %>% collect_metrics()
+
+rf_grid
+
+best_auc <- select_best(tune_rf, "roc_auc")
+
+final_rf <- finalize_model(model_rf, best_auc)
+
+final_rf
+
+final_wf <- workflow() |> add_recipe(df_recipe) |> add_model(final_rf)
+final_rf_fitted <- final_wf |> last_fit(df_split)
+final_rf_2 <- fit(final_wf, df_training)
+
+library(vip)
+tree_prep <- prep(df_recipe)
+final_rf |>
+  set_engine("ranger", importance = "permutation") %>%
+  fit(fut_ret_40d_class ~ .,
+    data = juice(tree_prep)
+  ) %>%
+  vip(geom = "point")
+
+```
+
+```{r}
+library(ranger)
+yo_pred <- predict(final_rf_2, df_testing)
+
+#using the other data set where I have not removed the na row
+yooc <- yoob |> filter(date >= '2022-12-27')
+yooc_pred <- predict(final_rf_2, yooc, type = 'prob')
+
+yooc_pred_fit <- yooc |> add_column(yooc_pred)
+```
+
+
+```{r}
+library(ggplot2)
+tune_rf %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, min_n, mtry) %>%
+  pivot_longer(min_n:mtry,
+    values_to = "value",
+    names_to = "parameter"
+  ) %>%
+  ggplot(aes(value, mean, color = parameter)) +
+  geom_point(show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(x = NULL, y = "AUC")
+```
+
+
