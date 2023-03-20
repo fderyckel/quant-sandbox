@@ -16,7 +16,7 @@ get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) {
   return_json <- httr::content(res, as = "text")
   d <- jsonlite::fromJSON(return_json)
   d <- tibble::as_tibble(d$historical)
-  write_csv(d, glue("raw_data/", {ticker}, ".csv"))
+  write_csv(d, glue(the_path, "/data_stock_fmpr/", {ticker}, ".csv"))
 }
 
 get_fmpr_profile <- function(ticker) { 

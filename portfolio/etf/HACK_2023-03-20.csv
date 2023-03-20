@@ -1,0 +1,44 @@
+etf,asset,name,sector,industry,beta,mktCap,peRatioTTM,pfcfRatioTTM,priceToSalesRatioTTM,pbRatioTTM,debtToAssetsTTM,enterpriseValueOverEBITDATTM
+HACK,JNPR,JUNIPER NETWORKS INC,Technology,Communication Equipment,0.943528,10.15,21.5,-1350,1.91,2.26,0.52,13.9
+HACK,CSCO,CISCO SYS INC,Technology,Communication Equipment,0.982111,205.6,18.2,13.3,3.87,4.97,0.567,12.6
+HACK,BAH,BOOZ ALLEN HAMILTON HLDG CORP CL A,Industrials,Consulting Services,0.60014,11.71,27.2,21.6,1.29,9.71,0.81,17.4
+HACK,TLS,TELOS CORP MD,Technology,Information Technology Services,0.535383,0.1626,-4.2,337,0.696,0.923,0.284,-1.59
+HACK,NABL,N-ABLE INC,Technology,Information Technology Services,0,2.197,131,39.9,5.91,3.4,0.405,33.6
+HACK,SAIC,SCIENCE APPLICATIONS INTL CORP COM,Technology,Information Technology Services,0.67485,5.585,20.9,12.1,0.743,3.34,0.699,13.1
+HACK,CACI,CACI INTL INC,Technology,Information Technology Services,0.971588,6.573,18,11.6,1.01,2.02,0.504,12.8
+HACK,LDOS,LEIDOS HOLDINGS INC,Technology,Information Technology Services,0.769554,12.39,18.1,14.5,0.86,2.88,0.667,12.3
+HACK,EVBG,EVERBRIDGE INC,Technology,Software—Application,0.779726,1.331,-15,109,3.19,5.36,0.821,-102
+HACK,CVLT,COMMVAULT SYS INC,Technology,Software—Application,0.57243,2.439,156,13.1,3.1,9.41,0.687,46.9
+HACK,CISO,CERBERUS CYBER SENTINEL CORP COM,Technology,Software—Infrastructure,1.687175,0.04596,-0.777,-4.02,1.22,0.572,0.24,-1.03
+HACK,ALLT,ALLOT LTD,Technology,Software—Infrastructure,1.054016,0.09969,-4.21,-2.88,1.01,0.977,0.521,-8.51
+HACK,ARQQ,ARQIT QUANTUM INC,Technology,Software—Infrastructure,0,0.124,1.69,-2.41,17.2,1.4,0.366,1.24
+HACK,ZFOX,ZEROFOX HLDGS INC,Technology,Software—Infrastructure,-0.181976,0.1477,-0.203,-16.8,2.61,0.29,0.358,-0.373
+HACK,CGNT,COGNYTE SOFTWARE LTD,Technology,Software—Infrastructure,1.344393,0.2273,-2.61,-4.1,0.952,1.06,0.551,-3.52
+HACK,SCWX,SECUREWORKS CORP,Technology,Software—Infrastructure,0.986671,0.6383,-7.66,-11.2,1.34,1.09,0.311,-7.17
+HACK,OSPN,ONESPAN INC,Technology,Software—Infrastructure,0.855138,0.7304,-28.9,-47.9,3.3,3.57,0.393,-80.7
+HACK,RDWR,RADWARE LTD,Technology,Software—Infrastructure,0.952998,0.9116,-102,-106,3.09,2.73,0.431,41.4
+HACK,ATEN,A10 NETWORKS INC,Technology,Software—Infrastructure,1.066643,1.067,23.3,19.3,3.81,6.04,0.51,15.8
+HACK,RAMP,LIVERAMP HLDGS INC,Technology,Software—Infrastructure,1.140301,1.378,-12.5,24.5,2.34,1.6,0.157,-11.4
+HACK,SWI,SOLARWINDS CORP,Technology,Software—Infrastructure,0.918936,1.411,-1.52,9.59,1.96,1.03,0.572,-3.52
+HACK,SUMO,SUMO LOGIC INC,Technology,Software—Infrastructure,1.308565,1.454,-10.8,-41.9,5.05,3.72,0.34,-12.7
+HACK,FORG,FORGEROCK INC,Technology,Software—Infrastructure,0,1.767,-26.4,-25.9,8.12,5.52,0.36,-28
+HACK,NTCT,NETSCOUT SYS INC,Technology,Software—Infrastructure,0.701508,1.969,36.6,10.5,2.19,0.993,0.31,12
+HACK,RPD,RAPID7 INC,Technology,Software—Infrastructure,1.127323,2.328,-18.4,57.2,3.4,-19.2,1.09,-43.3
+HACK,VRNS,VARONIS SYS INC,Technology,Software—Infrastructure,0.879691,2.73,-22.3,5750,5.76,5.52,0.519,-30.3
+HACK,S,SENTINELONE INC,Technology,Software—Infrastructure,0,4.26,-11.9,-22,11.8,2.51,0.24,-12
+HACK,QLYS,QUALYS INC,Technology,Software—Infrastructure,0.62364,4.488,43,25.7,9.16,16.1,0.588,25.4
+HACK,TENB,TENABLE HLDGS INC,Technology,Software—Infrastructure,1.243648,5.036,-54.2,45,7.37,18.4,0.812,-93.4
+HACK,CYBR,CYBERARK SOFTWARE LTD,Technology,Software—Infrastructure,1.083479,5.765,-44.1,155,9.74,8.47,0.627,-56.2
+HACK,FFIV,F5 INC,Technology,Software—Infrastructure,1.090494,8.461,28.1,17.9,3.12,3.28,0.492,16.9
+HACK,GEN,GEN DIGITAL INC,Technology,Software—Infrastructure,1.062434,10.43,19.1,13.9,3.36,8.06,0.916,16
+HACK,AKAM,AKAMAI TECHNOLOGIES INC,Technology,Software—Infrastructure,0.784286,11.5,32.7,14.1,3.18,2.65,0.475,12.5
+HACK,OKTA,OKTA INC,Technology,Software—Infrastructure,1.116099,13.52,-16.5,208,7.28,2.45,0.413,-22.2
+HACK,SPLK,SPLUNK INC,Technology,Software—Infrastructure,1.289372,14.59,-52.7,34.2,3.99,-133,1.02,-155
+HACK,ZS,ZSCALER INC,Technology,Software—Infrastructure,0.878082,15.31,-47,62.8,11.4,28.8,0.826,-62.8
+HACK,CHKP,CHECK POINT SOFTWARE TECH LTD ORD,Technology,Software—Infrastructure,0.689231,16.2,19.7,15.3,6.95,5.37,0.488,15.9
+HACK,NET,CLOUDFLARE INC,Technology,Software—Infrastructure,1.029589,18.01,-92.6,-453,18.5,28.7,0.759,-232
+HACK,VRSN,VERISIGN INC,Technology,Software—Infrastructure,0.994387,20.28,31,25.2,14.2,-13.4,1.9,21.6
+HACK,CRWD,CROWDSTRIKE HLDGS INC,Technology,Software—Infrastructure,1.024484,31.4,-175,67.2,15.4,23.7,0.701,-435
+HACK,FTNT,FORTINET INC,Technology,Software—Infrastructure,1.137846,48,56.1,33.1,10.9,-171,1.05,46.8
+HACK,PANW,PALO ALTO NETWORKS INC,Technology,Software—Infrastructure,1.162048,57.23,1670,21.3,9.3,78.4,0.945,171
+HACK,PSN,PARSONS CORP DEL,Industrials,Specialty Industrial Machinery,0.836918,4.282,43.8,20.7,1.02,2.07,0.501,17.6

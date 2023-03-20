@@ -19,7 +19,6 @@ library(stringr)
 library(glue)
 
 the_path <- here::here()
-
 source("../functions/fmpr_functions.R")
 source('../functions/chart_plotting_v1.R')
 
