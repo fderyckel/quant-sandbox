@@ -116,9 +116,9 @@ create_candlestick_chart <- function(df, tickerss, start_date = today()-365, end
           plot.margin = margin(0.2, 0.2, 0.1, 0.4, "cm"),       # This is to shrink the padding at the 4 side of the graph
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", size = 0.2), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", size = 0.2),
-          panel.grid.minor.y = element_line(colour = "white", linetype = "dotted", size = 0.15),
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.2), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.2),
+          panel.grid.minor.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.15),
           panel.grid.minor.x = element_blank())
   
   # graphing of the ppo part.  
@@ -136,8 +136,8 @@ create_candlestick_chart <- function(df, tickerss, start_date = today()-365, end
           plot.margin = margin(0, 0.2, 0.1, 0.4, "cm"), 
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", size = 0.1), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", size = 0.1),
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
           panel.grid.minor = element_blank())
   
   p3 <- ggplot(df2, aes(x = index)) + 
@@ -154,8 +154,8 @@ create_candlestick_chart <- function(df, tickerss, start_date = today()-365, end
           plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", size = 0.1), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", size = 0.1),
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
           panel.grid.minor = element_blank())
   
   
@@ -192,9 +192,9 @@ create_vol_candlestick_chart <- function(df, tickerss, start_date = today()-365,
           plot.margin = margin(0.2, 0.2, 0.1, 0.4, "cm"),       # This is to shrink the padding at the 4 side of the graph
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", size = 0.15), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", size = 0.15),
-          panel.grid.minor.y = element_line(colour = "white", linetype = "dotted", size = 0.15),
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.15), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.15),
+          panel.grid.minor.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.15),
           panel.grid.minor.x = element_blank())
   
   p2 <- ggplot(df2, aes(x = index)) + 
@@ -211,8 +211,8 @@ create_vol_candlestick_chart <- function(df, tickerss, start_date = today()-365,
           plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", size = 0.1), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", size = 0.1),
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
           panel.grid.minor = element_blank())
   
   p3 <- ggplot(df2, aes(x = index)) + 
@@ -231,8 +231,8 @@ create_vol_candlestick_chart <- function(df, tickerss, start_date = today()-365,
           plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", size = 0.1), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", size = 0.1),
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
           panel.grid.minor = element_blank())
   
   
@@ -287,9 +287,9 @@ create_rel_candlestick_chart <- function(ticker, etf1, etf2,
           plot.margin = margin(0.2, 0.2, 0.1, 0.4, "cm"), # This is to shrink the padding at the 4 side of the graph
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", size = 0.15), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", size = 0.15),
-          panel.grid.minor.y = element_line(colour = "white", linetype = "dotted", size = 0.15),
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.15), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.15),
+          panel.grid.minor.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.15),
           panel.grid.minor.x = element_blank())
   
   p2 <- ggplot(df2, aes(x = index, y = adjusted_tic_mark)) + 
@@ -325,7 +325,7 @@ create_rel_candlestick_chart <- function(ticker, etf1, etf2,
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
           panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", size = 0.1),
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
           panel.grid.minor = element_blank())
   
   
