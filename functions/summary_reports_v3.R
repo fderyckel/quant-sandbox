@@ -45,9 +45,9 @@ conform_data <- function(ticker, interval, provider){
 #######################################################################
 ## Using models for prediction. 
 #######################################################################
-source(paste0(the_path, "/models/functions/wrangle_data_v06.R"))
-source(paste0(the_path, "/models/functions/wrangle_data_v07_2.R"))
-source(paste0(the_path, "/models/functions/wrangle_data_v08_2.R"))
+#source(paste0(the_path, "/models/functions/wrangle_data_v06.R"))
+#source(paste0(the_path, "/models/functions/wrangle_data_v07_2.R"))
+#source(paste0(the_path, "/models/functions/wrangle_data_v08_2.R"))
 
 predict_v6_long <- function(ticker, model_ticker, mkt, sect){ 
   test0 <- conform_data(ticker, interval = "Daily", provider = "fmpr") %>% 
