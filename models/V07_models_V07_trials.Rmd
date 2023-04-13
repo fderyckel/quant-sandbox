@@ -1,0 +1,239 @@
+---
+title: "Complex Models V.7.0"
+author: "FdR"
+date: "12/4/2021"
+output: html_document
+---
+
+
+```{r run_model, eval=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 300)
+
+library(dplyr)
+library(rsample)
+library(parsnip)
+library(recipes)
+library(tune)
+library(workflows)
+library(dials)
+library(yardstick)
+library(embed)
+
+# setting up the path within the project for easier portability of code
+thePath <- here::here()
+source(paste0(thePath, "/models/functions/wrangle_data_v07.R"))
+
+ticker <- "CVX"
+etf1 <- "SPY"
+etf2 <- "XLE"
+
+
+model_type = "5wClassThirdile"
+print(paste0("Dealing now with ", ticker))
+df0 <- conform_data(ticker, interval = "Daily", provider = "Tiingo") %>% 
+  create_base_fin_df_v7() 
+df1 <- relative_returns_v7(ticker, etf1, etf2)
+df_model <- left_join(df0, df1, by = "Index") %>% reduce_df_v7() %>% 
+  mutate(ord_class = as.factor(ntile(ret_5w, 3))) %>% 
+  na.omit() 
+rm(df0, df1)
+
+print(paste0("The ", model_type, " build on ", ticker, " has ", nrow(df_model), " rows"))
+  
+skip = 24
+prediction_advance = 13 + skip 
+starting_percentage = 0.59 
+based_sample = floor((nrow(df_model) - (10 * prediction_advance)) * starting_percentage) 
+if (based_sample < 2500) { 
+  while (based_sample < 2500 & starting_percentage < 0.8) { 
+    starting_percentage = starting_percentage + 0.05
+    based_sample = floor((nrow(df_model) - (10 * prediction_advance)) * starting_percentage) 
+  } 
+} 
+skippy = floor((nrow(df_model) - prediction_advance - based_sample) / 36) - 1 
+time_slices <- rolling_origin(df_model, initial = based_sample, assess = prediction_advance, 
+                              lag = -skip, skip = skippy, cumulative = TRUE) %>% 
+  mutate(train = map(splits, training), validation = map(splits, testing)) 
+print(paste0("First sample has ", based_sample, " rows and training is skipping ", skippy, " rows."))
+print(paste0("There are ", nrow(time_slices) ," time slices created."))  
+
+recipe_base <- recipe(formula = ord_class ~., data = df_model) %>% 
+  update_role(Index, new_role="ID") %>% 
+  step_naomit(columns = all_numeric_predictors()) %>% 
+  step_normalize(contains("dim_roc")) %>% 
+  step_normalize(contains("zzmark_")) %>% 
+  step_rm("ret_5w") %>% 
+  step_umap(contains("dim_roc"), prefix = "umap_ret", 
+            id="umap_roc", num_comp = 4, options=list(verbose = TRUE, n_threads = 4)) %>% 
+  step_umap(contains("zzmark_"), prefix = "umap_zzmar", 
+            id="umap_zzmar", num_comp = 6, options=list(verbose = TRUE, n_threads = 4)) %>% 
+  step_umap(contains("meltp_"), prefix = "umap_meltp", 
+            id="umap_meltp", num_comp = 4, options=list(verbose = TRUE, n_threads = 4))  
+  
+model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune(), 
+                            tree_depth = tune(), 
+                            learn_rate = tune(), min_n = tune()) %>% 
+set_engine("xgboost") %>% set_mode("classification") 
+
+stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)), loss_reduction(range = c(-10, 1.5)), 
+                                     mtry(range = c(12L, 17L)), learn_rate(range = c(-4, -2)), 
+                                     min_n(range = c(17L, 29L)),   
+                                     tree_depth(range = c(6L, 9L)), 
+                                     size = 80) 
+wf <- workflow() %>% add_recipe(recipe_base) %>% add_model(model_xgboost)  
+
+print("Starting now the resampling process")
+doParallel::registerDoParallel()
+xgboost_resampling <- tune_grid(wf, time_slices, 
+                                grid = stopping_grid, 
+                                metrics = metric_set(accuracy, mn_log_loss), 
+                                control = control_resamples(save_pred = TRUE, save_workflow = TRUE))
+
+print("resampling process over.  Looking now for best model.")
+yo_soft_acc <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
+                            .pred_class!="3" & ord_class != "3" ~ 1, 
+                            TRUE ~ 0)) %>% 
+  group_by(.config) %>% 
+  summarize(mean_soft_acc = sum(soft_acc)/n(), 
+            mtry = mean(mtry), tree_depth = mean(tree_depth), 
+            trees = mean(trees), 
+            min_n = mean(min_n), learn_rate = mean(learn_rate))
+
+# if I predict a 3, is it indeed a 3? Higher is better
+yo_precision <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(spec_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) %>% 
+  filter(.pred_class == "3") %>% 
+  group_by(.config) %>% 
+  summarize(mean_preci = sum(spec_3)/n())
+
+# if there is a "3" in the actual returns, do I manage to predict it! Higher is better
+yo_recall <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(sens_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) %>% 
+  select(-mtry, -min_n, -learn_rate, -loss_reduction, -tree_depth) %>% 
+  filter(ord_class == "3") %>% 
+  group_by(.config) %>% 
+  summarize(mean_recall = sum(sens_3)/n())
+
+# if I predict a 3, is it indeed a 3? Higher is better
+yo_soft_preci <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(spec_3 = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
+                            .pred_class=="3" & ord_class == "2" ~ 0.5, 
+                            .pred_class=="3" & ord_class == "1" ~ 0, 
+                            TRUE ~ 0)) %>% 
+  #select(-mtry, -min_n, -learn_rate, -loss_reduction) %>% 
+  filter(.pred_class == "3") %>% 
+  group_by(.config) %>% 
+  summarize(mean_soft_preci = sum(spec_3)/n())
+
+yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %>% 
+  left_join(., yo_soft_acc) %>% 
+  mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
+         preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
+         avg_rank =  0.5 * preci_rank + 0.2 * soft_preci_rank + 0.15 * soft_acc_rank + 0.15 * recall_rank)
+
+yo_metric <- left_join(yo_precision, yo_soft_acc) %>% left_join(., yo_recall) %>% 
+  left_join(., yo_soft_preci) %>% left_join(., yo_cost3) %>% 
+  select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, mean_soft_acc, 
+         mtry, tree_depth, trees, min_n, learn_rate) %>% 
+  arrange(desc(avg_rank), mean_preci)
+
+rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
+
+write_csv(yo_metric, paste0(thePath, "/models/models_metrics/xgboost_modelv71_", model_type, "_", ticker, ".csv"))
+
+best_model <- yo_metric$.config[1]
+
+best_param <-xgboost_resampling %>% collect_metrics() %>% filter(.config == best_model) %>% slice_tail()
+best_param
+
+final_model <- finalize_model(model_xgboost, best_param)
+final_model
+
+final_wf <- workflow() %>% add_recipe(recipe_base) %>% add_model(final_model)
+final_wf
+
+model_base <- fit(object = final_wf, data = df_model)
+write_rds(model_base, paste0(thePath, "/models/models_raw/xgboost_modelv71_", model_type, "_", ticker, ".rda"))
+
+library(vip)
+df_prep <- prep(recipe_base)
+var_importance <- final_model %>% 
+  set_engine("xgboost", importance = "permutation") %>% 
+  fit(ord_class ~ ., data = juice(df_prep) %>% select(-Index)) %>%
+  vi()
+write_csv(var_importance, paste0(thePath, "/models/var_importance/xgboost_modelv71_", model_type, "_", ticker, ".csv"))
+rm(df_prep)
+
+```
+
+
+# Other useful functions for tidymodels  
+
+## Download data
+```{r message=FALSE, warning=FALSE, eval=FALSE}
+library(tidyverse)
+thePath <- here::here()
+source("../functions/get_data.R")
+get_tiingo_prices("HYG")
+```
+
+
+
+Check the models on newer data
+```{r check_model, eval=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+library(tidymodels)
+thePath <- here::here()
+source(paste0(thePath, "/models/functions/wrangle_data_v06.R"))
+ticker <- "TSM"
+etf1 <- "QQQ"
+etf2 <- "SMH"
+test0 <- conform_data(ticker, interval = "Daily", provider = "Tiingo") %>% 
+  create_base_fin_df_v6() %>% mutate(ord_class = as.factor(ntile(ret_5w, 3))) 
+test1 <- relative_returns(ticker, etf1, etf2)
+test <- left_join(test0, test1, by = "Index") %>% 
+  reduce_test_df_v6() %>% filter(Index > today() - 100)
+rm(test0, test1)
+
+# taking the long side V6
+prediction1 <- tibble(Index = test$Index, 
+                      prediction = predict(read_rds(paste0("models_raw/xgboost_modelv6_5wClassThirdile_", ticker, ".rda")), 
+                                           new_data = test, type="prob")) %>% 
+  mutate(prob1 = prediction$.pred_1, prob2 = prediction$.pred_2, prob3 = prediction$.pred_3) %>% 
+  select(-prediction)
+
+prediction2 <- tibble(Index = test$Index, 
+                      prediction = predict(read_rds(paste0("models_raw/xgboost_modelv6_5wClassThirdile_", ticker, ".rda")), 
+                                           new_data = test)) %>% 
+  mutate(pred_ord_class = prediction$.pred_class) %>% select(-prediction)
+
+yo_v6 <- left_join(test, prediction1) %>% 
+  select(Index, ret_5w, ord_class, prob1, prob2, prob3) %>% 
+  left_join(., prediction2) 
+
+
+# taking the short side
+source(paste0(thePath, "/models/functions/wrangle_data_v02.R"))
+test0 <- conform_data(ticker, interval = "Daily", provider = "Tiingo") %>% 
+  create_base_fin_df_v2() %>% mutate(ord_class = as.factor(ntile(ret_5w, 3))) 
+test1 <- relative_returns(ticker, etf1, etf2)
+test <- left_join(test0, test1, by = "Index") %>% 
+  reduce_test_df_v2() %>% filter(Index > today() - 100)
+rm(test0, test1)
+prediction1 <- tibble(Index = test$Index, 
+                      prediction = predict(read_rds(paste0("models_raw/xgboost_modelv2short_5wClassThirdile_", ticker, ".rda")), 
+                                           new_data = test, type="prob")) %>% 
+  mutate(prob1 = prediction$.pred_1, prob2 = prediction$.pred_2, prob3 = prediction$.pred_3) %>% 
+  select(-prediction)
+
+prediction2 <- tibble(Index = test$Index, 
+                      prediction = predict(read_rds(paste0("models_raw/xgboost_modelv2short_5wClassThirdile_", ticker, ".rda")), 
+                                           new_data = test)) %>% 
+  mutate(pred_ord_class = prediction$.pred_class) %>% select(-prediction)
+yo_v6_short <- left_join(test, prediction1) %>% 
+  select(Index, ret_5w, ord_class, prob1, prob2, prob3) %>% 
+  left_join(., prediction2)
+```
+
+
+

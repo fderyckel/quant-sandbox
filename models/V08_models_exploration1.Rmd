@@ -1,0 +1,541 @@
+---
+title: "V08 - Exploration of Relative markets"
+author: "FdR"
+date: "4/29/2022"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+Book to read :-)
+https://www.tmwr.org/
+
+
+TODO: 
+1. Sort out the na.omit.... that hides the problem... do we have rows with no data?  rows with 0 values?
+2. We don't do small cap (doesn't work with optionns).  
+2. TLT vs HYG is this of any values?
+3.  percentage in sector below 50SMA? percentage above 200SMA
+4.  What is rolling_cor20_ret_etf1 from model 2... do we have this included?
+5. Maybe the min and max variables should be included in the dim_roc variables.  Not sure how high they are on the 7 models. 
+
+How a stock do comparing to its sector is more important than how it does comparing to the market. etf2 > etf1 in terms of information. 
+
+```{r basics}
+library(dplyr)
+library(purrr)
+library(readr)
+library(stringr)
+library(glue)
+library(lubridate)
+library(roll)
+library(tidyr)
+
+the_path <- here::here()
+
+### tickers I will be working on ... 
+tickers = c("AMD", "TSM", "QRVO", "AMAT", "BAH", "PYPL", "AXP", "JPM", 
+            "GILD", "PKI", "BBWI", "SBUX", "DIS", "PARA",
+            "FDX", "CAT", "AA", "CVX", "HAL", "MOS", "STLD") 
+
+etf1 = c("QQQ", "QQQ", "QQQ", "QQQ", "SPY", "QQQ", "SPY", "SPY", 
+         "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", 
+         "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY")
+
+etf2 = c("SMH", "SMH", "SMH", "SMH", "HACK", "IPAY", "XLF", "XLF", 
+         "XLV", "XLV", "XLY", "XLY", "VOX", "VOX", 
+         "IYT", "XLI", "XME", "XLE", "VDE", "VAW", "VAW")
+
+### Function to harmonize the data. 
+### ### This is copied from summary_report_v3
+conform_data <- function(ticker, interval, provider){
+  if (interval == "Daily" & provider == "Yahoo"){
+    df <- read_csv(paste0(the_path, "/data_stock_ya/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      na.omit()
+  } else if (interval == "Daily" & provider == "Tiingo"){
+    df <- read_csv(paste0(the_path, "/data_stock_ti/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      na.omit() %>% 
+      rename(index = date, open = adjOpen, high = adjHigh, low = adjLow, close = adjClose, 
+             adjusted = adjClose, volume = adjVolume)    
+  } else if (interval == "Daily" & provider == "fmpr"){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      rename(index = date, adjusted = adjClose) %>% arrange(index)   
+  }
+  df <- df %>% arrange(index)
+  return(df)
+}
+
+get_fmpr_etf_holder <- function(etf) { 
+  base_url <- "https://financialmodelingprep.com/api/v3/"
+  endpoint <- 'etf-holder/'
+  headers = c(`Upgrade-Insecure-Requests` = '1')
+  params = list(`datatype` = 'json', 
+                `apikey` = "9b274cc7e7560cdb56d931b697c1ed45")
+  res <- httr::GET(url = glue(base_url, endpoint, etf), 
+                   httr::add_headers(.headers = headers), query = params)
+  return_json <- httr::content(res, as = "text")
+  d <- jsonlite::fromJSON(return_json) %>% tibble::as_tibble()
+  d <- tibble::add_column(d, etf, .before = 1)
+  d <- d %>% select(-isin, -cusip, -sharesNumber) %>% arrange(desc(weightPercentage))
+  write_csv(d, paste0(the_path, "/analysis/etf/", etf, "_", today(), ".csv"))
+  return(d)
+}
+
+get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) { 
+  base_url <- "https://financialmodelingprep.com/api/v3/"
+  endpoint <- 'historical-price-full/'
+  headers = c(`Upgrade-Insecure-Requests` = '1')
+  params = list(`datatype` = 'json', `from` = from, `to` = to, 
+                `apikey` = "9b274cc7e7560cdb56d931b697c1ed45")
+  res <- httr::GET(url = glue(base_url, endpoint, ticker), 
+                   httr::add_headers(.headers = headers), query = params)
+  return_json <- httr::content(res, as = "text")
+  d <- jsonlite::fromJSON(return_json)
+  d <- tibble::as_tibble(d$historical)
+  write_csv(d, glue({the_path}, "/data_stock_fmpr/", {ticker}, ".csv"))
+}
+
+## function to have percentage in etf above a certain amount.  
+create_small_ma_df <- function(ticker) {
+  df <- conform_data(ticker, interval = "Daily", provider = "fmpr") %>% 
+    filter(is.na(volume) == FALSE) %>% 
+    mutate(ema19 = TTR::EMA(adjusted, n = 19), 
+           ema37 = TTR::EMA(adjusted, n = 37), 
+           sma67 = TTR::SMA(adjusted, n = 67), 
+           sma200 = TTR::SMA(adjusted, n = 200), 
+           above_ema19 = if_else(adjusted > ema19, 1, 0), 
+           above_ema37 = if_else(adjusted > ema37, 1, 0), 
+           above_sma67 = if_else(adjusted > sma67, 1, 0), 
+           above_sma200 = if_else(adjusted > sma200, 1, 0), 
+           volume_sma21 = TTR::SMA(volume, n = 21), 
+           volume_above_sma21 = if_else(volume > volume_sma21, 1, 0), 
+           roc2 = log(adjusted, lag(adjusted, n = 2)), 
+           volat_roc2_23days = roll_sd(roc2, width = 23), 
+           volat_roc2_293days = roll_sd(roc2, width = 293), 
+           stv_above_ltv = if_else(volat_roc2_23days > volat_roc2_293days, 1, 0)
+           ) %>% 
+    select(index, above_ema19, above_ema37, above_sma67, above_sma200, volume_above_sma21, 
+           stv_above_ltv) 
+  return(df)
+}
+
+possibly_create_small_ma_df <- possibly(.f = create_small_ma_df, otherwise = NA)
+
+### functions to get etf proportion of ticker above some MA
+portion_above_ma <- function(etf){ 
+  df_etf <- get_fmpr_etf_holder(etf) %>% 
+    select(asset) %>% filter(str_length(asset) <= 4)
+  for (i in 1:nrow(df_etf)) { 
+    get_fmpr_prices(df_etf$asset[i]) 
+    print(paste0("Downloaded ticker ", df_etf$asset[i])) 
+  } 
+  yo <- df_etf %>% 
+    mutate(var_above = map(asset, possibly_create_small_ma_df))
+  yo2 <- yo %>% unnest(cols = c(var_above)) %>% 
+    group_by(index) %>% 
+    summarise(perc_above_19ema = sum(above_ema19, na.rm = TRUE) / n(), 
+              perc_above_37ema = sum(above_ema37, na.rm = TRUE) / n(), 
+              perc_above_67sma = sum(above_sma67, na.rm = TRUE) / n(), 
+              perc_above_sma200 = sum(above_sma200, na.rm = TRUE) / n(), 
+              perc_volume_above_sma21 = sum(volume_above_sma21, na.rm = TRUE) / n(), 
+              perc_stv_above_ltv = sum(stv_above_ltv, na.rm = TRUE) / n())
+  return(yo2)
+  }
+
+```
+
+# Building the basic df 
+
+## Ticker df 
+
+```{r base_df}
+create_base_fin_df_v8 <- function(df){
+  df <- df %>%  
+    select(index, open, high, low, close, adjusted, volume) %>% arrange(index) %>% 
+    mutate(open = as.numeric(open), high = as.numeric(high), low = as.numeric(low), 
+           close = as.numeric(close), adjusted = as.numeric(adjusted), 
+           volume = as.numeric(volume)) %>% filter(is.na(volume) == FALSE)
+
+  #for the ADX and atr
+  adx <- TTR::ADX(df[,3:5], n = 17) %>% as_tibble() %>% 
+    select(dim_adx17 = ADX, meltp_din17 = DIn, dim_dip17 = DIp)          ###YES V2-newish
+  df <- bind_cols(df, adx) %>% 
+    mutate(meltp_adx_slope5 = dim_adx17 / lag(dim_adx17, 5), 
+           dim_dip17_slope5 = dim_dip17 / lag(dim_adx17, 5))
+  yo <- TTR::ATR(df[,3:5], n = 13) %>% as_tibble() %>% select(atr13 = atr)    ###YES V2
+  df <- bind_cols(df, yo) %>% mutate(dim_atr13 = (atr13 / close)) 
+  yo <- TTR::ATR(df[,3:5], n = 19) %>% as_tibble() %>% select(atr19 = atr)    ###YES NEW
+  df <- bind_cols(df, yo) %>% mutate(meltp_atr19 = (atr19 / close)) 
+  
+  # Adding the other variables such a moving averages and relative strength index
+  df <- df %>% 
+    mutate(roc1 = log(adjusted / lag(adjusted, n = 1)), 
+           roc3 = log(adjusted / lag(adjusted, n = 3)), 
+           dim_roc3 = log(adjusted / lag(adjusted, n = 3)), 
+           roc5 = log(adjusted / lag(adjusted, n = 5)), 
+           dim_roc7 = log(adjusted / lag(adjusted, n = 7)), 
+           dim_roc11 = log(adjusted / lag(adjusted, n = 11)), 
+           dim_roc17 = log(adjusted / lag(adjusted, n = 17)), 
+           roc21 = log(adjusted / lag(adjusted, n = 21)), 
+           dim_roc31 = log(adjusted / lag(adjusted, n = 31)), 
+           dim_roc61 = log(adjusted / lag(adjusted, n = 61)), 
+           dim_roc97 = log(adjusted / lag(adjusted, n =97)), 
+           dim_roc127 = log(adjusted / lag(adjusted, n =127)), 
+           roc126 = log(adjusted / lag(adjusted, n = 126)), 
+           dim_roc157 = log(adjusted / lag(adjusted, n = 157)), 
+           dim_roc193 = log(adjusted / lag(adjusted, n = 193)), 
+           dim_roc223 = log(adjusted / lag(adjusted, n = 223)), 
+           ema20 = TTR::EMA(adjusted, 20), 
+           ema40 = TTR::EMA(adjusted, 40), 
+           sma50 = TTR::SMA(adjusted, 50), 
+           sma100 = TTR::SMA(adjusted, 100), 
+           sma200 = TTR::SMA(adjusted, 200), 
+           
+           ema40_slope5 = ema40 / lag(ema40, 5), 
+           sma50_perc = log(adjusted / sma50), 
+           sma200_perc= log(adjusted / sma200),  
+           roll_mean_roc126_126 = roll_mean(roc126, width = 126), 
+           roll_mean_roc126_252 = roll_mean(roc126, width = 252), 
+           roll_sd_roc126_126 = roll_sd(roc126, width = 126), 
+           roll_mean_sma200_1 = roll_mean(sma200_perc, width = 293), 
+           roll_sd_sma200_1 = roll_sd(sma200_perc, width = 293), 
+           
+           std_away_sma200_1 = (sma200_perc - roll_mean_sma200_1) / roll_sd_sma200_1, ###YES V2
+           std_away_roc126_126 = (roc126 - roll_mean_roc126_126) / roll_sd_roc126_126,###YES V2Mom    
+           corr199_sma50_sma200 = roll_cor(sma50, sma200, width = 199),  ###YES V6
+           corr127_ema20_sma50 = roll_cor(ema20, sma50, width = 127),    ###YES
+           corr251_ema20_sma50 = roll_cor(ema20, sma50, width = 251),    ###YES V3
+           corr63_atr13_atr19 = roll_cor(atr13, atr19, width = 61),      ###YES NEW
+           
+           roll_sd_sma50_2 = roll_sd(sma50_perc, width = 512), 
+           roll_mean_sma50_2 = roll_mean(sma50_perc, width = 252), 
+           meltp_diff_sd_sma50_2 = (sma50_perc - roll_mean_sma50_2) / roll_sd_sma50_2,  
+           
+           
+           rsi13 = TTR::RSI(close, 13), 
+           rsi19 = TTR::RSI(close, 19), 
+           dim_rsi13_slope5 = rsi13 / lag(rsi13, 5), 
+           volum_sma47 = TTR::SMA(volume,  n = 47), 
+           volum_sma97 = TTR::SMA(volume,  n = 97), 
+           volum_sma200 = TTR::SMA(volume,  n = 200), 
+           volum200_perc = log(volume / volum_sma200), 
+           volum97_perc = log(volume / volum_sma97), 
+           
+           corr252_rsi19_sma50 = roll_cor(rsi19, sma50, width = 252),   ###YES V3  
+           corr127_rsi13_ema40 = roll_cor(rsi13, ema40, width = 127),   ###YES V3-newish 
+           volat_volu97_51days = roll_sd(volum200_perc, width = 51),    ###YES V2  
+           volat_volu200_21days = roll_sd(volum200_perc, width = 21),   ###YES V2  
+           volat_volu200_252days = roll_sd(volum200_perc, width = 252), ###YES V2
+           ma_cross_l = sma50 / sma100,                                 ###YES V2
+           corr251_volum_sma47_200 = roll_cor(volum_sma47, volum_sma200, width=252), ###YES V3
+           
+           # percent from high and low
+           max_63 = adjusted / roll_max(adjusted, width = 63),          ###YES V2    
+           min_63 = adjusted / roll_min(adjusted, width = 63),          ###YES V2 
+           min_126 = adjusted / roll_min(adjusted, width = 126),        ###Yes V3
+           max_252 = adjusted / roll_max(adjusted, width = 252),        ###YES V2
+           min_252 = adjusted / roll_min(adjusted, width = 252),        ###YES V2
+           
+           # Volatility of returns
+           volat_roc1_19days = roll_sd(roc1, width = 19),               ### these 2 var are highly
+           volat_roc1_63days = roll_sd(roc1, width=63),                 ### corr.  So new below
+           cor_volatroc1_1963days = roll_cor(volat_roc1_19days, volat_roc1_63days, width = 293), 
+           volat_roc5_29days = roll_sd(roc5, width = 29),               ###YES V2-Newish
+           volat_roc21_252days = roll_sd(roc21, width = 252),           ###YES V2
+           
+           # forward looking returns                      
+           ret_5w = (lead(adjusted, n = 25) / adjusted) - 1)
+  
+  return(df)
+  
+}
+
+##########################
+## Relative returns df 
+
+relative_returns_v8 <- function(ticker, mkt, sect) { 
+  df_ticker <- conform_data(ticker, interval = "Daily", provider = "fmpr") %>% 
+    select(index, adjusted) %>% 
+    mutate(adjusted_tic = as.numeric(adjusted), 
+           roc3_tic = log(adjusted_tic / lag(adjusted_tic, n = 3)), 
+           roc5_tic = log(adjusted_tic / lag(adjusted_tic, n = 5)), 
+           roc23_tic = log(adjusted_tic / lag(adjusted_tic, n = 23)), 
+           volat_roc23_252days = roll_sd(roc23_tic, width = 252)) 
+  df_mkt <- conform_data(mkt, interval = "Daily", provider = "fmpr") %>% 
+    select(index, adjusted_mkt = adjusted) %>% 
+    mutate(roc2_mkt = log(adjusted_mkt / lag(adjusted_mkt, n = 2)),
+           roc3_mkt = log(adjusted_mkt / lag(adjusted_mkt, n = 3)),
+           roc5_mkt = log(adjusted_mkt / lag(adjusted_mkt, n = 5))) 
+  df_sect <- conform_data(sect, interval = "Daily", provider = "fmpr") %>% 
+    select(index, adjusted_sect = adjusted) %>% 
+    mutate(roc2_sect = log(adjusted_sect / lag(adjusted_sect, n = 2)),
+           roc3_sect = log(adjusted_sect / lag(adjusted_sect, n = 3)),
+           roc5_sect = log(adjusted_sect / lag(adjusted_sect, n = 5))) 
+  
+  yo0 <- left_join(df_mkt, df_sect, by = "index") %>% na.omit() %>% 
+    mutate(adjusted_ms = adjusted_sect / adjusted_mkt, 
+           roc5_ms = log(adjusted_ms / lag(adjusted_ms, 5)), 
+           roc11_ms = log(adjusted_ms / lag(adjusted_ms, 11)),
+           zzmark_roc23_ms = log(adjusted_ms / lag(adjusted_ms, 23)),   
+           zzmark_roc61_ms = log(adjusted_ms / lag(adjusted_ms, 61)),
+           zzmark_roc127_ms = log(adjusted_ms / lag(adjusted_ms, 127)),       ###YES
+           zzmark_volat251_roc23_ms = roll_sd(zzmark_roc23_ms, width = 252),  ###YES V62
+           zzmark_volat251_roc61_ms = roll_sd(zzmark_roc61_ms, width = 251),  ###YES V62
+           zzmark_rollcor19_roc2_ms = roll_cor(roc2_mkt, roc2_sect, width=19),###YES
+           zzmark_rollcor67_roc5_ms = roll_cor(roc5_mkt, roc5_sect, width=67) ###YES
+           ) %>% 
+    select(index, zzmark_roc127_ms, zzmark_volat251_roc23_ms, zzmark_volat251_roc61_ms, 
+           zzmark_rollcor19_roc2_ms, zzmark_rollcor67_roc5_ms
+           )
+    
+  yo1 <- left_join(df_ticker, df_mkt, by = "index") %>% na.omit() %>% 
+    mutate(adj_tm = adjusted_tic / adjusted_mkt, 
+           zzmark_roc61_tm = log(adj_tm / lag(adj_tm, 61)),                 
+           zzmark_roc127_tm = log(adj_tm / lag(adj_tm, 127)),                 ###YES
+           zzmark_volat251_roc61_tm = roll_sd(zzmark_roc61_tm, width = 251),  ###YES V6
+           volat251_roc127_tm = roll_sd(zzmark_roc127_tm, width = 251),
+           zzmark_rollcor19_roc3_tm = roll_cor(roc3_tic, roc3_mkt, width = 19),###YES
+           zzmark_rollcor67_roc5_tm = roll_cor(roc5_tic, roc5_mkt, width = 67),###YES
+           rollsd_volatroc_tm = roll_sd(volat_roc23_252days, volat251_roc127_tm, width=252)
+           ) %>% 
+    select(index, zzmark_roc127_tm, zzmark_volat251_roc61_tm, 
+           zzmark_rollcor19_roc3_tm, zzmark_rollcor67_roc5_tm, rollsd_volatroc_tm
+           )
+
+  yo2 <- left_join(df_ticker, df_sect, by = "index") %>% na.omit() %>% 
+    mutate(adj_ts = adjusted_tic / adjusted_sect, 
+           zzmark_roc23_ts = log(adj_ts / lag(adj_ts, 23)),                 
+           zzmark_roc61_ts = log(adj_ts / lag(adj_ts, 61)), 
+           zzmark_roc127_ts = log(adj_ts / lag(adj_ts, 127)),                ###YES
+           zzmark_volat251_roc23_ts = roll_sd(zzmark_roc23_ts, width = 251), ###YES V6
+           zzmark_volat251_roc61_ts = roll_sd(zzmark_roc61_ts, width = 251), ###YES V6
+           zzmark_rollcor19_roc3_ts = roll_cor(roc3_tic, roc3_sect, width = 19), 
+           zzmark_rollcor67_roc5_ts = roll_cor(roc5_tic, roc5_sect, width = 67), 
+           rollsd_volatroc_ts = roll_sd(volat_roc23_252days, zzmark_volat251_roc61_ts, width=252)
+    ) %>% 
+    select(index,  zzmark_roc127_ts, zzmark_volat251_roc23_ts, zzmark_volat251_roc61_ts, 
+           zzmark_rollcor19_roc3_ts, zzmark_rollcor67_roc5_ts, rollsd_volatroc_ts
+    )
+  
+  df <- left_join(yo0, yo1) %>% left_join(., yo2)
+  
+  df_iwd <- conform_data("IWD", interval = "Daily", provider = "fmpr") %>% 
+    select(index, adj_iwd = adjusted) 
+  df_iwf <- conform_data("IWF", interval = "Daily", provider = "fmpr") %>% 
+    select(index, adj_iwf = adjusted)
+  df_rus <- left_join(df_iwd, df_iwf) %>% 
+    mutate(grow_over_val = adj_iwf / adj_iwd, 
+           rus_sma97 = TTR::SMA(grow_over_val, n = 97), 
+           rus_sma47 = TTR::SMA(grow_over_val, n = 47), 
+           zzmark_ma_cross_rus = rus_sma47 / rus_sma97, 
+           zzmark_grow_over_val_roc19 = log(grow_over_val / lag(grow_over_val, 19)), 
+           zzmark_grow_over_val_roc67 = log(grow_over_val / lag(grow_over_val, 67)),
+           zzmark_grow_over_val_roc127 = log(grow_over_val / lag(grow_over_val, 127))) %>% 
+    select(index, zzmark_grow_over_val_roc19, zzmark_grow_over_val_roc67, zzmark_ma_cross_rus, 
+           zzmark_grow_over_val_roc127)
+  
+  df <- left_join(df, df_rus, by = "index")
+  
+  return(df)
+  
+}
+
+
+
+reduce_df_v8 <- function(old){ 
+  df <- old %>% 
+    select(Index, 
+           ## Version 2
+           volat_volu200_252days, volat_roc21_252days, min_252, max_252, ma_cross_l, 
+           volat_volu200_21days, std_away_sma200_1, cor_volatroc1_1963days, volat_roc5_29days,  
+           max_63, min_63, std_away_roc126_126, 
+           ## Version 3
+           corr251_ema20_sma50, corr127_ema20_sma50, min_126, 
+           corr252_rsi19_sma50, corr127_rsi13_ema40, corr251_volum_sma47_200, 
+           
+           # Version 6
+           corr199_sma50_sma200, volat_volu97_51days, 
+           
+           ## New
+           corr63_atr13_atr19, rollsd_volatroc_ts, rollsd_volatroc_tm, 
+           
+           ## bring in the etf
+           zzmark_volat251_roc61_ms, zzmark_volat251_roc23_ts, zzmark_volat251_roc61_tm, 
+           zzmark_volat251_roc23_ms, zzmark_volat251_roc61_ts, 
+           zzmark_roc127_ms, zzmark_roc127_tm, zzmark_roc127_ts, 
+           zzmark_rollcor19_roc2_ms, zzmark_rollcor67_roc5_ms, 
+           zzmark_rollcor19_roc3_tm, zzmark_rollcor67_roc5_tm, 
+           zzmark_rollcor19_roc3_ts,  zzmark_rollcor67_roc5_ts, 
+           zzmark_grow_over_val_roc19, zzmark_grow_over_val_roc67, zzmark_grow_over_val_roc127, 
+           zzmark_ma_cross_rus, 
+           
+           dim_atr13, dim_adx17, dim_dip17_slope5, dim_rsi13_slope5, 
+           dim_roc3, dim_roc7, dim_roc11, dim_roc17, dim_roc31, dim_roc61, dim_roc97, dim_roc127, 
+           dim_roc157, dim_roc193, dim_roc223,  
+           
+           ret_5w
+    )
+}
+
+```
+
+
+
+## picking up the important variables 
+
+```{r}
+the_path = here::here()
+library(corrr)
+library(tidyr)
+library(recipes)
+library(embed)
+library(glue)
+
+
+
+
+analyze_corr_v8 <- function(ticker, mkt, sect) { 
+  df0 <- conform_data(ticker, interval="Daily", provider = "fmpr") %>% 
+    create_base_fin_df_v8() %>% rename(Index = index)
+  df1 <- relative_returns_v8(ticker, mkt, sect) %>% rename(Index = index)
+  df2 <- portion_above_ma(sect) %>% rename(Index = index)
+  df <- left_join(df0, df1, by = "Index") %>% reduce_df_v8(.) %>% 
+    left_join(., df2, by = "Index") %>% 
+    mutate(ord_class = as.factor(ntile(ret_5w, 3))) %>% 
+    na.omit() 
+  recipe_base <- recipe(formula = ord_class ~., data = df) %>% 
+    update_role(Index, new_role="ID") %>% 
+    step_naomit(columns = all_numeric_predictors()) %>% 
+    step_normalize(contains("dim_")) %>% 
+    step_normalize(contains("zzmark_")) %>% 
+    step_rm("ret_5w") %>% 
+    step_pca(contains("dim_"), id = "pca", num_comp=4) %>% 
+    step_umap(contains("zzmark_"), prefix = "umap_zzmar", 
+              id="umap_zzmar", num_comp = 6, options=list(verbose = TRUE, n_threads = 4)) %>% 
+  prep()
+  
+  yob <- bake(recipe_base, new_data = df)
+  df_cor <- yob %>% select(-Index, -ord_class) %>% correlate() %>% shave() 
+  yo <- df_cor %>% stretch() %>% mutate(ticker = ticker)
+  return(yo %>% drop_na())
+}
+
+df_correlation <- tibble(ticker = NA, x = NA, y = NA, r = NA)
+  
+for (i in 1:length(tickers)) {
+  yo <- analyze_corr_v8(tickers[i], etf1[i], etf2[i])
+  print(glue("Dealing with ", tickers[i]))
+  df_correlation <- bind_rows(df_correlation, yo)
+}
+
+yo <- df_correlation %>% group_by(x, y) %>% 
+  summarize(median_r = median(r), 
+            num_obs = n()) %>% 
+  filter(abs(median_r) >= 0.625) %>% arrange(desc(median_r))
+```
+
+
+volat_roc1_19days and volat_roc1_63days and volat_roc5_29days are all highly correlated. So, I will keep volat_roc5_29days and then use the correlation of volat_roc1_19days and volat_roc1_63days.  DONE
+
+
+# Summary of important variables and correlation 
+
+                          V2    V3    V6    V7       Corr
+volat_volu200_252days     1            1             X
+volat_roc21_252days       2            4    2        X
+min_252                   3                          min_126
+ma_cross_l                4            11            X
+std_away_sma200_1         5     9                    X
+volat_volu200_21days      7                          X
+atr14 (melt_atr13)        8                          volat_roc1_19days, volat_roc5_29days, +1
+max_252                   9                          max_63
+adx_14 (melt_adx17)       10                     
+volat_roc1_19days         11                         volat_roc1_63days, volat_roc5_29days
+volat_roc5_29days         12                         volat_roc1_63days
+min_63 (meltp_min_63)           13                   min_126              
+max_63                    17                      
+std_away_roc126_126       3*                   
+corr251_ema20_sma50             1      3    4              
+volat_roc1_63days               2      10   7        volat_roc1_19days / volat_roc5_29days
+corr127_ema20_sma50             3      13                   
+corr251_volum_sma47_200         4
+atr19 (cor63_atr13_atr19)       5
+corr252_rsi19_sma50             6                    corr126_rsi13_ema40
+corr126_rsi13_ema40             8                    corr252_rsi19_sma50
+corr199_sma50_sma200                   2
+
+zzmark_volat251_roc61_ms               5
+zzmark_volat251_roc23_ts               6
+zzmark_volat251_roc61_tm               7
+zzmark_volat251_roc23_ms               8
+
+NEW
+corr63_atr13_atr19, 
+
+
+
+
+
+
+
+# Missing values 
+
+## Checking on missing values or Zero values 
+
+Checking for missing values and dealing with them. 
+```{r mis_val, eval=FALSE}
+check_for_na <- function(ticker) { 
+  df <- conform_data(ticker, "Daily", "fmpr") %>% 
+    select(index, open, high, low, close, adjusted, volume) %>% 
+    summarize_all((~ sum(is.na(.))))
+  return(df)
+}
+
+check_for_zero <- function(ticker) { 
+    df <- conform_data(ticker, "Daily", "fmpr") %>% 
+    select(open, high, low, close, adjusted, volume) %>% 
+    filter(if_any(everything(.), ~ . == 0))
+  }
+
+## checking for 0 or NA
+check_na <- tibble(tickers = c(tickers, etf1, etf2)) %>% 
+  mutate(number_na = map(tickers, check_for_na)) %>% 
+  unnest(cols = c(number_na))
+
+check_naa <- tibble(tickers = c(tickers, etf1, etf2)) %>% 
+  mutate(number_zero = map(tickers, check_for_zero)) 
+df <- check_naa %>% unnest()
+```
+
+
+## fixing NA values 
+
+NA values seems to appear mainly in the Volume part of the data. 
+Noticing missing values in GILD, VOX and VAW.  You can have several days in a row with NA in volume.  
+
+Solution: 
+We are not touching the volume of the ETF.  So we are only interested in the volume of the stock. 
+Noticing that when volume is NA, it is because they were no trading.  So we can just remove these days. 
+```{r eval=FALSE}
+the_path = here::here()
+yo <- read_csv(paste0(the_path, "/data_stock_fmpr/GILD.csv"))
+yo_na <- yo %>% filter(is.na(volume))
+yo_no_na <- yo %>% filter(is.na(volume) == FALSE)
+
+create_base_fin_df_v8 <- function(df){
+  df <- df %>%  
+    select(index, open, high, low, close, adjusted, volume) %>% arrange(index) %>% 
+    mutate(open = as.numeric(open), high = as.numeric(high), low = as.numeric(low), 
+           close = as.numeric(close), adjusted = as.numeric(adjusted), 
+           volume = as.numeric(volume)) %>% filter(is.na(volume) == FALSE)
+  
+}
+```
+
+
+

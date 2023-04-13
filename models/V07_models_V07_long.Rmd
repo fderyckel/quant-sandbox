@@ -1,0 +1,508 @@
+---
+title: "Complex Models V.7.0"
+author: "FdR"
+date: "12/4/2021"
+output: html_document
+---
+
+# TO CONSIDER / TODO 
+Done. use volat_volu100_63days a 63 days rolling sd ... of the volume over the 100days average volume. Done: Use the EMA40 and do EMA40 / lag(EMA40, 5)... giving us the slope (how steep or not that EMA line is)
+Done - kinda. Do a PCA with all the variables I have not chosen and pick the top 80% of variance 
+Do PPO on ticker/SPY and maybe same with ticker/sector etf
+analyse of seasonality... average for the last 10 years of the future 25 days... and what is its sd. 
+
+V7.2 
+Check if using PCA instead of UMAP makes a difference
+check if using one more UMAP or one less make a difference. 
+
+Change ATR14 and put it as a variable ... do not include it as a into the meltp_
+Check iShares MSCI USA Momentum Factor ETF (MTUM)
+
+
+How are variable score calculated? Why is variable importance score a lot less in model 6 than in model 2
+
+For the metrics, I think I should take the first n results for precision, recall, etc.  With 120 models, too much risk of models working by chance.  What about we check metrics on the top 7 models .. the top 7 would be the one that are ranked top 7.  We then calculate the mean and sd for each models.   We'll look for high mean with low sd. 
+
+# Focus 
+focus on 5 weeks.  This is a long only models.  
+We have decided to make it a classification task using thirdile (aka predict a 1 or 2 or 3 based on bottom 1/3 of returns, middle 1/3 or top 1/3 of returns). 
+Goals is to predict if the stock will be in the top 1/3-ile of returns in 25 trading days.  
+
+Resampling is based on: 
+* 31 time-slices, 11 days of prediction for each time-slices. That is each models will be evaluated on 407 predictions. There is also a 7 period waiting time before accounting for prediction to avoid auto-correlation. 
+* we worked on either 80 or 120 xgboost models with different hyperparameters.  
+
+Metrics were calculated as an average of ranking score based on: 
+* 15% ordered accuracy / soft-accuracy.  If totally random, expectation is 0.5.  So we want an ordered expectation > 0.5.  We have 1 if class and prediction are 3, 0.5 if prediction is 3 and class is 2, 0 if prediction is 3 and class is 1 (that's what we want to avoid).  We do the same with prediction of 2 and 1.  Always penalizing more wrong prediction of higher returns.
+* 15% recall.  We want to be able to detect the 3 (but not at the expense of poor prediction). Random score should be 0.333.   We filter to only consider truth of 3. 
+* 50% precision.  We want to make sure that when we predict a 3, it is indeed a 3.  So we give a 1 if predicted = truth = 3, otherwise a 0. So expected (random score) is 0.333.  We filter to only consider prediction of 3. 
+* 20% soft_precision.  We mean by this that if we do not predict correctly a 3, it is still better for truth to be 2 than 0. We still want to keep an order, so we built it so that prediction and class = 3 ==> 1, prediction = 3 and class = 2 ==> 0.5, prediction = 3 and class = 1 ==> 0.   So expectation is 0.5 and we would expect a score much greater than 0.5.  We filter to only consider prediction of 3. 
+
+
+DO NOT CHANGE THIS PARAMETERS ANYMORE... THEY WILL ALLOW US TO COMPARE V2 with V6
+
+This models we are dealing with 49 variables (including index and ret_5w), so we really have 47+1 predictor variables. 
+
+Results for comparison: 
+
+# Exploration 
+
+
+## Analyse of correlation 
+In the "wrangle_data_v04.R" file, we have put many variables that we may not want to include.  Even if xgboost is resistant to multi-colinearity we do find it better to reduce the amount of variables especially those that are highly correlated. 
+
+```{r analysis_correlation, warning=FALSE, message=FALSE, eval=FALSE, echo=FALSE}
+# setting up the path within the project for easier portability of code
+thePath <- here::here()
+source(paste0(thePath, "/models/functions/wrangle_data_v06.R"))
+
+library(corrr)
+model <- "Version6.2"
+tickers = c("AMD", "TSM", "AXP", "GILD", "PKI", "CGC", "BBWI", "SBUX", "DIS", "PARA", "FDX", "CAT", "BAH") 
+etf1 = c("QQQ", "QQQ", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY")
+etf2 = c("SMH", "SMH", "XLF", "XLV", "XLV", "XLV", "XLY", "XLY", "VOX", "VOX", "IYT", "XLI", "HACK")
+create_cor_df <- function(ticker, etf1, etf2) { 
+  df0 <- conform_data(ticker, interval = "Daily", provider = "Tiingo") %>% 
+    create_base_fin_df_v6() 
+  df1 <- relative_returns_v6(ticker, etf1, etf2)
+  df <- left_join(df0, df1, by = "Index") %>% reduce_df_v6() %>% na.omit()
+  df_cor <- df %>% select(-Index, -ret_5w) 
+  yo <- correlate(df_cor) %>% shave() %>% shave() %>% stretch()
+  #yo <- correlate(df_cor) %>% rearrange(.) %>% stretch()
+  return(yo)
+  }
+
+df0 <- tibble(model = model, ticker = tickers, etf1 = etf1, etf2=etf2) %>% 
+  mutate(cor_df = pmap(list(ticker, etf1, etf2), create_cor_df)) %>% 
+  unnest()
+
+df1 <- df0 %>% filter(r >= 0.75 | r <= -0.75)
+```
+
+```{r}
+variable = "volat_roc21_252days"
+#variable = "min_252"
+df2 <- df0 %>% filter(x == variable | y == variable)
+```
+
+
+Changes I am trying. 
+Use logarithms of returns for 5, 23, 61 days instead of the volatility. That takes away the high correlation big times.  Now, the question is ... does these returns are of any informational value? 
+
+## Comments on variables. 
+
+* ma_cross_l
+* min_252:               No highly correlated with much except with min_126 (arund the 75-78%)
+                            In terms of variable importance, it comes as #3 for V2.2
+* volat_volu200_252days. No highly correlated. 
+                             Except for CGC with EWC/XLV is is correlated with its ETF like 
+                             volat_roc23_etf1, volat_roc23_etf2, volat_roc21_252days
+                         Variable importance: 0.148 on V2.2 and 0.0555 on V6.2  #1 in both models.
+* volat_roc21_252days    Correlated to the variables on the ETF sides. 
+                            Variable importance: 0.136 on V2.2 and 0.0460 on V6.2  #2 in both models.
+* volat_roc23_ms         Correlated to the variables on the ETF sides: volat_roc61_ms, volat_roc5_ms, 
+                            Variable importance: 0.0457 on V6.2  #3 in V6.2.     
+* volat_roc61_ms         PROBLEM.. need to change as almost same volat_roc_23_ms and both are rank so high in terms of 
+                         variable importance. Use correlation between the 2 variables instead.                   
+
+
+## Impressions & Suggestions 
+
+CGC has performed poorly on V62 comparing to V22.  It's one of the only stocks as well where volat_volu200_252days is correlated with other variables.  In this case this #1 variables is correlated with its etf EWC/XLV: volat_roc23_etf1, volat_roc23_etf2, volat_roc21_252days.  
+
+So too many highly correlated variables just do not bring new useful information, the highly correlated variable are just redundant! 
+
+I am writing them as we go along. 
+
+* on the volat_roc21_252days vs volat_rocxx_etfx... we may instead use the correlation between the 2 variables and see if that make a difference.  
+* add the last 3 days returns of HYG 
+
+## Using recipes for variable reduction purposes 
+
+```{r trying_dimens_reduction, message=FALSE, warning=FALSE}
+thePath <- here::here()
+source(paste0(thePath, "/models/functions/wrangle_data_v07.R"))
+ticker <- "GILD"
+etf1 <- "SPY"
+etf2 <- "XLV"
+
+
+df0 <- conform_data(ticker, interval = "Daily", provider = "Tiingo") %>% 
+  create_base_fin_df_v7() 
+df1 <- relative_returns_v7(ticker, etf1, etf2)
+df <- left_join(df0, df1, by = "Index") %>% reduce_df_v7() %>% 
+  mutate(ord_class = as.factor(ntile(ret_5w, 3))) %>% 
+  na.omit() 
+
+library(embed)
+library(recipes)
+
+recipe_base <- recipe(formula = ord_class ~., data = df) %>% 
+  update_role(Index, new_role="ID") %>% 
+  step_naomit(columns = all_numeric_predictors()) %>% 
+  step_normalize(contains("dim_roc")) %>% 
+  step_normalize(contains("zzmark_")) %>% 
+  step_normalize(contains("meltp_")) %>% 
+  step_rm("ret_5w") %>% 
+  step_pca(contains("dim_roc"), id="pca") %>% 
+  #step_umap(contains("dim_roc"), prefix = "umap_ret", 
+            #id="umap_roc", num_comp = 4, options=list(verbose = TRUE, n_threads = 4)) %>% 
+  step_umap(contains("zzmark_"), prefix = "umap_zzmar", 
+            id="umap_zzmar", num_comp = 6, options=list(verbose = TRUE, n_threads = 4)) %>% 
+  step_umap(contains("meltp_"), prefix = "umap_meltp", 
+            id="umap_meltp", num_comp = 4, options=list(verbose = TRUE, n_threads = 4)) %>% 
+  prep()
+
+yo <- recipe_base %>% tidy(id = "umap_roc")
+#yo <- recipe_base %>% tidy(id="kpca_hyg", type="variance")
+yob <- bake(recipe_base, new_data = df)
+yoj <- juice(recipe_base)
+
+#yob %>%
+  #ggplot(aes(UMAP1, UMAP2, label = ord_class)) +
+ # ggplot(aes(UMAP1, UMAP2, label = ord_class)) +
+  #geom_point(aes(color = ord_class), alpha = 0.7, size = 2) +
+  #labs(color = NULL)
+
+```
+
+### Comments on variables reductions process. 
+
+PCA 
+AMD: Using the 12 ROC variables, we can capture 81% of the variance using just 3PCA and 86% using 4PCA
+GCG: Using the 12 ROC variables, we can capture 82% of the variance using just 3PCA
+BBWI: Using the 12 ROC variables, we can capture 80% of the variance using just 3PCA and 85% using 4PCA
+
+## Checking correlation on new model V07 
+
+```{r check_corr_v7m, eval=FALSE, echo=FALSE}
+library(corrr)
+df_yo <- yoj %>% na.omit()
+df_cor <- df_yo %>% select(-Index, -ord_class) 
+yo_cor <- correlate(df_cor) %>% shave() %>% shave() %>% stretch()
+df1 <- yo_cor %>% filter(r >= 0.75 | r <= -0.75)
+```
+
+
+
+# Build model 
+
+## Prepping data 
+
+```{r run_recipe, eval=FALSE, echo=FALSE}
+library(recipes)
+recipe_base <- recipe(formula = ord_class ~., data = df) %>% 
+  update_role(Index, new_role="ID") %>% 
+  step_naomit(columns = all_numeric_predictors()) %>% 
+  step_normalize(contains("dim_red")) %>% 
+  step_rm("ret_1w") 
+
+yo <- recipe_base %>% prep(training = df) 
+yob <- bake(yo, new_data = df)
+  step_rm("ret_5w") 
+```
+
+
+```{r run_model, eval=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 300)
+
+library(dplyr)
+library(rsample)
+library(parsnip)
+library(recipes)
+library(tune)
+library(workflows)
+library(dials)
+library(yardstick)
+library(embed)
+
+# setting up the path within the project for easier portability of code
+the_path <- here::here()
+source(paste0(the_path, "/models/functions/wrangle_data_v07.R"))
+
+conform_data <- function(ticker, interval, provider){
+  if (interval == "Daily" & provider == "Yahoo"){
+    df <- read_csv(paste0(the_path, "/data_stock_ya/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      na.omit()
+  } else if (interval == "Daily" & provider == "Tiingo"){
+    df <- read_csv(paste0(the_path, "/data_stock_ti/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      na.omit() %>% 
+      rename(index = date, open = adjOpen, high = adjHigh, low = adjLow, close = adjClose, 
+             adjusted = adjClose, volume = adjVolume)    
+  } else if (interval == "Daily" & provider == "fmpr"){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      rename(index = date, adjusted = adjClose) %>% arrange(index)   
+  }
+  df <- df %>% arrange(index)
+  return(df)
+}
+
+ticker <- "GILD"
+etf1 <- "SPY"
+etf2 <- "XLV"
+
+
+model_type = "5wClassThirdile"
+print(paste0("Dealing now with ", ticker))
+df0 <- conform_data(ticker, interval = "Daily", provider = "fmpr") %>% 
+  create_base_fin_df_v7() %>% filter(index <= today() - 100)
+df1 <- relative_returns_v7(ticker, etf1, etf2)
+df <- left_join(df0, df1, by = "index")
+rm(df0, df1)
+
+df_model <- reduce_df_v7(df) %>% na.omit() %>% mutate(ord_class = as.factor(ntile(ret_5w, 3))) 
+rm(df)
+print(paste0("The ", model_type, " build on ", ticker, " has ", nrow(df_model), " rows"))
+  
+skip = 24
+prediction_advance = 13 + skip 
+starting_percentage = 0.59 
+based_sample = floor((nrow(df_model) - (10 * prediction_advance)) * starting_percentage) 
+if (based_sample < 2500) { 
+  while (based_sample < 2500 & starting_percentage < 0.8) { 
+    starting_percentage = starting_percentage + 0.05
+    based_sample = floor((nrow(df_model) - (10 * prediction_advance)) * starting_percentage) 
+  } 
+} 
+skippy = floor((nrow(df_model) - prediction_advance - based_sample) / 36) - 1 
+time_slices <- rolling_origin(df_model, initial = based_sample, assess = prediction_advance, 
+                              lag = -skip, skip = skippy, cumulative = TRUE) %>% 
+  mutate(train = map(splits, training), validation = map(splits, testing)) 
+print(paste0("First sample has ", based_sample, " rows and training is skipping ", skippy, " rows."))
+print(paste0("There are ", nrow(time_slices) ," time slices created."))  
+
+recipe_base <- recipe(formula = ord_class ~., data = df_model) %>% 
+  update_role(index, new_role="ID") %>% 
+  step_naomit(columns = all_numeric_predictors()) %>% 
+  step_normalize(contains("dim_roc")) %>% 
+  step_normalize(contains("zzmark_")) %>% 
+  step_normalize(contains("meltp_")) %>% 
+  step_rm("ret_5w") %>% 
+  step_pca(contains("dim_roc"), id="pca", num_comp = 4) %>% 
+  step_umap(contains("zzmark_"), prefix = "umap_zzmar", 
+            id="umap_zzmar", num_comp = 6, options=list(verbose = TRUE, n_threads = 4)) %>% 
+  step_umap(contains("meltp_"), prefix = "umap_meltp", 
+            id="umap_meltp", num_comp = 4, options=list(verbose = TRUE, n_threads = 4)) 
+
+model_xgboost <- boost_tree(trees = tune(), 
+                            mtry = tune(), 
+                            loss_reduction = tune(), 
+                            tree_depth = tune(), 
+                            learn_rate = tune(),
+                            min_n = tune()) %>% 
+set_engine("xgboost") %>% set_mode("classification") 
+
+stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)), loss_reduction(range = c(-10, 1.5)), 
+                                     mtry(range = c(12L, 17L)), learn_rate(range = c(-4, -2)), 
+                                     min_n(range = c(17L, 29L)),   
+                                     tree_depth(range = c(6L, 9L)), 
+                                     size = 47) 
+wf <- workflow() %>% add_recipe(recipe_base) %>% add_model(model_xgboost)  
+
+print("Starting now the resampling process")
+doParallel::registerDoParallel()
+xgboost_resampling <- tune_grid(wf, time_slices, 
+                                grid = stopping_grid, 
+                                metrics = metric_set(accuracy, mn_log_loss), 
+                                control = control_resamples(save_pred = TRUE, save_workflow = TRUE))
+
+print("resampling process over.  Looking now for best model.")
+yo_soft_acc <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
+                            .pred_class!="3" & ord_class != "3" ~ 1, 
+                            TRUE ~ 0)) %>% 
+  group_by(.config) %>% 
+  summarize(mean_soft_acc = sum(soft_acc)/n(), 
+            mtry = mean(mtry), tree_depth = mean(tree_depth), 
+            trees = mean(trees), 
+            min_n = mean(min_n), learn_rate = mean(learn_rate))
+
+# if I predict a 3, is it indeed a 3? Higher is better
+yo_precision <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(spec_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) %>% 
+  filter(.pred_class == "3") %>% 
+  group_by(.config) %>% 
+  summarize(mean_preci = sum(spec_3)/n())
+
+# if there is a "3" in the actual returns, do I manage to predict it! Higher is better
+yo_recall <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(sens_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) %>% 
+  select(-mtry, -min_n, -learn_rate, -loss_reduction, -tree_depth) %>% 
+  filter(ord_class == "3") %>% 
+  group_by(.config) %>% 
+  summarize(mean_recall = sum(sens_3)/n())
+
+# if I predict a 3, is it indeed a 3? Higher is better
+yo_soft_preci <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(spec_3 = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
+                            .pred_class=="3" & ord_class == "2" ~ 0.5, 
+                            .pred_class=="3" & ord_class == "1" ~ 0, 
+                            TRUE ~ 0)) %>% 
+  #select(-mtry, -min_n, -learn_rate, -loss_reduction) %>% 
+  filter(.pred_class == "3") %>% 
+  group_by(.config) %>% 
+  summarize(mean_soft_preci = sum(spec_3)/n())
+
+yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %>% 
+  left_join(., yo_soft_acc) %>% 
+  mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
+         preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
+         avg_rank =  0.5 * preci_rank + 0.2 * soft_preci_rank + 0.15 * soft_acc_rank + 0.15 * recall_rank)
+
+yo_metric <- left_join(yo_precision, yo_soft_acc) %>% left_join(., yo_recall) %>% 
+  left_join(., yo_soft_preci) %>% left_join(., yo_cost3) %>% 
+  select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, mean_soft_acc, 
+         mtry, tree_depth, trees, min_n, learn_rate) %>% 
+  arrange(desc(avg_rank), mean_preci)
+
+rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
+
+write_csv(yo_metric, paste0(the_path, "/models/models_metrics/xgboost_modelv71d_", model_type, "_", ticker, ".csv"))
+
+best_model <- yo_metric$.config[1]
+
+best_param <-xgboost_resampling %>% collect_metrics() %>% filter(.config == best_model) %>% slice_tail()
+best_param
+
+final_model <- finalize_model(model_xgboost, best_param)
+final_model
+
+final_wf <- workflow() %>% add_recipe(recipe_base) %>% add_model(final_model)
+final_wf
+
+model_base <- fit(object = final_wf, data = df_model)
+write_rds(model_base, paste0(the_path, "/models/models_raw/xgboost_modelv71d_", model_type, "_", ticker, ".rda"))
+
+library(vip)
+df_prep <- prep(recipe_base)
+var_importance <- final_model %>% 
+  set_engine("xgboost", importance = "permutation") %>% 
+  fit(ord_class ~ ., data = juice(df_prep) %>% select(-index)) %>%
+  vi()
+write_csv(var_importance, paste0(the_path, "/models/models_var_imp/xgboost_modelv71d_", model_type, "_", ticker, ".csv"))
+rm(df_prep)
+
+```
+
+
+# Other useful functions for tidymodels  
+
+## Download data
+```{r message=FALSE, warning=FALSE, eval=FALSE}
+library(tidyverse)
+the_path <- here::here()
+source("../functions/get_data.R")
+get_tiingo_prices("EWC")
+```
+
+
+
+Check the models on newer data
+
+
+```{r}
+library(tidymodels)
+thePath <- here::here()
+source(paste0(thePath, "/models/functions/wrangle_data_v07.R"))
+library(embed)
+ticker <- "AMD"
+etf1 <- "QQQ"
+etf2 <- "SMH"
+model_ticker <- "AMD"
+test0 <- conform_data(ticker, interval = "Daily", provider = "Tiingo") %>% 
+  create_base_fin_df_v7() %>% mutate(ord_class = as.factor(ntile(ret_5w, 3))) 
+test1 <- relative_returns_v7(ticker, etf1, etf2) 
+test <- left_join(test0, test1, by = "index") %>% reduce_test_df_v7() 
+test_recent <- test %>% filter(index > today() - 100) #%>% 
+  #mutate(ret_5w = if_else(is.na(ret_5w), 0, as.numeric(ret_5w)), 
+   #      ord_class = if_else(is.na(ord_class), 0, as.factor(ord_class)))
+test <- test %>% filter(index < today() - 50)
+rm(test0, test1) 
+fit_all <- fit(read_rds(glue("../models/models_raw/xgboost_modelv71_5wClassThirdile_", model_ticker,".rda")), 
+               data = (test %>% drop_na())) 
+yo <- predict(fit_all, test_recent)
+predict_recent <- tibble(index = test_recent$index, 
+                         predictions = predict(fit_all, new_data = test_recent, type = "prob"), 
+                         pred_class = predict(fit_all, new_data = test_recent)) 
+
+yo_v7 <- left_join(test_recent, predict_recent, by = "index") %>% 
+  select(Index, ret_5w, ord_class, predictions, pred_class) %>% 
+  mutate(ticker = ticker, model = "V71 Long")
+
+
+library(DALEX)
+explainer <- explain(fit_all, data = )
+```
+```{r}
+test_recent %>% 
+  select_if(function(x) any(is.na(x))) %>% 
+  summarise_each(funs(sum(is.na(.)))) -> extra_NA
+
+
+```
+
+
+```{r}
+library
+```
+
+
+
+
+
+```{r check_model, eval=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+library(tidymodels)
+thePath <- here::here()
+source(paste0(thePath, "/models/functions/wrangle_data_v07.R"))
+ticker <- "TSM"
+etf1 <- "QQQ"
+etf2 <- "SMH"
+test0 <- conform_data(ticker, interval = "Daily", provider = "Tiingo") %>% 
+  create_base_fin_df_v6() %>% mutate(ord_class = as.factor(ntile(ret_5w, 3))) 
+test1 <- relative_returns(ticker, etf1, etf2)
+test <- left_join(test0, test1, by = "Index") %>% 
+  reduce_test_df_v6() %>% filter(Index > today() - 100)
+rm(test0, test1)
+
+# taking the long side V6
+prediction1 <- tibble(Index = test$Index, 
+                      prediction = predict(read_rds(paste0("models_raw/xgboost_modelv6_5wClassThirdile_", ticker, ".rda")), 
+                                           new_data = test, type="prob")) %>% 
+  mutate(prob1 = prediction$.pred_1, prob2 = prediction$.pred_2, prob3 = prediction$.pred_3) %>% 
+  select(-prediction)
+
+prediction2 <- tibble(Index = test$Index, 
+                      prediction = predict(read_rds(paste0("models_raw/xgboost_modelv6_5wClassThirdile_", ticker, ".rda")), 
+                                           new_data = test)) %>% 
+  mutate(pred_ord_class = prediction$.pred_class) %>% select(-prediction)
+
+yo_v6 <- left_join(test, prediction1) %>% 
+  select(Index, ret_5w, ord_class, prob1, prob2, prob3) %>% 
+  left_join(., prediction2) 
+
+
+# taking the short side
+source(paste0(thePath, "/models/functions/wrangle_data_v02.R"))
+test0 <- conform_data(ticker, interval = "Daily", provider = "Tiingo") %>% 
+  create_base_fin_df_v2() %>% mutate(ord_class = as.factor(ntile(ret_5w, 3))) 
+test1 <- relative_returns(ticker, etf1, etf2)
+test <- left_join(test0, test1, by = "Index") %>% 
+  reduce_test_df_v2() %>% filter(Index > today() - 100)
+rm(test0, test1)
+prediction1 <- tibble(Index = test$Index, 
+                      prediction = predict(read_rds(paste0("models_raw/xgboost_modelv2short_5wClassThirdile_", ticker, ".rda")), 
+                                           new_data = test, type="prob")) %>% 
+  mutate(prob1 = prediction$.pred_1, prob2 = prediction$.pred_2, prob3 = prediction$.pred_3) %>% 
+  select(-prediction)
+
+prediction2 <- tibble(Index = test$Index, 
+                      prediction = predict(read_rds(paste0("models_raw/xgboost_modelv2short_5wClassThirdile_", ticker, ".rda")), 
+                                           new_data = test)) %>% 
+  mutate(pred_ord_class = prediction$.pred_class) %>% select(-prediction)
+yo_v6_short <- left_join(test, prediction1) %>% 
+  select(Index, ret_5w, ord_class, prob1, prob2, prob3) %>% 
+  left_join(., prediction2)
+```
+
+
+
