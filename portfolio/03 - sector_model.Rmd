@@ -44,7 +44,7 @@ Get an ETF and all its constituents with main metrics on it.
 ## Get names and prices 
 
 ```{r}
-etf <- 'VGT'
+etf <- 'SMH'
 market <- 'QQQ'
 
 poss_get_profile = possibly(.f = get_fmpr_profile, otherwise = NA)

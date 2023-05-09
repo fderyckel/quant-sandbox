@@ -1,85 +1,10 @@
 ---
-title: "Modeling Volatility"
+title: "Modeling gaps up and down"
 format: html
 ---
 
-Intuition behind project: volatility is clustered.  After period of high volatility, I can collect more premium on selling options.  Knowing the risk, I could hedge.  Trying to get the move right and the magnitude.  
+Intuition behind project: gaps up and down tends to be followed within the next few weeks.  I want to test that.   I also want to test if larger intra-day volatility (up or down) is also close.  
 
-Problem I want to address: 
-Question1: how to you meansure high volatility?  What would be your indicator for higher volatility? 
+How to go about it: To quantify larger than usual gaps up or down, I am thinking about using sd.  use rolling 19 days, 31 days, 43 days next day open from previous days close.  See which one has more predictive power for 31 days (6 weeks), or 41 days (8 weeks)
 
-
-Trying to figure out if a stock can stay within a price range (let's say +- 1.2 sd).  
-I am trying to figure out if a stock will stay within a certain price range within a given period (usually 35 trading days ~ 7 weeks)
-
-In my mind, I want to capture stocks that just got an increase volatility (daily return, atr, 21d_return) but is now on a decrease (basically, today's volatility is less than 5 days ago)
-
-```{r}
-library(dplyr)
-library(readr)
-library(lubridate)
-library(roll)
-library(purrr)
-library(tidyr)
-library(stringr)
-library(glue)
-
-the_path <- here::here()
-
-conform_data <- function(ticker, interval, provider) {
-  if (interval == "Daily" & provider == "Yahoo") {
-    df <- read_csv(paste0(the_path, "/data_stock_ya/", ticker, ".csv"), show_col_types = FALSE) |> 
-      na.omit()
-  } else if (interval == "Daily" & provider == "fmpr") {
-    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
-      rename(index = date, adjusted = adjClose)    
-  }
-  df <- df |> arrange(index)
-  return(df)
-}
-
-prepare_df <- function(ticker) { 
-  pv <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
-    arrange(date) |> 
-    select(date, adjClose) |> rename(adj_close = adjClose) |> 
-    filter(date > today() - 1500) |> 
-    mutate(ret1d = log(adj_close / lag(adj_close)), 
-           sd1M_ret1d = roll_sd(ret1d, width = 21), 
-           mult_sd1M_ret1d = ret1d / sd1M_ret1d, 
-           sd3M_ret1d = roll_sd(ret1d, width = 67), 
-           mult_sd3M_ret1d = ret1d / sd3M_ret1d,
-           actual_move = log(lead(adj_close, 35) / adj_close), 
-           ret5d = log(adj_close / lag(adj_close, 5)), 
-           sd5M_ret5d = roll_sd(ret5d, width = 103),
-           ret_21d = log(adj_close / lag(adj_close, 21)), 
-           sd_ret_21d = roll_sd(ret_21d, width = 251), 
-           sd_ret_21d_lag2w = lag(sd_ret_21d, 11), 
-           ret_37d = log(adj_close / lag(adj_close, 37)), 
-           ema_43d = TTR::EMA(adj_close, n=43), 
-           sd_43d = roll_sd(adj_close, width = 43), 
-           sd_above_mean_ret_43d = (adj_close - ema_43d) / sd_43d,  
-           ret_61d = log(adj_close / lag(adj_close, 61)), 
-           ret_61d_lag2w = lag(ret_61d, 13), 
-           ret_107d = log(adj_close / lag(adj_close, 107)), 
-           sd_ret_107d = roll_sd(ret_107d, width = 251), 
-           sd_ret_107d_lag4w = lag(sd_ret_107d, n = 19), 
-           fut_ret_40d = (lead(adj_close, 40) / adj_close) -1, 
-           fut_ret_40d_class = if_else(fut_ret_40d > 0, 1, 0) |> as.factor(), 
-           days_of_week = wday(date, label = TRUE)) |> 
-    filter(days_of_week == 'Tue') |> 
-    select(date, adj_close, ret1d, sd1M_ret1d, mult_sd1M_ret1d, sd3M_ret1d, mult_sd3M_ret1d, 
-           actual_move)
-  return(pv)
-}
-
-
-mean(pv$within_forecast, na.rm=T)
-mean(pv$within_forecastB, na.rm=T)
-```
-
-```{r}
-library(ggplot2)
-ggplot(pv, aes(x = mult_sd3M_ret1d, y = actual_move)) + 
-  geom_point()
-```
 

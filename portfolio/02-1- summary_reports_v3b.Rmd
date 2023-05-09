@@ -32,8 +32,10 @@ source('../functions/fmpr_functions.R')
 
 This is just to download data for which I have a model 
 ```{r download_data_1}
-etf_tickers <- c("XLF", "XLI", "XLY", "XLV", "XME", "XLB", "XBI", "IYT", "HACK", "VOX", "ITB", "FXG", 'VCR', 'XLC', 'IYW', 'VGT', 
-                 "SMH", "IPAY", "SPY", "RSP", "QQQ", "XLE", "VDE", "XOP", "GDXJ", "VAW", 'PBW', "EEM", 'DIA', 'GDX', 
+etf_tickers <- c("XLF", "XLI", "XLY", "XLV", "XME", "XLB", "XBI", "IYT", "HACK", "VOX", "ITB", "FXG", 
+                 'VCR', 'XLC', 'IYW', 'VGT', 
+                 "SMH", "IPAY", "SPY", "RSP", "QQQ", "XLE", "VDE", "XOP", "GDXJ", "VAW", 
+                 'PBW', "EEM", 'DIA', 'GDX', 
                  "KWEB", "HYG", "TLT", "DBB", "DBA", "IWD", "IWF")
 
 for (i in 1:length(etf_tickers)) { 
@@ -59,20 +61,37 @@ for (i in 1:length(stock_tickers)) {
 }
 ```
 
+
+```{r plot_data}
+df <- tibble(ticker = etf_tickers) 
+pdf("charts_markets.pdf", width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = df$ticker[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-600, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-600, end_date = today())
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+
 Creating charts for tickers. They are available for review as pdf in the portfolio folder. 
 
 ```{r plot_data2}
 tickers = c("AMD", "TSM", "BAH", "PYPL", "AXP", "JPM", 
             "GILD", "PKI", "BBWI", "SBUX", "MNST", "DIS", "PARA",
-            "FDX", "CAT", "AA", "CVX", "HAL", "MOS", "STLD") 
+            "FDX", "CAT", "AA", "CVX", "HAL", "MOS", "STLD", "PAAS") 
 
 etf1 = c("QQQ", "QQQ", "SPY", "QQQ", "SPY", "SPY", 
          "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", 
-         "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY")
+         "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "DIA")
 
 etf2 = c("SMH", "SMH", "HACK", "IPAY", "XLF", "XLF", 
          "XLV", "XLV", "XLY", "XLY", "FXG", "VOX", "VOX", 
-         "IYT", "XLI", "XME", "XLE", "VDE", "VAW", "VAW")
+         "IYT", "XLI", "XME", "XLE", "VDE", "VAW", "VAW", "GDX")
 
 df <- tibble(ticker = tickers, etf1 = etf1, etf2 = etf2) 
 pdf("charts_stocks.pdf", width=13, height=8, onefile = TRUE)
@@ -101,13 +120,13 @@ dev.off()
 
 ```{r plot_data3}
 tickers <- c("ABNB", "GOOG", 'META', "AAPL", "NFLX", 
-             'SQ', 'PYPL', 'PAAS', 'TSLA', 'TWLO', 
+             'SQ', 'PYPL', 'TSLA', 'TWLO', 
              'AMZN', 'CGC', 'BMY', 'LLY', 'BA')
 etf1 <- c('QQQ', 'QQQ', 'QQQ', 'SPY', 'QQQ', 
-          'QQQ', 'QQQ', 'DIA', 'QQQ', 'QQQ', 
+          'QQQ', 'QQQ',  'QQQ', 'QQQ', 
           'QQQ', 'SPY', 'SPY', 'SPY', 'SPY')
 etf2 <- c('VCR', 'VOX', 'XLC',  'IYW', 'XLC', 
-          'IPAY', 'IPAY', 'GDX', 'VCR', 'VGT', 
+          'IPAY', 'IPAY', 'VCR', 'VGT', 
           'XLY', 'XLV', 'XLV', 'XLV', 'XLI')
 
 for (i in 1:length(tickers)) { 
@@ -143,7 +162,7 @@ dev.off()
 ```
 
 ```{r portfolio}
-st <- c('CGC', 'EWH', 'BMY', 'BA', 'FDX')
+st <- c('CGC', 'EWH', 'BMY', 'BA', 'FDX', 'TSLA', 'BMY')
 for (i in 1:length(st)) { 
   tryCatch({ 
     get_fmpr_prices(st[i])
@@ -162,29 +181,6 @@ for (i in 1:nrow(df)){
   }
 dev.off()
 ```
-
-```{r}
-#downloading foreign markets
-st <- c( 'TSLA', 'SQ', 'BMY')
-for (i in 1:length(st)) { 
-  tryCatch({ 
-    get_fmpr_prices(st[i])
-    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-}
-df <- tibble(ticker = st) 
-pdf("charts_stan.pdf", width=13, height=8, onefile = TRUE)
-for (i in 1:nrow(df)){ 
-  print(df$ticker[i])
-  yo <- tibble(ticker = df$ticker[i]) %>% 
-    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
-           ext_df = map(raw_df, create_plot_fin_df))
-  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-350, end_date = today())
-  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-350, end_date = today())
-  Sys.sleep(2)
-  }
-dev.off()
-```
-
 
 ```{r}
 #downloading foreign markets
@@ -208,26 +204,10 @@ for (i in 1:nrow(df)){
 dev.off()
 ```
 
-
-```{r plot_data}
-df <- tibble(ticker = etf_tickers) 
-pdf("charts_markets.pdf", width=13, height=8, onefile = TRUE)
-for (i in 1:nrow(df)){ 
-  print(df$ticker[i])
-  yo <- tibble(ticker = df$ticker[i]) %>% 
-    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
-           ext_df = map(raw_df, create_plot_fin_df))
-  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-600, end_date = today())
-  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-600, end_date = today())
-  Sys.sleep(2)
-  }
-dev.off()
-```
-
 ETF with highest monthly returns. 
 
 ```{r etf_returns}
-return_ndays <- function(df, ndays = 12) { 
+return_ndays <- function(df, ndays = 21) { 
   yo <- df %>% mutate(returns = log(adjusted / lag(adjusted, n = ndays))) %>% 
     select(index, returns) %>% 
     filter(index > today() - 4)

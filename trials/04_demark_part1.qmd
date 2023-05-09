@@ -1,0 +1,151 @@
+---
+title: "De Mark Sequential"
+format: html
+---
+
+DeMark sequential has 2 stages.  The TD Setup and TD Countdown. 
+
+# Intro 
+
+```{r}
+#| warning: false
+#| message: false
+
+library(dplyr)      # rename(), arrange(), select(), if_else(), distinct()
+library(readr)      # read_csv()
+library(stringr)    # str_remove()
+library(tidyr)      # drop_na()
+library(lubridate)  # today()
+library(purrr)      # map()
+
+the_path <- here::here()
+
+# load up the data in a clean way 
+conform_data <- function(ticker) {
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
+      rename(index = date, adjusted = adjClose) |> 
+      arrange(index) |> 
+      select(index, adjusted, close) |> 
+      mutate(close_greater_than_4earlier = if_else(close > lag(close, 4), 1, 0), 
+             close_less_than_4earlier = if_else(close < lag(close, 4), 1, 0)) |> 
+      drop_na()
+  return(df)
+}
+
+# TD BUY SETUP
+### TD Bearish Price Flip - occurs when the market records a close greater than the close four bars earlier, immediately followed by a close less than the close four bars earlier. 
+bearish_td_price_flip <- function(df) { 
+  yo <- df |> 
+    mutate(bearish_price_flip = if_else(
+      close < lag(close, 4) & lag(close_greater_than_4earlier) == 1, 
+      1, 0))
+  return(yo)
+}
+
+### After a bearish price flip, there must be nine consecutive closes, each one less than the corresponding close four bars earlier. 
+td_buy_setup <- function(df) {
+  yo <- df |> 
+    group_by(grp_buy_setup = cumsum(close_less_than_4earlier == 0 | bearish_price_flip == 1)) |> 
+    mutate(TD_buy_setup = if_else(cumsum(bearish_price_flip)>0, cumsum(close_less_than_4earlier), 0)) |> 
+    ungroup()
+  return(yo)
+}
+
+### Once a TD Buy Setup successfully reaches nine, the first phase of TD Sequential is complete, and a TD Buy Countdown can begin.
+
+# TD Sell setup 
+###  before a TD Sell Countdown can begin, we need to see a bullish TD Price Flip
+### A Bullish TD Price Flip occurs when the market records a close less than the close four bars before, immediately followed by a close greater than the close four bars earlier.
+bullish_td_price_flip <- function(df) { 
+  yo <- df |> 
+    mutate(bullish_price_flip = if_else(
+      close > lag(close, 4) & lag(close_less_than_4earlier) == 1, 
+      1, 0))
+  return(yo)
+}
+
+### Once the bullish TD Price Flip occurs, a TD Sell Setup, consisting of nine consecutive closes, each one greater than the corresponding close four bars earlier, can begin
+td_sell_setup <- function(df) {
+  yo <- df |> 
+    group_by(grp_sell_setup = cumsum(close_greater_than_4earlier == 0 | bullish_price_flip == 1)) |> 
+    mutate(TD_sell_setup = if_else(cumsum(bullish_price_flip)>0, cumsum(close_greater_than_4earlier), 0)) |> 
+    ungroup()
+  return(yo)
+}
+
+## Check for TDST (TD Setup Trend). 
+## On the sell setup, when it brakes the high of #1 of the previous full buy setup. 
+## on the buy setup, when it brakes the low of #1 of the previous full sell setup. 
+## if it brakes, then we go on a TD Countdown13. 
+
+# Putting everything back into one function 
+demark_setup <- function(ticker) {
+  yo <- conform_data('PYPL') |> 
+    bearish_td_price_flip() |> bullish_td_price_flip() |> drop_na() |> 
+    td_buy_setup() |> td_sell_setup() |> 
+    select(index, close, TD_buy_setup, TD_sell_setup) |> 
+    filter(index > (today() - 7)) |> 
+    arrange(desc(index))
+  return(yo)
+}
+```
+
+Our universe to understand. 
+
+```{r}
+etf_tickers <- c("XLF", "XLI", "XLY", "XLV", "XME", "XLB", "XBI", "IYT", "HACK", 
+                 "VOX", "ITB", "FXG", 'VCR', 'XLC', 'IYW', 'VGT', 
+                 "SMH", "IPAY", "SPY", "RSP", "QQQ", "XLE", "VDE", "XOP", 
+                 "GDXJ", "VAW", 'PBW', "EEM", 'DIA', 'GDX', 
+                 "KWEB", "HYG", "TLT", "DBB", "DBA", "IWD", "IWF")
+
+stock_tickers <- c("AMD", "TSM", "BAH", "PYPL", "JPM", "AXP", 
+                   "TFII", "FDX", "CAT", "HAL", "CVX", "PSX", 
+                   "BBWI", "SBUX", "MNST", "DIS", "PARA", 
+                   "GILD", "PKI", "CGC", 
+                   "PAAS", "AA", "VALE", "STLD", "MOS", 
+                   "ATKR", "RYN")
+
+tickers <- c("ABNB", "GOOG", 'META', "AAPL", "NFLX", 
+             'SQ', 'PYPL', 'TSLA', 'TWLO', 
+             'AMZN', 'CGC', 'BMY', 'LLY', 'BA')
+
+st <- c('EWQ', 'EWP', 'EWG', 'EPOL', 'EEM', 'EWZ', 'EWW', 'EWJ', 'EWY', 'EWS', 'EWM', 
+        'THD', 'EIDO', 'EPHE', 'EWA', 'EZA', 'EWC')
+
+df <- tibble(tickers = c(etf_tickers, stock_tickers, tickers, st)) |> 
+  distinct() |> arrange(tickers) |> 
+  mutate(demark_indicator = map(tickers, demark_setup, .progress = T)) |>
+  unnest(cols = c(demark_indicator))
+```
+
+
+
+```{r}
+# trying shit... to delete
+
+yo <- conform_data('AAPL') |> 
+  bearish_td_price_flip() |> bullish_td_price_flip() |> drop_na() |> 
+  td_buy_setup() |> td_sell_setup() |> 
+  select(index, close, TD_buy_setup, TD_sell_setup) |> 
+  arrange(desc(index)) |> filter(index > (today() - 300))
+
+# dealing with TD buy setup
+# problem I am facing is that it counts any close less than 4 earlier as new group 
+
+library(ggplot2)
+ggplot(yo, aes(index, close)) + 
+  geom_line() + 
+  geom_point(data = yo |> filter(TD_buy_setup > 7), aes(x = index, y = close), color='green') + 
+  geom_point(data = yo |> filter(TD_sell_setup > 7), aes(x = index, y = close), color='red') + 
+  geom_text(data = yo |> filter(TD_buy_setup > 7), 
+            aes(x = index, y = close, label = TD_buy_setup), 
+            color='chartreuse4', nudge_y = .25, size = 3) + 
+  geom_text(data = yo |> filter(TD_sell_setup > 7), 
+            aes(x = index, y = close, label = TD_sell_setup), 
+            color='red', nudge_y = .25, size = 3)
+  
+  
+```
+
+

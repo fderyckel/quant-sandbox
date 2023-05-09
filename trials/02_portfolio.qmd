@@ -1,0 +1,29 @@
+---
+title: "Modeling gaps up and down"
+format: html
+---
+
+Just playing around in getting familiar with Portfolio allocation. 
+
+```{r}
+library(dplyr)
+library(readr)
+
+```
+
+
+Here are the funds (getting data from yahoo finance as of now)
+
+To download data 
+
+```{r}
+
+library(quantmod)
+
+tickers <- c('SGLN.L', '0P0001MRG1.F')
+stock_data <- new.env()
+yo <- '0P0001MRG1.F'
+df <- getSymbols(yo, src = 'yahoo')
+
+```
+

@@ -1,0 +1,74 @@
+---
+title: "Modeling gaps up and down"
+format: html
+---
+
+Intuition... on a 31 (6 weeks) days, 37 days (7 weeks) and 47 days (9 weeks), are there some stocks in a sector that would outperform?
+Factor: 
+is ETF above or below the SPY/QQQ?  What measure? 
+How many sd above some moving average (etf above index)?
+long term linear trend up / down?  Use slope? 
+Ranking of returns for 5 days, 11 days, 19 days, 29 days, 61 days, 107, 149, 199, 251, 
+
+
+
+
+```{r}
+library(dplyr)
+library(readr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+
+the_path <- here::here()
+source("../functions/fmpr_functions.R")
+
+etf <- 'XLY'
+market <- 'SPY'
+```
+
+
+```{r}
+
+poss_get_profile = possibly(.f = get_fmpr_profile, otherwise = NA)
+yo <- get_fmpr_etf_holder(etf) |> 
+  select(-updated, -marketValue, -weightPercentage) |> 
+  filter(str_length(asset) <= 4) |> 
+  mutate(profile = map(asset, poss_get_profile)) 
+
+df <- yo |>  
+  unnest_wider(col = contains("profile")) |> select(-symbol) |> 
+    arrange(industry, mktCap)
+write_csv(df, paste0("etf/", etf, "_", today(), ".csv"))
+
+get_returns_and_volat <- function(ticker) { 
+  pv <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
+    arrange(date) |> 
+    select(date, adjClose) |> rename(adj_close = adjClose) |> 
+    filter(date > today() - 700) |> 
+    mutate(ret_5d = log(adj_close / lag(adj_close, 5)), 
+           ret_11d = log(adj_close / lag(adj_close, 11)), 
+           ret_19d = log(adj_close / lag(adj_close, 19)), 
+           ret_29d = log(adj_close / lag(adj_close, 29)), 
+           ret_61d = log(adj_close / lag(adj_close, 61)), 
+           ret_107d = log(adj_close / lag(adj_close, 107)), 
+           ret_149d = log(adj_close / lag(adj_close, 149)), 
+           ret_199d = log(adj_close / lag(adj_close, 199)), 
+           ret_251d = log(adj_close / lag(adj_close, 251)), 
+           #intraday 
+           intraday = ((high -low) / close), 
+           forw_ret_31 = log(lead(adj_close, 31) / adj_close), 
+           forw_ret_37 = log(lead(adj_close, 37) / adj_close), 
+           forw_ret_47 = log(lead(adj_close, 47) / adj_close), 
+           days_of_week = wday(date, label = TRUE)) |> 
+    filter(days_of_week == 'Tue')
+  return(pv)
+  }
+
+
+# apply the functions on all the assets of the etf
+yo <- df |> select(asset, name, industry) |> 
+  mutate(df_prices = map(asset, get_returns_and_volat))
+
+```
+
