@@ -1,0 +1,385 @@
+---
+title: "Modeling Long or Short 31 days"
+format: 
+  html: 
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    theme: darkly
+    fontsize: 1.1em
+    grid: 
+      sidebar-width: 0px
+      body-width: 2000px
+      margin-width: 0px
+
+---
+
+Just trying to see if there are any returns or combinations above ma that are of some importance for predicting future
+
+```{r}
+#| message: false
+#| warning: false
+
+library(readr)    # read_csv()
+library(dplyr)    # mutate(), select(), arrange(), lead(), lag(), case_when
+library(roll)     # roll_mean, roll_sd
+library(tidyr)    # drop_na(), 
+library(glue)
+
+the_path <- here::here()
+
+model_type <- 'trial_based_returns'
+
+# number of days in future to predict
+num_days = 31
+```
+
+# Create data frame of features
+
+```{r}
+#| message: false
+#| warning: false
+
+ticker <- 'AMD'
+
+df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
+  arrange(date) |> 
+  select(date, open, high, low, close, volume) |>
+  mutate(ret_1d = log(close / lag(close)), 
+         roll_mean_ret1d_3M = roll_mean(ret_1d, 61), 
+         roll_sd_ret1d_3M = roll_sd(ret_1d, 61), 
+         above_sd_ret1d_3M = (ret_1d - roll_mean_ret1d_3M) / roll_sd_ret1d_3M, 
+         roll_sd_ret1d_7M = roll_sd(ret_1d, 147), 
+         
+         ret_5d = log(close / lag(close, n = 5)), 
+         roll_mean_ret5d_3M = roll_mean(ret_5d, 61), 
+         roll_sd_ret5d_3M = roll_sd(ret_5d, 61), 
+         above_sd_ret5d_3M = (ret_5d - roll_mean_ret5d_3M) / roll_sd_ret5d_3M, 
+         roll_mean_ret5d_7M = roll_mean(ret_5d, 147), 
+         roll_sd_ret5d_7M = roll_sd(ret_5d, 147), 
+         above_sd_ret5d_7M = (ret_5d - roll_mean_ret5d_7M) / roll_sd_ret5d_7M, 
+         
+         ret_11d = log(close / lag(close, 21)), 
+         roll_sd_ret11d_5M = roll_sd(ret_11d, 103), 
+         roll_sd_ret11d_1Y = roll_sd(ret_11d, 251), 
+         roll_mean_ret11d_1Y = roll_mean(ret_11d, 251), 
+         above_sd_ret11d_1Y = (ret_11d - roll_mean_ret11d_1Y) / roll_sd_ret11d_1Y,
+         
+         ret_21d = log(close / lag(close, 21)), 
+         roll_sd_ret21d_1Y = roll_sd(ret_21d, 251), 
+         roll_mean_ret21d_1Y = roll_mean(ret_21d, 251), 
+         above_sd_ret21d_1Y = (ret_21d - roll_mean_ret21d_1Y) / roll_sd_ret21d_1Y,
+         
+         ret_3M = log(close / lag(close, 61)), 
+         roll_sd_ret3M_1Y = roll_sd(ret_3M, 251), 
+         
+         ret_5M = log(close / lag(close, 105)), 
+         roll_sd_ret5M_1Y = roll_sd(ret_5M, 251), 
+         
+         ret_7M = log(close / lag(close, 147)), 
+         roll_sd_ret7M_1Y = roll_sd(ret_7M, 251),
+         
+         ## old parameters
+         sma50 = TTR::SMA(close, 50), 
+         roll_mean_sma50_1Y = roll_mean(sma50, 251), 
+         roll_sd_sma50_1Y = roll_sd(sma50, 251), 
+         above_sd_sma50 = (sma50 - roll_mean_sma50_1Y) / roll_sd_sma50_1Y, 
+         sma100 = TTR::SMA(close, 100), 
+         roll_mean_sma100_1Y = roll_mean(sma100, 251), 
+         roll_sd_sma100_1Y = roll_sd(sma100, 251), 
+         above_sd_sma100 = (sma100 - roll_mean_sma100_1Y) / roll_sd_sma100_1Y, 
+         sma200 = TTR::SMA(close, 200), 
+         roll_mean_sma200_1Y = roll_mean(sma200, 251), 
+         roll_sd_sma200_1Y = roll_sd(sma200, 251), 
+         above_sd_sma200 = (sma200 - roll_mean_sma200_1Y) / roll_sd_sma200_1Y, 
+
+         forw_ret = log(lead(close, n = num_days) / close), 
+         ord_class = ntile(forw_ret, 5), 
+         ord_class2 = case_when(ord_class == 1 ~ 1, 
+                                ord_class == 2 ~ 1, 
+                                ord_class == 3 ~ 2, 
+                                ord_class == 4 ~ 3, 
+                                ord_class == 5 ~ 3), 
+         ord_class2 = as.factor(ord_class2))
+
+df2 <- df |> 
+  select(date, above_sd_ret1d_3M, above_sd_ret5d_3M, roll_sd_ret1d_7M, 
+         ret_5d, above_sd_ret5d_3M, above_sd_ret5d_7M, 
+         ret_11d, roll_sd_ret11d_1Y, above_sd_ret11d_1Y, roll_sd_ret11d_5M, 
+         ret_21d, roll_sd_ret21d_1Y, above_sd_ret21d_1Y, 
+         ret_3M, roll_sd_ret3M_1Y, 
+         ret_5M, roll_sd_ret5M_1Y, 
+         ret_7M, roll_sd_ret7M_1Y, 
+         above_sd_sma50, above_sd_sma100, above_sd_sma200, 
+         ord_class2) |> 
+  drop_na()
+```
+
+
+# creating recipes
+
+```{r}
+#| message: false
+#| warning: false
+
+library(rsample) 
+library(recipes)
+library(workflows)
+library(parsnip)
+library(dials)
+library(tune)
+library(yardstick)
+
+time_slices <- rolling_origin(data = df2, initial = 757, 
+                          lag = -31,   # how much will be skipped in the assessed
+                          skip = 61,   # how many observations between each resamples
+                          assess = 38, # how big the assessed
+                          cumulative = FALSE)
+
+df_model <- df2 |> arrange(date)
+recipe_base <- recipe(ord_class2 ~ ., data = df2) |> 
+  update_role(date, new_role = 'ID')
+
+model_xgboost <- boost_tree(trees = tune(), 
+                            mtry = tune(), 
+                            loss_reduction = tune(), 
+                            tree_depth = tune(), 
+                            learn_rate = tune(),
+                            min_n = tune()) |> 
+set_engine("xgboost") |> set_mode("classification") 
+
+stopping_grid <- grid_latin_hypercube(trees(range = c(400, 800)), loss_reduction(range = c(-10, 1.5)), 
+                                     mtry(range = c(12L, 17L)), learn_rate(range = c(-4, -2)), 
+                                     min_n(range = c(17L, 29L)),   
+                                     tree_depth(range = c(5L, 8L)), 
+                                     size = 23) 
+wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
+
+doParallel::registerDoParallel()
+xgboost_resampling <- tune_grid(wf, time_slices, 
+                                grid = stopping_grid, 
+                                metrics = metric_set(accuracy, mn_log_loss), 
+                                control = control_resamples(save_pred = TRUE, save_workflow = TRUE))
+```
+
+# collecting results
+
+```{r}
+
+yo_soft_acc <- xgboost_resampling |>  collect_predictions() |>  
+  mutate(soft_acc = case_when(.pred_class == '3' & ord_class2 == '3' ~ 1, 
+                              .pred_class == '2' & ord_class2 == '2' ~ 1, 
+                              .pred_class == '1' & ord_class2 == '1' ~ 1, 
+                              TRUE ~ 0)) |> 
+  group_by(.config) |> 
+  summarize(mean_soft_acc = sum(soft_acc)/n(), 
+            mtry = mean(mtry), tree_depth = mean(tree_depth), 
+            trees = mean(trees), learn_rate = mean(learn_rate), 
+            min_n = mean(min_n))
+
+# if I predict a 3, is it indeed a 3? Higher is better
+yo_precision <- xgboost_resampling |> collect_predictions() |> 
+  mutate(model_preci = if_else(.pred_class == '3' & ord_class2 == '3', 1, 0)) |>  
+  filter(.pred_class == '3') |> 
+  group_by(.config) |>  
+  summarize(mean_preci = sum(model_preci)/n())
+
+# if there is a "3" in the actual returns, do I manage to predict it! Higher is better
+yo_recall <- xgboost_resampling |> collect_predictions() |>  
+  mutate(model_recall = if_else(.pred_class == '3' & ord_class2 == '3', 1, 0)) |> 
+  #select(-mtry, -min_n, -learn_rate, -loss_reduction, -tree_depth) |>  
+  filter(ord_class2 == '3') |> 
+  group_by(.config) |> 
+  summarize(mean_recall = sum(model_recall)/n())
+
+# if I predict a 3, is it indeed a 3? Higher is better
+yo_soft_preci <- xgboost_resampling |> collect_predictions() |>
+  mutate(spec_3 = case_when(.pred_class=="3" & ord_class2 == "3" ~ 1, 
+                            .pred_class=="3" & ord_class2 == "2" ~ 0.5, 
+                            .pred_class=="3" & ord_class2 == "1" ~ 0, 
+                            TRUE ~ 0)) |>
+  #select(-mtry, -min_n, -learn_rate, -loss_reduction) |> 
+  filter(.pred_class == "3") |> 
+  group_by(.config) |> 
+  summarize(mean_soft_preci = sum(spec_3)/n())
+
+yo_cost3 <- left_join(yo_precision, yo_recall, by = join_by(.config)) |> 
+  left_join(yo_soft_preci, by = join_by(.config)) |> 
+  left_join(yo_soft_acc, by = join_by(.config)) |> 
+  mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
+         preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
+         avg_rank =  0.5 * preci_rank + 0.2 * soft_preci_rank + 0.15 * soft_acc_rank + 0.15 * recall_rank)
+
+yo_metric <- yo_cost3 |> 
+  select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, mean_soft_acc, 
+         learn_rate, 
+         mtry, tree_depth, trees, min_n) |> 
+  arrange(desc(avg_rank))
+
+rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
+
+write_csv(yo_metric, paste0(the_path, "/models/model_metrics/xgboost_modelv10_pastreturns_", model_type, "_", ticker, ".csv"))
+
+best_model <- yo_metric$.config[1]
+
+best_param <-xgboost_resampling |> collect_metrics() |> filter(.config == best_model) |> slice_tail()
+best_param
+
+final_model <- finalize_model(model_xgboost, best_param)
+final_model
+
+final_wf <- workflow() |> add_recipe(recipe_base) |> add_model(final_model)
+final_wf
+
+model_base <- fit(object = final_wf, data = df_model)
+write_rds(model_base, paste0(the_path, "/models/model_raw/xgboost_modelv10_pastreturns_", model_type, "_", ticker, ".rda"))
+
+library(vip)
+df_prep <- prep(recipe_base)
+var_importance <- final_model |> 
+  set_engine("xgboost", importance = "permutation") |> 
+  fit(ord_class2 ~ ., data = juice(df_prep) |> select(-date)) |>
+  vi()
+
+write_csv(var_importance, paste0(the_path, "/models/model_vars_imp/xgboost_modelv10_pastreturns_", model_type, "_", ticker, ".csv"))
+rm(df_prep)
+```
+
+
+
+# analyses of correlation 
+
+```{r correlation}
+#| message: false
+#| warning: false
+
+
+# setting up the path within the project for easier portability of code
+the_path <- here::here()
+
+source(glue(the_path, "/models/functions/model_v1b.R"))
+
+library(corrr)
+library(glue)
+library(purrr)
+
+model <- 'version_1b'
+tickers = c('AMD', 'HAL', 'JPM', 'AXP') 
+create_cor_df <- function(ticker) { 
+  df0 <- model_v1b(ticker)
+  df <- df0 %>% drop_na()
+  df_cor <- df %>% select(-date, -ord_class2) 
+  yo <- correlate(df_cor) %>% shave() %>% stretch()
+  return(yo)
+  }
+
+df0 <- tibble(model = model, ticker = tickers) %>% 
+  mutate(cor_df = map(ticker, create_cor_df)) %>% 
+  unnest()
+
+df1 <- df0 %>% filter(r >= 0.75 | r <= -0.75) |> 
+  arrange(x)
+
+library(gt)
+
+df1 |> gt()
+```
+
+
+# Analyse of variables importance 
+
+```{r}
+#| message: false
+#| warning: false
+
+library(readr)
+library(tidyr)
+library(dplyr)
+library(glue)
+library(gt)
+
+the_path <- here::here()
+
+var_amd <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv10_pastreturns_trial_based_returns_', 'AMD', '.csv'), 
+                    show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
+var_axp <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv10_pastreturns_trial_based_returns_', 'AXP', '.csv'), 
+                    show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
+var_hal <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv10_pastreturns_trial_based_returns_', 'HAL', '.csv'), 
+                    show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
+var_jpm <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv10_pastreturns_trial_based_returns_', 'JPM', '.csv'), 
+                    show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
+
+df <- bind_rows(var_amd, var_axp, var_hal, var_jpm) |>
+  group_by(Variable) |>  
+  summarise(mean_rank = mean(rank_order), 
+            mean_imp = mean(Importance, na.rm=TRUE), 
+            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+  arrange(desc(mean_imp))
+
+df |> gt()
+```
+
+
+# Getting familiar with basics functions
+
+## Getting an idea on the returns (from quintile)
+
+```{r}
+
+
+library(dplyr)
+library(readr)
+library(glue)
+
+the_path <- here::here()
+
+ticker <- 'JPM'
+
+df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv'), show_col_types = FALSE) |> 
+  mutate(forw_ret = log(lead(close, n = num_days) / close), 
+         ord_class = ntile(forw_ret, 5))
+
+```
+
+
+
+## trying to get the rolling_origin() correct 
+
+```{r}
+#| eval: false
+
+skip = num_days
+
+library(rsample)
+
+
+roll_rs <- rolling_origin(data = yo, initial = 757, 
+                          lag = -30,   # how much will be skipped in the assessed
+                          skip = 90,   # how many observations between each resamples
+                          assess = 41, # how big the assessed
+                          cumulative = FALSE)
+
+get_date_ass_start <- function(x) { 
+  min(assessment(x)$date)
+}
+
+get_date_ass_end <- function(x) { 
+  max(assessment(x)$date)
+}
+
+get_date_ana <- function(x) { 
+  max(analysis(x)$date)
+}
+
+end_date <- map(roll_rs$splits, get_date_ana)
+start_date_ass <- map(roll_rs$splits, get_date_ass_start)
+end_date_ass <- map(roll_rs$splits, get_date_ass_end)
+
+df2 <- tibble(end_date_anal = do.call("c", end_date), 
+              start_date_ass = do.call('c', start_date_ass), 
+              end_date_ass = do.call('c', end_date_ass))
+
+```
+
+
+
