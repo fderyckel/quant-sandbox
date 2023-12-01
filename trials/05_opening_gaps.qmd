@@ -1,0 +1,38 @@
+---
+title: "Modeling gaps up and down"
+format: html
+---
+
+Intuition behind project: gaps up and down tends to be followed within the next few weeks.  I want to test that.   I also want to test if larger intra-day volatility (up or down) is also close.  
+
+How to go about it: To quantify larger than usual gaps up or down, I am thinking about using sd.  use rolling 19 days, 31 days, 43 days next day open from previous days close.  See which one has more predictive power for 31 days (6 weeks), or 41 days (8 weeks)
+
+
+```{r}
+#| label: setup_and_functions
+#| warning: false
+#| message: false
+
+library(dplyr)      # rename(), arrange(), select(), if_else(), distinct()
+library(readr)      # read_csv()
+library(stringr)    # str_remove()
+library(tidyr)      # drop_na()
+library(lubridate)  # today()
+library(purrr)      # map()
+
+the_path <- here::here()
+
+conform_data <- function(ticker) {
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
+      rename(index = date, adjusted = adjClose) |> 
+      arrange(index) |> 
+      select(index, adjusted, high, low, close) |> 
+      mutate(ret1d = log(adjusted / lag(adjusted)), 
+             ret) |> 
+      drop_na()
+  return(df)
+}
+```
+
+
+

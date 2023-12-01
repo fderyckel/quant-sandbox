@@ -10,7 +10,14 @@ How many sd above some moving average (etf above index)?
 long term linear trend up / down?  Use slope? 
 Ranking of returns for 5 days, 11 days, 19 days, 29 days, 61 days, 107, 149, 199, 251, 
 
-
+Universe: 
+"FDX" --> transport 
+'JPM', "AXP", "PYPL"
+"AMD", 
+"GILD",
+"SBUX","BBWI",
+"PARA", 
+"MOS", "AA", "CVX", "CAT", "HAL"
 
 
 ```{r}

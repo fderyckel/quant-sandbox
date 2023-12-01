@@ -1,10 +1,123 @@
 ---
-title: "Modeling gaps up and down"
+title: "Volatility"
 format: html
 ---
 
-Intuition behind project: gaps up and down tends to be followed within the next few weeks.  I want to test that.   I also want to test if larger intra-day volatility (up or down) is also close.  
+Screen for tickers that have higher than usual volatility.  
+Screen for tickers that have higher than usual volatility but not as high as it was a week ago. 
 
-How to go about it: To quantify larger than usual gaps up or down, I am thinking about using sd.  use rolling 19 days, 31 days, 43 days next day open from previous days close.  See which one has more predictive power for 31 days (6 weeks), or 41 days (8 weeks)
+Question: What volatility are we talking about: 
 
+* daily returns (close to close).  Then rolling sd of that over 21 days and over 251 days
+* max to min within a 5 day periods?  within a 11 days periods, within a 19 days periods and then doing a rolling sd of that. 
+* returns over a n-trading periods (11 days, 19 days, 31 days, 41 days)? 
+
+how do you calculate your volatility? 
+
+
+```{r}
+#| label: setup_and_functions
+#| warning: false
+#| message: false
+
+library(dplyr)      # rename(), arrange(), select(), if_else(), distinct()
+library(readr)      # read_csv()
+library(stringr)    # str_remove()
+library(tidyr)      # drop_na(), pivot_longer()
+library(lubridate)  # today()
+library(purrr)      # map()
+library(roll)
+
+the_path <- here::here()
+
+conform_data <- function(ticker) {
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
+      rename(index = date, adjusted = adjClose) |> 
+      arrange(index) |> 
+      mutate(ret1d = log(close / lag(close)), 
+             roll_sd_ret1d_127d = roll_sd(ret1d, width = 127), 
+             mult_127d_roll_sd_ret1d = ret1d / roll_sd_ret1d_127d,   
+             lag_mult_127d_roll_sd_ret1d = lag(mult_127d_roll_sd_ret1d, n = 5), 
+             ret11d = log(close / lag(close, n = 11)), 
+             roll_sd_ret11d_181d = roll_sd(ret11d, width = 181),
+             mult_181d_roll_sd_ret11d = ret11d / roll_sd_ret11d_181d, 
+             lag_mult_181d_roll_sd_ret11d = lag(mult_181d_roll_sd_ret11d, n = 5), 
+             ret31d = log(close / lag(close, n = 31)), 
+             roll_sd_ret31d_251d = roll_sd(ret31d, width = 251), 
+             mult_251d_roll_sd_ret31d = ret31d / roll_sd_ret31d_251d, 
+             lag_mult_251d_roll_sd_ret31d = lag(mult_251d_roll_sd_ret31d, n = 5), 
+             ret41d = log(close / lag(close, n = 41)), 
+             roll_sd_ret41d_293d = roll_sd(ret41d, width = 293), 
+             mult_293d_roll_sd_ret41d = ret41d / roll_sd_ret41d_293d, 
+             lag_mult_293d_roll_sd_ret41d = lag(mult_293d_roll_sd_ret41d, n = 5)) |> 
+      drop_na() |> 
+      mutate(forward_ret_31d = log(lead(close, n = 31) / close), 
+             forward_ret_37d = log(lead(close, n = 37) / close), 
+             forward_ret_41d = log(lead(close, n = 41) / close), 
+             ) |> 
+      select(index, adjusted, high, low, close, 
+             mult_127d_roll_sd_ret1d, lag_mult_127d_roll_sd_ret1d, 
+             mult_181d_roll_sd_ret11d, lag_mult_181d_roll_sd_ret11d, 
+             mult_251d_roll_sd_ret31d, lag_mult_251d_roll_sd_ret31d, 
+             mult_293d_roll_sd_ret41d, lag_mult_293d_roll_sd_ret41d, 
+             forward_ret_31d, forward_ret_37d, forward_ret_41d) |> filter(index > (today() - 7))
+  return(df)
+}
+
+yo <- conform_data('PYPL')
+```
+
+```{r}
+# Trying some shit
+df <- conform_data('PYPL') |> 
+  pivot_longer(cols = c(mult_127d_roll_sd_ret1d, mult_181d_roll_sd_ret11d, 
+                        mult_251d_roll_sd_ret31d, mult_293d_roll_sd_ret41d), 
+               names_to = 'which_mutiple_of_sd', 
+               values_to = 'mutiple_of_sd')
+
+yo <- df |> 
+  group_by(which_mutiple_of_sd) |> 
+  summarize(correlation = cor(forward_ret_37d, mutiple_of_sd))
+
+
+library(ggplot2) 
+theme_set(theme_minimal())
+ggplot(yo, aes(x = mutiple_of_sd, y = forward_ret_37d, col = which_mutiple_of_sd)) + 
+  geom_point() + 
+  stat_smooth(method='lm') + 
+  facet_grid(which_mutiple_of_sd ~. )
+```
+
+
+
+```{r}
+etf_tickers <- c("XLF", "XLI", "XLY", "XLV", "XME", "XLB", "XBI", "IYT", "HACK", 
+                 "VOX", "ITB", "FXG", 'VCR', 'XLC', 'IYW', 'VGT', 
+                 "SMH", "IPAY", "SPY", "RSP", "QQQ", "XLE", "VDE", "XOP", 
+                 "GDXJ", "VAW", 'PBW', "EEM", 'DIA', 'GDX', 
+                 "KWEB", "HYG", "TLT", "DBB", "DBA", "IWD", "IWF")
+
+stock_tickers <- c("AMD", "TSM", "BAH", "PYPL", "JPM", "AXP", 
+                   "TFII", "FDX", "CAT", "HAL", "CVX", "PSX", 
+                   "BBWI", "SBUX", "MNST", "DIS", "PARA", 
+                   "GILD", "PKI", "CGC", 
+                   "PAAS", "AA", "VALE", "STLD", "MOS", 
+                   "ATKR", "RYN")
+
+tickers <- c("ABNB", "GOOG", 'META', "AAPL", "NFLX", 
+             'SQ', 'PYPL', 'TSLA', 'TWLO', 
+             'AMZN', 'CGC', 'BMY', 'LLY', 'BA')
+
+st <- c('EWQ', 'EWP', 'EWG', 'EPOL', 'EEM', 'EWZ', 'EWW', 'EWJ', 'EWY', 'EWS', 'EWM', 
+        'THD', 'EIDO', 'EPHE', 'EWA', 'EZA', 'EWC')
+
+df <- tibble(tickers = c(etf_tickers, stock_tickers, tickers, st)) |> 
+  distinct() |> arrange(tickers) |> 
+  mutate(prices = map(tickers, conform_data, .progress = T))
+```
+
+```{r}
+yo = df |> 
+  unnest(cols = c('prices'))
+```
 

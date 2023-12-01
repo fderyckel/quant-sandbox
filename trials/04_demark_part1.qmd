@@ -80,7 +80,7 @@ td_sell_setup <- function(df) {
 
 # Putting everything back into one function 
 demark_setup <- function(ticker) {
-  yo <- conform_data('PYPL') |> 
+  yo <- conform_data(ticker) |> 
     bearish_td_price_flip() |> bullish_td_price_flip() |> drop_na() |> 
     td_buy_setup() |> td_sell_setup() |> 
     select(index, close, TD_buy_setup, TD_sell_setup) |> 
@@ -104,7 +104,7 @@ stock_tickers <- c("AMD", "TSM", "BAH", "PYPL", "JPM", "AXP",
                    "BBWI", "SBUX", "MNST", "DIS", "PARA", 
                    "GILD", "PKI", "CGC", 
                    "PAAS", "AA", "VALE", "STLD", "MOS", 
-                   "ATKR", "RYN")
+                   "ATKR", "RYN", 'NVDA')
 
 tickers <- c("ABNB", "GOOG", 'META', "AAPL", "NFLX", 
              'SQ', 'PYPL', 'TSLA', 'TWLO', 

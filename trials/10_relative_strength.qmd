@@ -1,0 +1,44 @@
+---
+title: "10 - Relative Strength"
+format: html
+---
+
+I'd would like to maybe dynamically select stocks from US and EUR (in same amount) + EEM / EWC / Japan / AUSTRALIA / BRAZIL / ETC. 
+
+Have a universe of let's say 50 stocks / ETF.  Ideally as little correlated as possible (every week invest in the most up / down)
+
+```{r}
+library(readr)
+library(dplyr)
+library(purrr)
+library(tidyr)
+
+stock_us <- c('AMD', 'NVDA', "BAH", "PYPL", 
+              "JPM", "AXP", 
+              "TFII", "FDX", "CAT", 
+              "HAL", "CVX", "PSX", 
+              "BBWI", "SBUX", "MNST", "DIS", "PARA", "GILD", "PKI", 
+              "PAAS", "AA", "VALE", "STLD", "MOS", 
+              'GDX', 'EEM', 'TLT', 'HYG')
+```
+
+
+# Loading data 
+
+```{r}
+#| message: false
+#| warning: false
+
+
+
+df <- tibble(asset = stock_us) |> 
+  mutate(path = paste0(here::here(), '/data_stock_fmpr/', asset, '.csv'), 
+         prices = map(path, .f = read_csv))
+```
+
+```{r}
+yo <- df |> select(asset, prices) |> unnest(cols = c(prices)) |> 
+  select(asset, date, adjClose) |> 
+  pivot_wider(names_from = asset, values_from = adjClose)
+```
+
