@@ -240,7 +240,7 @@ create_base_fin_df_v8 <- function(df){
            volat_roc21_252days = roll_sd(roc21, width = 252),           ###YES V2
            
            # forward looking returns                      
-           ret_5w = (lead(adjusted, n = 25) / adjusted) - 1)
+           ret_7w = (lead(adjusted, n = 35) / adjusted) - 1)
   
   return(df)
   
@@ -434,7 +434,7 @@ yo <- df_correlation %>% group_by(x, y) %>%
 volat_roc1_19days and volat_roc1_63days and volat_roc5_29days are all highly correlated. So, I will keep volat_roc5_29days and then use the correlation of volat_roc1_19days and volat_roc1_63days.  DONE
 
 
-# Summary of important variables and correlation 
+# Summary of important variables and correlation (5 weeks)
 
                           V2    V3    V6    V7       Corr
 volat_volu200_252days     1            1             X

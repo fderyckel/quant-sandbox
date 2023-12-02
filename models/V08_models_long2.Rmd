@@ -5,7 +5,8 @@ date: "4/28/2022"
 output: html_document
 ---
 
-We are adding more intermarket indicators
+A 7 weeks model.  Research phase. 
+
 
 The idea is also to have like 20-30 stocks universe (all sectors, all size) and bets on top 2 vs bottom 2 each week.  Or something along these lines
 
@@ -66,251 +67,28 @@ create_base_fin_df_v8 <- function(df){
     mutate(open = as.numeric(open), high = as.numeric(high), low = as.numeric(low), 
            close = as.numeric(close), adjusted = as.numeric(adjusted), 
            volume = as.numeric(volume)) |> 
-    filter(is.na(volume) == FALSE)
-
-  #for the ADX and atr
-  adx <- TTR::ADX(df[,3:5], n = 17) %>% as_tibble() %>% 
-    select(dim_adx17 = ADX, meltp_din17 = DIn, dim_dip17 = DIp)          ###YES V2-newish
-  df <- bind_cols(df, adx) %>% 
-    mutate(meltp_adx_slope5 = dim_adx17 / lag(dim_adx17, 5), 
-           dim_dip17_slope5 = dim_dip17 / lag(dim_adx17, 5))
-  yo <- TTR::ATR(df[,3:5], n = 13) %>% as_tibble() %>% select(atr13 = atr)    ###YES V2
-  df <- bind_cols(df, yo) %>% mutate(dim_atr13 = (atr13 / close)) 
-  yo <- TTR::ATR(df[,3:5], n = 19) %>% as_tibble() %>% select(atr19 = atr)    ###YES NEW
-  df <- bind_cols(df, yo) %>% mutate(meltp_atr19 = (atr19 / close)) 
+    filter(is.na(volume) == FALSE) |> 
+    filter(index > today() - 252)  # leaving the last year of data for final testing.  
   
-  # Adding the other variables such a moving averages and relative strength index
-  df <- df %>% 
-    mutate(roc1 = log(adjusted / lag(adjusted, n = 1)), 
-           roc3 = log(adjusted / lag(adjusted, n = 3)), 
-           dim_roc3 = log(adjusted / lag(adjusted, n = 3)), 
-           roc5 = log(adjusted / lag(adjusted, n = 5)), 
-           dim_roc7 = log(adjusted / lag(adjusted, n = 7)), 
-           dim_roc11 = log(adjusted / lag(adjusted, n = 11)), 
-           dim_roc17 = log(adjusted / lag(adjusted, n = 17)), 
-           roc21 = log(adjusted / lag(adjusted, n = 21)), 
-           dim_roc31 = log(adjusted / lag(adjusted, n = 31)), 
-           dim_roc61 = log(adjusted / lag(adjusted, n = 61)), 
-           dim_roc97 = log(adjusted / lag(adjusted, n =97)), 
-           dim_roc127 = log(adjusted / lag(adjusted, n =127)), 
-           roc126 = log(adjusted / lag(adjusted, n = 126)), 
-           dim_roc157 = log(adjusted / lag(adjusted, n = 157)), 
-           dim_roc193 = log(adjusted / lag(adjusted, n = 193)), 
-           dim_roc223 = log(adjusted / lag(adjusted, n = 223)), 
-           ema20 = TTR::EMA(adjusted, 20), 
-           ema40 = TTR::EMA(adjusted, 40), 
-           sma50 = TTR::SMA(adjusted, 50), 
-           sma100 = TTR::SMA(adjusted, 100), 
-           sma200 = TTR::SMA(adjusted, 200), 
-           
-           ema40_slope5 = ema40 / lag(ema40, 5), 
-           sma50_perc = log(adjusted / sma50), 
-           sma200_perc= log(adjusted / sma200),  
-           roll_mean_roc126_126 = roll_mean(roc126, width = 126), 
-           roll_mean_roc126_252 = roll_mean(roc126, width = 252), 
-           roll_sd_roc126_126 = roll_sd(roc126, width = 126), 
-           roll_mean_sma200_1 = roll_mean(sma200_perc, width = 293), 
-           roll_sd_sma200_1 = roll_sd(sma200_perc, width = 293), 
-           
-           std_away_sma200_1 = (sma200_perc - roll_mean_sma200_1) / roll_sd_sma200_1, ###YES V2
-           std_away_roc126_126 = (roc126 - roll_mean_roc126_126) / roll_sd_roc126_126,###YES V2Mom    
-           corr199_sma50_sma200 = roll_cor(sma50, sma200, width = 199),  ###YES V6
-           corr127_ema20_sma50 = roll_cor(ema20, sma50, width = 127),    ###YES
-           corr251_ema20_sma50 = roll_cor(ema20, sma50, width = 251),    ###YES V3
-           corr63_atr13_atr19 = roll_cor(atr13, atr19, width = 61),      ###YES NEW
-           
-           roll_sd_sma50_2 = roll_sd(sma50_perc, width = 512), 
-           roll_mean_sma50_2 = roll_mean(sma50_perc, width = 252), 
-           meltp_diff_sd_sma50_2 = (sma50_perc - roll_mean_sma50_2) / roll_sd_sma50_2,  
-           
-           
-           rsi13 = TTR::RSI(close, 13), 
-           rsi19 = TTR::RSI(close, 19), 
-           dim_rsi13_slope5 = rsi13 / lag(rsi13, 5), 
-           volum_sma47 = TTR::SMA(volume,  n = 47), 
-           volum_sma97 = TTR::SMA(volume,  n = 97), 
-           volum_sma200 = TTR::SMA(volume,  n = 200), 
+  df <- df |> 
+    mutate(volum_sma200 = TTR::SMA(volume,  n = 200), 
            volum200_perc = log(volume / volum_sma200), 
-           volum97_perc = log(volume / volum_sma97), 
-           
-           corr252_rsi19_sma50 = roll_cor(rsi19, sma50, width = 252),   ###YES V3  
-           corr127_rsi13_ema40 = roll_cor(rsi13, ema40, width = 127),   ###YES V3-newish 
-           volat_volu97_51days = roll_sd(volum200_perc, width = 51),    ###YES V2  
-           volat_volu200_21days = roll_sd(volum200_perc, width = 21),   ###YES V2  
-           volat_volu200_252days = roll_sd(volum200_perc, width = 252), ###YES V2
-           ma_cross_l = sma50 / sma100,                                 ###YES V2
-           corr251_volum_sma47_200 = roll_cor(volum_sma47, volum_sma200, width=252), ###YES V3
-           
-           # percent from high and low
-           max_63 = adjusted / roll_max(adjusted, width = 63),          ###YES V2    
-           min_63 = adjusted / roll_min(adjusted, width = 63),          ###YES V2 
-           min_126 = adjusted / roll_min(adjusted, width = 126),        ###Yes V3
-           max_252 = adjusted / roll_max(adjusted, width = 252),        ###YES V2
-           min_252 = adjusted / roll_min(adjusted, width = 252),        ###YES V2
-           
-           # Volatility of returns
-           volat_roc1_19days = roll_sd(roc1, width = 19),               ### these 2 var are highly
-           volat_roc1_63days = roll_sd(roc1, width=63),                 ### corr.  So new below
-           cor_volatroc1_1963days = roll_cor(volat_roc1_19days, volat_roc1_63days, width = 293), 
-           volat_roc5_29days = roll_sd(roc5, width = 29),               ###YES V2-Newish
-           volat_roc21_252days = roll_sd(roc21, width = 252),           ###YES V2
-           
-           # forward looking returns                      
-           ret_5w = (lead(adjusted, n = 25) / adjusted) - 1)
-  
-  return(df)
-  
-}
-
-##########################
-## Relative returns df 
-relative_returns_v8 <- function(ticker, mkt, sect) { 
-  df_ticker <- conform_data(ticker, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted) %>% 
-    mutate(adjusted_tic = as.numeric(adjusted), 
-           roc3_tic = log(adjusted_tic / lag(adjusted_tic, n = 3)), 
-           roc5_tic = log(adjusted_tic / lag(adjusted_tic, n = 5)), 
-           roc23_tic = log(adjusted_tic / lag(adjusted_tic, n = 23)), 
-           volat_roc23_252days = roll_sd(roc23_tic, width = 252)) 
-  df_mkt <- conform_data(mkt, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted_mkt = adjusted) %>% 
-    mutate(roc2_mkt = log(adjusted_mkt / lag(adjusted_mkt, n = 2)),
-           roc3_mkt = log(adjusted_mkt / lag(adjusted_mkt, n = 3)),
-           roc5_mkt = log(adjusted_mkt / lag(adjusted_mkt, n = 5))) 
-  df_sect <- conform_data(sect, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted_sect = adjusted) %>% 
-    mutate(roc2_sect = log(adjusted_sect / lag(adjusted_sect, n = 2)),
-           roc3_sect = log(adjusted_sect / lag(adjusted_sect, n = 3)),
-           roc5_sect = log(adjusted_sect / lag(adjusted_sect, n = 5))) 
-  
-  yo0 <- left_join(df_mkt, df_sect, by = "index") %>% na.omit() %>% 
-    mutate(adjusted_ms = adjusted_sect / adjusted_mkt, 
-           roc5_ms = log(adjusted_ms / lag(adjusted_ms, 5)), 
-           roc11_ms = log(adjusted_ms / lag(adjusted_ms, 11)),
-           zzmark_roc23_ms = log(adjusted_ms / lag(adjusted_ms, 23)),   
-           zzmark_roc61_ms = log(adjusted_ms / lag(adjusted_ms, 61)),
-           zzmark_roc127_ms = log(adjusted_ms / lag(adjusted_ms, 127)),       ###YES
-           zzmark_volat251_roc23_ms = roll_sd(zzmark_roc23_ms, width = 252),  ###YES V62
-           zzmark_volat251_roc61_ms = roll_sd(zzmark_roc61_ms, width = 251),  ###YES V62
-           zzmark_rollcor19_roc2_ms = roll_cor(roc2_mkt, roc2_sect, width=19),###YES
-           zzmark_rollcor67_roc5_ms = roll_cor(roc5_mkt, roc5_sect, width=67) ###YES
-           ) %>% 
-    select(index, zzmark_roc127_ms, zzmark_volat251_roc23_ms, zzmark_volat251_roc61_ms, 
-           zzmark_rollcor19_roc2_ms, zzmark_rollcor67_roc5_ms
-           )
-    
-  yo1 <- left_join(df_ticker, df_mkt, by = "index") %>% na.omit() %>% 
-    mutate(adj_tm = adjusted_tic / adjusted_mkt, 
-           zzmark_roc61_tm = log(adj_tm / lag(adj_tm, 61)),                 
-           zzmark_roc127_tm = log(adj_tm / lag(adj_tm, 127)),                 ###YES
-           zzmark_volat251_roc61_tm = roll_sd(zzmark_roc61_tm, width = 251),  ###YES V6
-           volat251_roc127_tm = roll_sd(zzmark_roc127_tm, width = 251),
-           zzmark_rollcor19_roc3_tm = roll_cor(roc3_tic, roc3_mkt, width = 19),###YES
-           zzmark_rollcor67_roc5_tm = roll_cor(roc5_tic, roc5_mkt, width = 67),###YES
-           rollsd_volatroc_tm = roll_sd(volat_roc23_252days, volat251_roc127_tm, width=252)
-           ) %>% 
-    select(index, zzmark_roc127_tm, zzmark_volat251_roc61_tm, 
-           zzmark_rollcor19_roc3_tm, zzmark_rollcor67_roc5_tm, rollsd_volatroc_tm
-           )
-
-  yo2 <- left_join(df_ticker, df_sect, by = "index") %>% na.omit() %>% 
-    mutate(adj_ts = adjusted_tic / adjusted_sect, 
-           zzmark_roc23_ts = log(adj_ts / lag(adj_ts, 23)),                 
-           zzmark_roc61_ts = log(adj_ts / lag(adj_ts, 61)), 
-           zzmark_roc127_ts = log(adj_ts / lag(adj_ts, 127)),                ###YES
-           zzmark_volat251_roc23_ts = roll_sd(zzmark_roc23_ts, width = 251), ###YES V6
-           zzmark_volat251_roc61_ts = roll_sd(zzmark_roc61_ts, width = 251), ###YES V6
-           zzmark_rollcor19_roc3_ts = roll_cor(roc3_tic, roc3_sect, width = 19), 
-           zzmark_rollcor67_roc5_ts = roll_cor(roc5_tic, roc5_sect, width = 67), 
-           rollsd_volatroc_ts = roll_sd(volat_roc23_252days, zzmark_volat251_roc61_ts, width=252)
-    ) %>% 
-    select(index,  zzmark_roc127_ts, zzmark_volat251_roc23_ts, zzmark_volat251_roc61_ts, 
-           zzmark_rollcor19_roc3_ts, zzmark_rollcor67_roc5_ts, rollsd_volatroc_ts
-    )
-  
-  df <- left_join(yo0, yo1) %>% left_join(., yo2)
-  
-  df_iwd <- conform_data("IWD", interval = "Daily", provider = "fmpr") %>% 
-    select(index, adj_iwd = adjusted) 
-  df_iwf <- conform_data("IWF", interval = "Daily", provider = "fmpr") %>% 
-    select(index, adj_iwf = adjusted)
-  df_rus <- left_join(df_iwd, df_iwf) %>% 
-    mutate(grow_over_val = adj_iwf / adj_iwd, 
-           rus_sma97 = TTR::SMA(grow_over_val, n = 97), 
-           rus_sma47 = TTR::SMA(grow_over_val, n = 47), 
-           zzmark_ma_cross_rus = rus_sma47 / rus_sma97, 
-           zzmark_grow_over_val_roc19 = log(grow_over_val / lag(grow_over_val, 19)), 
-           zzmark_grow_over_val_roc67 = log(grow_over_val / lag(grow_over_val, 67)),
-           zzmark_grow_over_val_roc127 = log(grow_over_val / lag(grow_over_val, 127))) %>% 
-    select(index, zzmark_grow_over_val_roc19, zzmark_grow_over_val_roc67, zzmark_ma_cross_rus, 
-           zzmark_grow_over_val_roc127)
-  
-  df <- left_join(df, df_rus, by = "index")
-  
-  return(df)
-  
-}
-
-##########################
-## Only consider the variables that we'll be using in the model 
-reduce_df_v8 <- function(old){ 
-  df <- old %>% 
-    select(index, 
-           ## Version 2
-           volat_volu200_252days, volat_roc21_252days, min_252, max_252, ma_cross_l, 
-           volat_volu200_21days, std_away_sma200_1, cor_volatroc1_1963days, volat_roc5_29days,  
-           max_63, min_63, std_away_roc126_126, 
-           ## Version 3
-           corr251_ema20_sma50, corr127_ema20_sma50, min_126, 
-           corr252_rsi19_sma50, corr127_rsi13_ema40, corr251_volum_sma47_200, 
-           
-           # Version 6
-           corr199_sma50_sma200, volat_volu97_51days, 
-           
-           ## New
-           corr63_atr13_atr19, rollsd_volatroc_ts, rollsd_volatroc_tm, 
-           
-           ## bring in the etf
-           zzmark_volat251_roc61_ms, zzmark_volat251_roc23_ts, zzmark_volat251_roc61_tm, 
-           zzmark_volat251_roc23_ms, zzmark_volat251_roc61_ts, 
-           zzmark_roc127_ms, zzmark_roc127_tm, zzmark_roc127_ts, 
-           zzmark_rollcor19_roc2_ms, zzmark_rollcor67_roc5_ms, 
-           zzmark_rollcor19_roc3_tm, zzmark_rollcor67_roc5_tm, 
-           zzmark_rollcor19_roc3_ts,  zzmark_rollcor67_roc5_ts, 
-           zzmark_grow_over_val_roc19, zzmark_grow_over_val_roc67, zzmark_grow_over_val_roc127, 
-           zzmark_ma_cross_rus, 
-           
-           dim_atr13, dim_adx17, dim_dip17_slope5, dim_rsi13_slope5, 
-           dim_roc3, dim_roc7, dim_roc11, dim_roc17, dim_roc31, dim_roc61, dim_roc97, dim_roc127, 
-           dim_roc157, dim_roc193, dim_roc223,  
-           
-           ret_5w
-    )
-}
-
-
-downl = c(ticker, mkt, sect, "IWF", "IWD")
-for (i in 1:length(downl)) { 
-  get_fmpr_prices(downl[i]) 
-  print(paste0("Downloaded ticker ", downl[i])) 
+           volat_volu200_252days = roll_sd(volum200_perc, width = 252), 
+           ret_7w = (lead(adjusted, n = 35) / adjusted) - 1)
 }
 
 ## Modeling phase now
-model_type = "5wClassThirdile"
-df0 <- conform_data(ticker, interval="Daily", provider = "fmpr") %>% 
-  create_base_fin_df_v8() 
-df1 <- relative_returns_v8(ticker, mkt, sect) 
-df2 <- portion_above_ma(sect) 
-df_model <- left_join(df0, df1, by = "index") %>% reduce_df_v8(.) %>% 
-  left_join(., df2, by = "index") %>% 
-  mutate(ord_class = as.factor(ntile(ret_5w, 3))) %>% na.omit() 
-rm(df0, df1, df2)
+model_type = "7wClassThirdile"
+df0 <- conform_data(ticker) |> 
+  create_base_fin_df_v8() |> 
+  mutate(ord_class = as.factor(ntile(ret_7w, 3))) 
+
 
 print(paste0("Dealing now with ", ticker))
 
 print(paste0("The ", model_type, " build on ", ticker, " has ", nrow(df_model), " rows"))
   
-skip = 24
+skip = 35
 prediction_advance = 13 + skip #(5 weeks ahead)
 starting_percentage = 0.59 
 based_sample = floor((nrow(df_model) - (10 * prediction_advance)) * starting_percentage) 

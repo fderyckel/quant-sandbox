@@ -1,0 +1,173 @@
+---
+title: "Understanding Rsample"
+author: "FdR"
+date: "02-12-2023"
+format: html
+---
+
+# Getting to know Cross-validation with time-series 
+
+## Introduction 
+
+When doing cross-validation, we usually tend to have a training set, a validation set and then finally a testing set.  We need a testing set because whatever algorithm you have used has been fine-tuned to increase 'success' (however you measure it in your problem) on the validation set.  Hence, you have the best possible outcomes, but it doesn't mean it translates further to an 'accurate' forecasting (again, however ways you measure that in your problem).  This is why we save some observations (the latest one), to really see if our model have any predictive power. 
+
+What I am looking for here is to keep the last 6 months of data + look ahead time (7 weeks in my case) for testing.  So I will keep 8 months worth of data for testing.  The rest, I would like to break it into a 80-20 training / validation sets. 
+
+Problem to solve: how to automate the above training/validation/test splits.  
+
+This require a deeper dive into how the rsample library works.  
+
+```{r}
+#| warning: false
+#| message: false
+#| label: set_up
+
+library(readr) 
+library(dplyr)
+library(lubridate)
+library(rsample)
+library(purrr)
+
+the_path <- here::here()
+
+ticker <- 'SPY' 
+
+create_cv_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(index = date, adjusted = adjClose) |> 
+      arrange(index) |> 
+      filter(index < today()  - 8*21) # removing the last 8 months of data for testing
+    return(df)
+}
+
+df <- create_cv_data(ticker) 
+```
+
+
+## How rolling_origin() works
+
+First, we create time_slices using the  *rolling_origin()* function from the **rsample** package.  
+
+The arguments used by *rolling_oring()* are 
+
+* initial: number of observations (time units) used for a training sample
+* assess: number of observations (time units) used for the associated testing sample 
+* skip: how many observations (time units, days here) we jump between each training sample.  Skip is just between training samples.  
+* lag: if we want a lag (a certain amount of days) between the training and testing samples().  This is suggested to avoid any auto-correlation issues.  We are going to put a month of trading in between the training samples and testing samples
+
+What took me a while to understand is the relationship between assess and lag.  So here is how I am currently understanding it.  
+lag is based on assess.  It skips unit of times from the assess sample. And assess starts right after the initial samples. 
+The size of the validation sample = assess + lag.  
+Now, lag has to be negative for us validation = 10, which 31 (assess) - 21 (lag)
+
+The output of that function is a tibble with 2 columns. 
+
+* splits: a **binary split** of 'list' type
+* id: the slice ID (characters) of 'character' type 
+
+```{r}
+#| label: rolling-origin
+
+time_slices <- rolling_origin(df, 
+                              initial = 1000, assess = 31, 
+                              lag = -21, skip = 63, 
+                              cumulative = FALSE) 
+glimpse(time_slices)
+```
+
+## extracting training and testing samples 
+
+Next step is to extract the training and testing set from the split.   We use the 2 functions **training()** and **testing()** for extraction.
+
+```{r}
+#| label: trainign-testing
+
+# the use of map() in mutate() is for the training() and testing() functions from the rsample package.
+# these 2 functions extract the data from the splits made by rolling_origin()
+ts_df <- time_slices |> 
+  mutate(train = map(splits, training), 
+         validation = map(splits, testing)) 
+glimpse(ts_df)
+```
+
+## extracting dates 
+
+All of this is to access the dates in the split and check that the splits has done what I want it to do.  we use map_dbl this time to get the date (we have to reconvert it to a date though)
+
+```{r}
+# create our 2 simple functions to check the dates 
+get_start_date <- function(x){ min(x$index) }
+get_end_date <- function(x){ max(x$index) }
+
+ts_df_dates <- ts_df |> 
+  mutate(start_train_date = as_date(map_dbl(train, get_start_date)), 
+         end_train_date = as_date(map_dbl(train, get_end_date)), 
+         start_test_date = as_date(map_dbl(validation, get_start_date)), 
+         end_test_date = as_date(map_dbl(validation, get_end_date))) |> 
+  select(-splits)
+
+glimpse(ts_df_dates)
+
+# checking the dates 
+tail(ts_df_dates |> select(-train, -validation))
+```
+
+# Solving our problem 
+
+Between training size, validation size, skip size, lag size and number of cross-validation samples, some values have to vary and some have to be constant.  
+Here is what we decided for our problem: 
+
+The training size will vary and the rest will be constant. 
+
+Constant: 
+
+* number of cross-validation samples: 50
+* size of validation sample: 20% of the size of the df.  We'll divide that by 50. 
+* skip between training samples = 63 (3 months)
+* lag before starting testing = 21 (1 month)
+
+Problem can arise when the training set becomes then too small because the whole dataset is not big enough.  In this case, we'll then size down the skip time in order to have at least 500 training observations to work with.  
+
+```{r}
+#ticker <- 'SPY' 
+ticker <- 'HACK'
+
+df <- create_cv_data(ticker) #|> filter(index > '2009-09-01')
+get_start_date <- function(x){ min(x$index) }
+get_end_date <- function(x){ max(x$index) }
+
+min_size_training <- 500
+number_of_samples <- 50
+skippy <- 63
+laggy <- 21
+# get the size of the df we are using. 
+validation_size <- floor(nrow(df) * 0.2 / number_of_samples) + 1
+training_size <- nrow(df) - 
+  (skippy * (number_of_samples - 1)) - 
+  (laggy + validation_size) - 49
+
+if (training_size < 500) {
+  training_size <- min_size_training
+  skippy <- floor((nrow(df) - validation_size - laggy - min_size_training) / number_of_samples) 
+  training_size <- nrow(df) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
+  #training_size <- 517
+}
+
+time_slices2 <- rolling_origin(df, 
+                              initial = training_size, assess = validation_size + laggy, 
+                              lag = -laggy, skip = skippy, 
+                              cumulative = FALSE) |> 
+  mutate(train = map(splits, training), 
+         validation = map(splits, testing)) |> 
+  mutate(start_train_date = as_date(map_dbl(train, get_start_date)), 
+         end_train_date = as_date(map_dbl(train, get_end_date)), 
+         start_test_date = as_date(map_dbl(validation, get_start_date)), 
+         end_test_date = as_date(map_dbl(validation, get_end_date))) |> 
+  select(-splits)
+
+print(skippy)
+glimpse(time_slices2)
+tail(time_slices2 |> select(-train, -validation))
+```
+

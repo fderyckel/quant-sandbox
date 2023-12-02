@@ -14,6 +14,9 @@ Question: What volatility are we talking about:
 
 how do you calculate your volatility? 
 
+Volatility for forecasting power?  Are we taking 1 1/2 months, 5 months, 7 months, 11 months
+
+
 
 ```{r}
 #| label: setup_and_functions
