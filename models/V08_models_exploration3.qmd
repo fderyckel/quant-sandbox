@@ -260,19 +260,26 @@ rm(df_prep)
 ## Correlation analysis
 
 ```{r}
+#| message: false
+#| warning: false
+
 # setting up the path within the project for easier portability of code
 the_path <- here::here()
 
 library(corrr)
 library(glue)
+library(dplyr)
 library(purrr)
+library(tidyr)
 
-model <- 'version_1b'
-tickers = c('AMD', 'HAL', 'JPM', 'AXP') 
+source(glue(the_path, "/models/functions/model_v8_3.R"))
+
+model <- 'version_v8_3'
+tickers = c('AMD', 'AAPL', 'FDX', 'GOOG', 'HAL', 'PYPL', 'CVX') 
 create_cor_df <- function(ticker) { 
-  df0 <- model_v1b(ticker)
+  df0 <- model_v82(ticker)
   df <- df0 %>% drop_na()
-  df_cor <- df %>% select(-date, -ord_class2) 
+  df_cor <- df %>% select(-date, -ret_7w) 
   yo <- correlate(df_cor) %>% shave() %>% stretch()
   return(yo)
   }
@@ -281,8 +288,10 @@ df0 <- tibble(model = model, ticker = tickers) %>%
   mutate(cor_df = map(ticker, create_cor_df)) %>% 
   unnest()
 
-df1 <- df0 %>% filter(r >= 0.75 | r <= -0.75) |> 
+df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
   arrange(x)
+
+write_csv(df1, 'correlations/model_v8_3.csv')
 
 library(gt)
 
