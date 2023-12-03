@@ -152,7 +152,6 @@ xgboost_resampling <- tune_grid(wf, time_slices,
 # collecting results
 
 ```{r}
-
 yo_acc <- xgboost_resampling |>  collect_predictions() |>  
   mutate(soft_acc = case_when(.pred_class == '3' & ord_class2 == '3' ~ 1, 
                               .pred_class == '2' & ord_class2 == '2' ~ 1, 
@@ -247,7 +246,7 @@ library(glue)
 library(purrr)
 
 model <- 'version_1b'
-tickers = c('AMD', 'HAL', 'JPM', 'AXP') 
+tickers = c('AMD', 'AXP', 'FDX', 'HAL', 'PYPL', 'CVX') 
 create_cor_df <- function(ticker) { 
   df0 <- model_v1b(ticker)
   df <- df0 %>% drop_na()
@@ -269,6 +268,8 @@ df1 |> gt()
 ```
 
 
+
+
 # Analyse of variables importance 
 
 ```{r}
@@ -287,12 +288,14 @@ var_amd <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv1b_thir
                     show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
 var_axp <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv1b_thirdile_', 'AXP', '.csv'), 
                     show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
+var_fdx <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv1b_thirdile_', 'FDX', '.csv'), 
+                    show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
 var_hal <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv1b_thirdile_', 'HAL', '.csv'), 
                     show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
 var_jpm <- read_csv(glue(the_path, '/models/model_vars_imp/xgboost_modelv1b_thirdile_', 'JPM', '.csv'), 
                     show_col_types = FALSE) |> arrange(desc(Importance)) |> mutate(rank_order = row_number())
 
-df <- bind_rows(var_amd, var_axp, var_hal, var_jpm) |>
+df <- bind_rows(var_amd, var_axp, var_fdx, var_hal, var_jpm) |>
   group_by(Variable) |>  
   summarise(mean_rank = mean(rank_order), 
             mean_imp = mean(Importance, na.rm=TRUE), 

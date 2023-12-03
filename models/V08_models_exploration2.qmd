@@ -101,7 +101,7 @@ reduce_df <- function(df) {
 ## modeling 
 
 ```{r}
-ticker <- 'AA'
+ticker <- 'AAPL'
 
 ## Modeling phase now
 model_type = "7wClassThirdile"
@@ -249,6 +249,12 @@ rm(df_prep)
 
 ```
 
+
+## Analysis of correlation 
+
+```{r}
+
+```
 
 
 ## picking up the important variables 
