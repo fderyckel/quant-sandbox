@@ -268,7 +268,7 @@ library(tidyr)
 source(glue(the_path, "/models/functions/model_v8_2.R"))
 
 model <- 'version_v8_2'
-tickers = c('AMD', 'AAPL', 'FDX', 'GOOG', 'HAL', 'PYPL', 'CVX') 
+tickers = c('AMD', 'AAPL', 'FDX', 'GOOG', 'HAL', 'PYPL', 'CVX', 'SBUX') 
 create_cor_df <- function(ticker) { 
   df0 <- model_v82(ticker)
   df <- df0 %>% drop_na()
