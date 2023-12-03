@@ -31,6 +31,10 @@ version_v8_2,CVX,sd_abov_ema11,sd_abov_ema23,0.9953556672118609
 version_v8_2,CVX,sd_abov_ema11,sd_abov_sma47,0.96444739424568
 version_v8_2,CVX,sd_abov_ema11,sd_abov_sma101,0.9096404175581615
 version_v8_2,CVX,sd_abov_ema11,sd_abov_sma199,0.8772051607357398
+version_v8_2,SBUX,sd_abov_ema11,sd_abov_ema23,0.9963380565386993
+version_v8_2,SBUX,sd_abov_ema11,sd_abov_sma47,0.9841887095154407
+version_v8_2,SBUX,sd_abov_ema11,sd_abov_sma101,0.9566823761269698
+version_v8_2,SBUX,sd_abov_ema11,sd_abov_sma199,0.9148864067754549
 version_v8_2,AMD,sd_abov_ema23,sd_abov_sma47,0.9964041802058358
 version_v8_2,AMD,sd_abov_ema23,sd_abov_sma101,0.9757846809596781
 version_v8_2,AMD,sd_abov_ema23,sd_abov_sma199,0.9465634626466667
@@ -56,6 +60,9 @@ version_v8_2,PYPL,sd_abov_ema23,volat_volu200_252d,-0.6623788211506928
 version_v8_2,CVX,sd_abov_ema23,sd_abov_sma47,0.9843037429073038
 version_v8_2,CVX,sd_abov_ema23,sd_abov_sma101,0.9365442208209814
 version_v8_2,CVX,sd_abov_ema23,sd_abov_sma199,0.8988947563488836
+version_v8_2,SBUX,sd_abov_ema23,sd_abov_sma47,0.9949682602342824
+version_v8_2,SBUX,sd_abov_ema23,sd_abov_sma101,0.9703688246106471
+version_v8_2,SBUX,sd_abov_ema23,sd_abov_sma199,0.9164276122955847
 version_v8_2,AMD,sd_abov_sma101,sd_abov_sma199,0.9844662670350225
 version_v8_2,AMD,sd_abov_sma101,volat_volu200_252d,-0.5319826431867379
 version_v8_2,AAPL,sd_abov_sma101,sd_abov_sma199,0.98246086800931
@@ -67,6 +74,7 @@ version_v8_2,HAL,sd_abov_sma101,volat_roc21_252d,-0.5693815258150683
 version_v8_2,PYPL,sd_abov_sma101,sd_abov_sma199,0.9546207602423332
 version_v8_2,PYPL,sd_abov_sma101,volat_volu200_252d,-0.5178406512439024
 version_v8_2,CVX,sd_abov_sma101,sd_abov_sma199,0.9640897828450156
+version_v8_2,SBUX,sd_abov_sma101,sd_abov_sma199,0.9466148301028107
 version_v8_2,AMD,sd_abov_sma199,volat_volu200_252d,-0.5640256243471342
 version_v8_2,GOOG,sd_abov_sma199,volat_roc21_252d,-0.5206779783511492
 version_v8_2,HAL,sd_abov_sma199,volat_roc21_252d,-0.5143601069930533
@@ -88,5 +96,7 @@ version_v8_2,PYPL,sd_abov_sma47,sd_abov_sma199,0.9200243769299694
 version_v8_2,PYPL,sd_abov_sma47,volat_volu200_252d,-0.6110729191673215
 version_v8_2,CVX,sd_abov_sma47,sd_abov_sma101,0.9670776109514685
 version_v8_2,CVX,sd_abov_sma47,sd_abov_sma199,0.9221714024496578
+version_v8_2,SBUX,sd_abov_sma47,sd_abov_sma101,0.980830414247733
+version_v8_2,SBUX,sd_abov_sma47,sd_abov_sma199,0.9170694378372354
 version_v8_2,PYPL,volat_roc21_252d,volat_volu200_252d,0.6655769019654374
 version_v8_2,CVX,volat_roc21_252d,volat_volu200_252d,0.6558756228885898

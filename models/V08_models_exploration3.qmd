@@ -108,7 +108,7 @@ reduce_df <- function(df) {
 ## modeling 
 
 ```{r}
-ticker <- 'HAL'
+ticker <- 'SBUX'
 
 ## Modeling phase now
 model_type = "7wClassThirdile"
@@ -275,7 +275,7 @@ library(tidyr)
 source(glue(the_path, "/models/functions/model_v8_3.R"))
 
 model <- 'version_v8_3'
-tickers = c('AMD', 'AAPL', 'FDX', 'GOOG', 'HAL', 'PYPL', 'CVX') 
+tickers = c('AMD', 'AAPL', 'FDX', 'GOOG', 'HAL', 'PYPL', 'CVX', 'SBUX') 
 create_cor_df <- function(ticker) { 
   df0 <- model_v82(ticker)
   df <- df0 %>% drop_na()
