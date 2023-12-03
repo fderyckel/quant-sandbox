@@ -1,5 +1,12 @@
 # model V1b
 
+library(readr)
+library(dplyr)
+library(purrr)
+library(roll)
+
+num_days = 31
+
 model_v1b <- function(ticker) {
   df <- read_csv(glue::glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
     arrange(date) |> 

@@ -235,18 +235,19 @@ write_csv(var_importance, paste0(the_path, "/models/model_vars_imp/xgboost_model
 #| message: false
 #| warning: false
 
-
 # setting up the path within the project for easier portability of code
 the_path <- here::here()
 
-source(glue(the_path, "/models/functions/model_v1b.R"))
-
 library(corrr)
 library(glue)
+library(dplyr)
 library(purrr)
+library(tidyr)
+
+source(glue(the_path, "/models/functions/model_v1b.R"))
 
 model <- 'version_1b'
-tickers = c('AMD', 'AXP', 'FDX', 'HAL', 'PYPL', 'CVX') 
+tickers = c('AMD', 'AAPL', 'FDX', 'HAL', 'PYPL', 'CVX') 
 create_cor_df <- function(ticker) { 
   df0 <- model_v1b(ticker)
   df <- df0 %>% drop_na()
@@ -259,8 +260,10 @@ df0 <- tibble(model = model, ticker = tickers) %>%
   mutate(cor_df = map(ticker, create_cor_df)) %>% 
   unnest()
 
-df1 <- df0 %>% filter(r >= 0.75 | r <= -0.75) |> 
+df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
   arrange(x)
+
+write_csv(df1, 'correlations/model_v1b.csv')
 
 library(gt)
 
