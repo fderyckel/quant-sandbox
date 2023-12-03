@@ -108,7 +108,7 @@ reduce_df <- function(df) {
 ## modeling 
 
 ```{r}
-ticker <- 'AMD'
+ticker <- 'HAL'
 
 ## Modeling phase now
 model_type = "7wClassThirdile"
@@ -256,6 +256,38 @@ rm(df_prep)
 
 ```
 
+
+## Correlation analysis
+
+```{r}
+# setting up the path within the project for easier portability of code
+the_path <- here::here()
+
+library(corrr)
+library(glue)
+library(purrr)
+
+model <- 'version_1b'
+tickers = c('AMD', 'HAL', 'JPM', 'AXP') 
+create_cor_df <- function(ticker) { 
+  df0 <- model_v1b(ticker)
+  df <- df0 %>% drop_na()
+  df_cor <- df %>% select(-date, -ord_class2) 
+  yo <- correlate(df_cor) %>% shave() %>% stretch()
+  return(yo)
+  }
+
+df0 <- tibble(model = model, ticker = tickers) %>% 
+  mutate(cor_df = map(ticker, create_cor_df)) %>% 
+  unnest()
+
+df1 <- df0 %>% filter(r >= 0.75 | r <= -0.75) |> 
+  arrange(x)
+
+library(gt)
+
+df1 |> gt()
+```
 
 
 ## picking up the important variables 

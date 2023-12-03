@@ -51,6 +51,7 @@ conform_data <- function(ticker){
 library(roll)
 library(timetk)
 
+corr_roll_252 <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 252)
 mean_roll_21 <- slidify(.f = mean, .align = 'right', .period = 21)
 mean_roll_252 <- slidify(.f = mean, .align = 'right', .period = 252)
 sd_roll_252 <- slidify(.f = sd, .align = 'right', .period = 252)
@@ -63,8 +64,10 @@ augment_df_fin <- function(df){
            ema11 = TTR::EMA(adjusted, n = 11), 
            ema23 = TTR::EMA(adjusted, n = 23), 
            sma47 = TTR::SMA(adjusted, n = 47), 
+           sma50 = TTR::SMA(adjusted, n = 50), 
            sma101 = TTR::SMA(adjusted, n = 101), 
            sma199 = TTR::SMA(adjusted, n = 199), 
+           sma200 = TTR::SMA(adjusted, n = 200), 
            perc_abov_ema11 = log(adjusted / ema11), 
            perc_abov_ema23 = log(adjusted / ema23), 
            perc_abov_sma47 = log(adjusted / sma47), 
@@ -75,6 +78,9 @@ augment_df_fin <- function(df){
            sd_abov_sma47 = (sma47 - mean_roll_252(perc_abov_sma47)) / sd_roll_252(perc_abov_sma47), 
            sd_abov_sma101 = (sma101 - mean_roll_252(perc_abov_sma101)) / sd_roll_252(perc_abov_sma101),  
            sd_abov_sma199 = (sma199 - mean_roll_252(perc_abov_sma199)) / sd_roll_252(perc_abov_sma199),  
+           corr_ema23_sma101_252d = corr_roll_252(ema23, sma101), 
+           corr_ema23_sma47_252d = corr_roll_252(ema23, sma47), 
+           corr_sma50_sma200_252d = corr_roll_252(sma50, sma200), 
            
            volum_sma200 = TTR::SMA(volume,  n = 200), 
            volum200_perc = log(volume / volum_sma200), 
@@ -91,7 +97,8 @@ augment_df_fin <- function(df){
 reduce_df <- function(df) { 
   df <- df |> 
     select(date, 
-           sd_abov_ema11, sd_abov_ema23, sd_abov_sma47, sd_abov_sma101, sd_abov_sma199,
+           sd_abov_ema11, sd_abov_ema23, sd_abov_sma47, sd_abov_sma101, sd_abov_sma199, 
+           corr_ema23_sma101_252d, corr_ema23_sma47_252d, corr_sma50_sma200_252d,  
            volat_roc21_252d, volat_volu200_252d, 
            ret_7w)
 }
@@ -101,7 +108,7 @@ reduce_df <- function(df) {
 ## modeling 
 
 ```{r}
-ticker <- 'AA'
+ticker <- 'HAL'
 
 ## Modeling phase now
 model_type = "7wClassThirdile"
@@ -209,16 +216,16 @@ yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
          avg_rank =  0.5 * preci_rank + 0.2 * soft_preci_rank + 0.15 * soft_acc_rank + 0.15 * recall_rank)
 
-yo_metric <- left_join(yo_precision, yo_soft_acc) %>% left_join(., yo_recall) %>% 
-  left_join(., yo_soft_preci) %>% left_join(., yo_cost3) %>% 
+yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
+  left_join(yo_soft_preci) |> left_join(yo_cost3) |> 
   select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, mean_soft_acc, 
-         mtry, tree_depth, trees, min_n, learn_rate) %>% 
+         mtry, tree_depth, trees, min_n, learn_rate) |> 
   arrange(desc(avg_rank), mean_preci)
 
 #rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
 
 write_csv(yo_metric, 
-          paste0(the_path, "/models/model_metrics/xgboost_modelv8_explo2_", model_type, "_", ticker, ".csv"))
+          paste0(the_path, "/models/model_metrics/xgboost_modelv8_explo4_", model_type, "_", ticker, ".csv"))
 
 best_model <- yo_metric$.config[1]
 
@@ -234,7 +241,7 @@ final_wf
 
 model_base <- fit(object = final_wf, data = df_model)
 write_rds(model_base, 
-          paste0(the_path, "/models/model_raw/xgboost_modelv8_explo2_", model_type, "_", ticker, ".rda"))
+          paste0(the_path, "/models/model_raw/xgboost_modelv8_explo4_", model_type, "_", ticker, ".rda"))
 
 library(vip)
 df_prep <- prep(recipe_base)
@@ -243,12 +250,44 @@ var_importance <- final_model %>%
   fit(ord_class ~ ., data = juice(df_prep) %>% select(-date)) %>%
   vi()
 write_csv(var_importance, 
-          paste0(the_path, "/models/model_vars_imp/xgboost_modelv8_explo2_", model_type, "_", ticker, ".csv"))
+          paste0(the_path, "/models/model_vars_imp/xgboost_modelv8_explo4_", model_type, "_", ticker, ".csv"))
 rm(df_prep)
 
 
 ```
 
+
+## Correlation analysis
+
+```{r}
+# setting up the path within the project for easier portability of code
+the_path <- here::here()
+
+library(corrr)
+library(glue)
+library(purrr)
+
+model <- 'version_1b'
+tickers = c('AMD', 'HAL', 'JPM', 'AXP') 
+create_cor_df <- function(ticker) { 
+  df0 <- model_v1b(ticker)
+  df <- df0 %>% drop_na()
+  df_cor <- df %>% select(-date, -ord_class2) 
+  yo <- correlate(df_cor) %>% shave() %>% stretch()
+  return(yo)
+  }
+
+df0 <- tibble(model = model, ticker = tickers) %>% 
+  mutate(cor_df = map(ticker, create_cor_df)) %>% 
+  unnest()
+
+df1 <- df0 %>% filter(r >= 0.75 | r <= -0.75) |> 
+  arrange(x)
+
+library(gt)
+
+df1 |> gt()
+```
 
 
 ## picking up the important variables 
