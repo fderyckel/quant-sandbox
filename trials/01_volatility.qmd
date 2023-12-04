@@ -16,81 +16,73 @@ how do you calculate your volatility?
 
 Volatility for forecasting power?  Are we taking 1 1/2 months, 5 months, 7 months, 11 months
 
+# Kurtosis 
 
+I am taking this from this website: https://eranraviv.com/stock-market-kurtosis-over-time/
+
+We can use the Kurtosis as a proxy for extreme events, high Kurtosis in a certain month means that the return distribution for that month was such that most observations were in the center, and some were in the tails, the higher the kurtosis, the fatter the tail. Here I do not differentiate between positive and negative shocks.
 
 ```{r}
-#| label: setup_and_functions
+#| label: setup
 #| warning: false
 #| message: false
 
-library(dplyr)      # rename(), arrange(), select(), if_else(), distinct()
-library(readr)      # read_csv()
-library(stringr)    # str_remove()
-library(tidyr)      # drop_na(), pivot_longer()
-library(lubridate)  # today()
-library(purrr)      # map()
-library(roll)
-
-the_path <- here::here()
-
-conform_data <- function(ticker) {
-    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
-      rename(index = date, adjusted = adjClose) |> 
-      arrange(index) |> 
-      mutate(ret1d = log(close / lag(close)), 
-             roll_sd_ret1d_127d = roll_sd(ret1d, width = 127), 
-             mult_127d_roll_sd_ret1d = ret1d / roll_sd_ret1d_127d,   
-             lag_mult_127d_roll_sd_ret1d = lag(mult_127d_roll_sd_ret1d, n = 5), 
-             ret11d = log(close / lag(close, n = 11)), 
-             roll_sd_ret11d_181d = roll_sd(ret11d, width = 181),
-             mult_181d_roll_sd_ret11d = ret11d / roll_sd_ret11d_181d, 
-             lag_mult_181d_roll_sd_ret11d = lag(mult_181d_roll_sd_ret11d, n = 5), 
-             ret31d = log(close / lag(close, n = 31)), 
-             roll_sd_ret31d_251d = roll_sd(ret31d, width = 251), 
-             mult_251d_roll_sd_ret31d = ret31d / roll_sd_ret31d_251d, 
-             lag_mult_251d_roll_sd_ret31d = lag(mult_251d_roll_sd_ret31d, n = 5), 
-             ret41d = log(close / lag(close, n = 41)), 
-             roll_sd_ret41d_293d = roll_sd(ret41d, width = 293), 
-             mult_293d_roll_sd_ret41d = ret41d / roll_sd_ret41d_293d, 
-             lag_mult_293d_roll_sd_ret41d = lag(mult_293d_roll_sd_ret41d, n = 5)) |> 
-      drop_na() |> 
-      mutate(forward_ret_31d = log(lead(close, n = 31) / close), 
-             forward_ret_37d = log(lead(close, n = 37) / close), 
-             forward_ret_41d = log(lead(close, n = 41) / close), 
-             ) |> 
-      select(index, adjusted, high, low, close, 
-             mult_127d_roll_sd_ret1d, lag_mult_127d_roll_sd_ret1d, 
-             mult_181d_roll_sd_ret11d, lag_mult_181d_roll_sd_ret11d, 
-             mult_251d_roll_sd_ret31d, lag_mult_251d_roll_sd_ret31d, 
-             mult_293d_roll_sd_ret41d, lag_mult_293d_roll_sd_ret41d, 
-             forward_ret_31d, forward_ret_37d, forward_ret_41d) |> filter(index > (today() - 7))
-  return(df)
-}
-
-yo <- conform_data('PYPL')
+library(readr)
+library(dplyr)
+library(timetk)
+library(lubridate)
 ```
+
+Idea is to calculate the trailing monthly kurtosis (same with 6 months)
 
 ```{r}
-# Trying some shit
-df <- conform_data('PYPL') |> 
-  pivot_longer(cols = c(mult_127d_roll_sd_ret1d, mult_181d_roll_sd_ret11d, 
-                        mult_251d_roll_sd_ret31d, mult_293d_roll_sd_ret41d), 
-               names_to = 'which_mutiple_of_sd', 
-               values_to = 'mutiple_of_sd')
+#| label: setup-functions
+#| warning: false
+#| message: false
 
-yo <- df |> 
-  group_by(which_mutiple_of_sd) |> 
-  summarize(correlation = cor(forward_ret_37d, mutiple_of_sd))
+corr_roll_21d = slidify(.f = ~cor(.x, .y), .align = 'right', .period = 21)
+corr_roll_126d = slidify(.f = ~cor(.x, .y), .align = 'right', .period = 126)
+kurt_roll_21d = slidify(.f = moments::kurtosis, .align = 'right', .period = 21)
+kurt_roll_63d = slidify(.f = moments::kurtosis, .align = 'right', .period = 63)
+kurt_roll_126d = slidify(.f = moments::kurtosis, .align = 'right', .period = 126)
+kurt_roll_252d = slidify(.f = moments::kurtosis, .align = 'right', .period = 252)
 
+df <- read_csv('../data_stock_fmpr/GDX.csv') |> 
+  arrange(date) |> 
+  select(date, open, high, low, adjusted = adjClose, volume) |> 
+  mutate(ret_1d = (adjusted / lag(adjusted, n=1)) - 1, 
+         for_ret_35d = (lead(adjusted, n=105) / adjusted) - 1, 
+         kurt_21d = kurt_roll_21d(ret_1d), 
+         kurt_63d = kurt_roll_63d(ret_1d), 
+         kurt_126d = kurt_roll_126d(ret_1d), 
+         kurt_252d = kurt_roll_252d(ret_1d), 
+         cor_ret35d_kurt126d_21d = corr_roll_21d(for_ret_35d, kurt_126d), 
+         cor_ret35d_kurt126d_126d = corr_roll_126d(for_ret_35d, kurt_126d)) 
 
-library(ggplot2) 
-theme_set(theme_minimal())
-ggplot(yo, aes(x = mutiple_of_sd, y = forward_ret_37d, col = which_mutiple_of_sd)) + 
-  geom_point() + 
-  stat_smooth(method='lm') + 
-  facet_grid(which_mutiple_of_sd ~. )
+library(ggplot2)
+yo <- df |> filter(date > today() - 504)
+ggplot(df |> filter(date > today() - 504), aes(x = date, y = kurt_21d)) + 
+  geom_line() + 
+  scale_x_date(date_break = "2 months", date_labels = "%b %y")
+
+ggplot(df |> filter(date > today() - 504), aes(x=date)) + 
+  geom_line(aes(y = cor_ret35d_kurt126d_21d), color = 'red') + 
+  geom_line(aes(y = cor_ret35d_kurt126d_126d), color = 'blue') + 
+  scale_x_date(date_break = "2 months", date_labels = "%b %y")
 ```
 
+Now we could see if there is any correlation between the kurtosis value and the 35d returns. 
+```{r}
+yo <- df |> filter(date > today() - 1260) |> 
+  select(-date, -open, -high, -low, -volume, -adjusted, -ret_1d) |> 
+  na.omit()
+
+cor(yo$for_ret_35d, yo$kurt_21d)
+cor(yo$for_ret_35d, yo$kurt_63d)
+cor(yo$for_ret_35d, yo$kurt_126d)
+cor(yo$for_ret_35d, yo$kurt_252d)
+
+```
 
 
 ```{r}

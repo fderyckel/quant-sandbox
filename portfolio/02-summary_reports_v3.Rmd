@@ -64,7 +64,7 @@ for (i in 1:length(stock_tickers)) {
 
 ```{r plot_data}
 df <- tibble(ticker = etf_tickers) 
-pdf(paste0(the_path,"/charts/charts/charts_markets.pdf"), width=13, height=8, onefile = TRUE)
+pdf(paste0(the_path,"/charts/charts_markets.pdf"), width=13, height=8, onefile = TRUE)
 for (i in 1:nrow(df)){ 
   print(df$ticker[i])
   yo <- tibble(ticker = df$ticker[i]) %>% 
