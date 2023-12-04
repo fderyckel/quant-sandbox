@@ -40,7 +40,7 @@ for (i in 1:length(stock_tickers)) {
 }
 
 df <- tibble(ticker = tickers, etf1 = etf1, etf2 = etf2) 
-pdf("charts/charts_stocks_XLV.pdf", width=13, height=8, onefile = TRUE)
+pdf(paste0(the_path, "/charts/charts_stocks_XLV.pdf"), width=13, height=8, onefile = TRUE)
 for (i in 1:nrow(df)){ 
   print(df$ticker[i])
   yo <- tibble(ticker = tickers[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
@@ -63,5 +63,32 @@ for (i in 1:nrow(df)){
   }
 dev.off()
 
+```
+
+
+```{r}
+df <- tibble(ticker = tickers, etf1 = etf1, etf2 = etf2) 
+pdf(paste0(the_path, '/charts/charts_stocks_XLV.pdf'), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = tickers[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today())  
+  Sys.sleep(2)
+  }
+dev.off()
 ```
 
