@@ -1,0 +1,35 @@
+---
+title: "Seasonality"
+format: html
+editor: source
+---
+
+Create functions to quickly see some seasonality effects
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(readr)
+library(dplyr)
+library(purrr)
+library(glue)
+library(lubridate)
+
+the_path <- here::here()
+
+get_seas_monthly <- function(ticker) {
+  df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
+    arrange(date) |> 
+    select(date, adjusted = adjClose) |> 
+    mutate(ret_21d = log(adjusted / lag(adjusted, n = 21)), 
+           month_col = month(date, label = TRUE), 
+           year_col = year(date)) |> 
+    group_by(month_col, year_col) |> 
+    slice_tail(n=1) |> 
+    group_by(month_col) |> 
+    summarize(mean_monthly_ret = mean(ret_21d, na.rm = TRUE))
+}
+
+```

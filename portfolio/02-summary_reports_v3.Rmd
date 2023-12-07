@@ -162,7 +162,8 @@ dev.off()
 ```
 
 ```{r portfolio}
-st <- c('CGC', 'EWH', 'BMY', 'BA', 'FDX', 'TSLA', 'BMY')
+st <- c('EWH', 'GDXJ', 'CGC', 'EEM', 'EWJ', 'CBOE', 'NEE')
+
 for (i in 1:length(st)) { 
   tryCatch({ 
     get_fmpr_prices(st[i])

@@ -1,34 +1,81 @@
 ---
-title: "Summary Reports V3"
+title: "Summary portfolio V3"
 author: "FdR"
-date: "3-12-2023"
-output: html
+date: "`r Sys.Date()`"
+date-format: full
+format: 
+  html: 
+    toc: true
+    number_section: true
+    fig-width: 12
+    fig-height: 8
 ---
 
 ```{r}
 #| label: setup
 #| warning: false
 #| message: false
+#| echo: false
 
-library(knitr)
+library(dplyr)
+library(readr)
+library(purrr)
+library(lubridate)
+library(tidyr)
+library(glue)
+library(timetk)
+library(gt)
 
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 the_path <- here::here()
 
-source('../functions/summary_reports_v3.R')
-source('../functions/chart_plotting_v1.R')
-source('../functions/fmpr_functions.R')
+# functions to download prices using the fmpr api
+get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) { 
+  base_url <- "https://financialmodelingprep.com/api/v3/"
+  endpoint <- 'historical-price-full/'
+  headers = c(`Upgrade-Insecure-Requests` = '1')
+  params = list(`datatype` = 'json', `from` = from, `to` = to, 
+                `apikey` = "085072758657f1c6e9f7d0acb8014d5b")
+  res <- httr::GET(url = glue(base_url, endpoint, ticker), 
+                   httr::add_headers(.headers = headers), query = params)
+  return_json <- httr::content(res, as = "text")
+  d <- jsonlite::fromJSON(return_json)
+  d <- tibble::as_tibble(d$historical)
+  write_csv(d, glue({the_path}, "/data_stock_fmpr/", {ticker}, ".csv"))
+}
 ```
+
+```{r}
+#| eval: true
+#| echo: false
+
+markets <- c('SPY', 'DIA', 'QQQ')
+sectors <- c('XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLRE', 'XLK', 'XLU')
+tickers <- c(markets, sectors)
+
+for (i in 1:length(tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(tickers[i])
+    print(glue("just downloaded data for ", tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+```
+
 
 # How did the market perform ? 
 
 Return of main indices and sectors over the week / month / year
 ```{r}
-tickers <- c('SPY', 'DIA', 'QQQ')
-sectors <- c('XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLRE', 'XLK', 'XLU')
+#| label: marketOverall
+#| echo: false
+#| message: false
+#| warning: false
+#| eval: true
 
 # now we make 2 tables one for overall market and one for sectors
 # rows are markets, columns are daily, weekly, monthly, yearly. 
+
+roll_sd_3Y = slidify(.f = sd, .period = 756, .align = 'right')
+roll_mean_3Y = slidify(.f = mean, .period = 756, .align = 'right')
 
 get_returns <- function(ticker) { 
   df <- read_csv(paste0(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
@@ -37,36 +84,118 @@ get_returns <- function(ticker) {
     mutate(ret_1d = log(adjusted / lag(adjusted, n = 1)), 
            ret_1W = log(adjusted / lag(adjusted, n = 5)), 
            ret_1M = log(adjusted / lag(adjusted, n = 21)), 
-           ret_5M = log(adjusted / lag(adjusted, n = 105)), 
-           ret_1Y = log(adjusted / lag(adjusted, n = 252))) |> 
-    slice_tail(n = 1)
+           ret_6M = log(adjusted / lag(adjusted, n = 126)), 
+           ret_1Y = log(adjusted / lag(adjusted, n = 252)), 
+           roll3Y_mean_ret1d = roll_mean_3Y(ret_1d), 
+           roll3Y_sd_ret1d = roll_sd_3Y(ret_1d), 
+           roll3Y_mean_ret1W = roll_mean_3Y(ret_1W), 
+           roll3Y_sd_ret1W = roll_sd_3Y(ret_1W), 
+           roll3Y_mean_ret1M = roll_mean_3Y(ret_1M), 
+           roll3Y_sd_ret1M = roll_sd_3Y(ret_1M), 
+           roll3Y_mean_ret6M = roll_mean_3Y(ret_6M), 
+           roll3Y_sd_ret6M = roll_sd_3Y(ret_6M),     
+           roll3Y_mean_ret1Y = roll_mean_3Y(ret_1Y), 
+           roll3Y_sd_ret1Y = roll_sd_3Y(ret_1Y),            
+           sd_abov_ret1d = (ret_1d - roll3Y_mean_ret1d) / roll3Y_sd_ret1d, 
+           sd_abov_ret1W = (ret_1W - roll3Y_mean_ret1W) / roll3Y_sd_ret1W, 
+           sd_abov_ret1M = (ret_1M - roll3Y_mean_ret1M) / roll3Y_sd_ret1M, 
+           sd_abov_ret6M = (ret_6M - roll3Y_mean_ret6M) / roll3Y_sd_ret6M, 
+           sd_abov_ret1Y = (ret_1Y - roll3Y_mean_ret1Y) / roll3Y_sd_ret1Y) |> 
+    slice_tail(n = 1) 
   return(df)
   
 }
 
+#yo <- df |> filter(ticker == 'QQQ' & date > '2006-01-01') |> 
+ # select(date, ret_1Y, roll3Y_mean_ret1Y, roll3Y_sd_ret1Y, sd_abov_ret1Y)
 
 ```
 
-
 ```{r}
+#| label: marketReturns
+#| echo: false
 #| message: false
 #| warning: false
 
-df <- tibble(ticker = tickers) |> 
-  mutate(returns = map(tickers, get_returns))
+df <- tibble(ticker = markets) |> 
+  mutate(returns = map(ticker, get_returns)) |> 
+  unnest(cols = c(returns)) 
+
+df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
+  gt() |> 
+  tab_header(title = 'Returns of main markets') |> 
+  fmt_percent(columns = starts_with('ret_'), decimals = 1) |> 
+  fmt_number(columns = starts_with('sd_abov_'), decimals = 2) |> 
+  tab_spanner(label = 'Daily', columns = c(ret_1d, sd_abov_ret1d)) |> 
+  tab_spanner(label = 'Weekly', columns = c(ret_1W, sd_abov_ret1W)) |> 
+  tab_spanner(label = 'Monthly', columns = c(ret_1M, sd_abov_ret1M)) |>
+  tab_spanner(label = '6-Monthly', columns = c(ret_6M, sd_abov_ret6M)) |> 
+  tab_spanner(label = 'Yearly', columns = c(ret_1Y, sd_abov_ret1Y)) |> 
+  cols_label(ret_1d = 'ret.', sd_abov_ret1d = 'sd', 
+             ret_1W = 'ret.', sd_abov_ret1W = 'sd', 
+             ret_1M = 'ret.', sd_abov_ret1M = 'sd', 
+             ret_6M = 'ret.', sd_abov_ret6M = 'sd', 
+             ret_1Y = 'ret.', sd_abov_ret1Y = 'sd') |> 
+  opt_stylize(style = 1)
+```
+
+```{r}
+#| label: sectorReturns
+#| echo: false
+#| message: false
+#| warning: false
+
+df <- tibble(ticker = sectors) |> 
+  mutate(returns = map(ticker, get_returns)) |> 
+  unnest(cols = c(returns)) 
+
+yo <- df |> filter(ticker == 'XLP' & date > '2006-01-01') |> 
+ select(date, ret_1Y, roll3Y_mean_ret1Y, roll3Y_sd_ret1Y, sd_abov_ret1Y)
+
+df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
+  gt() |> 
+  tab_header(title = 'Returns of S&P Sectors') |> 
+  fmt_percent(columns = starts_with('ret_'), decimals = 1) |> 
+  fmt_number(columns = starts_with('sd_abov_'), decimals = 2) |> 
+  tab_spanner(label = 'Daily', columns = c(ret_1d, sd_abov_ret1d)) |> 
+  tab_spanner(label = 'Weekly', columns = c(ret_1W, sd_abov_ret1W)) |> 
+  tab_spanner(label = 'Monthly', columns = c(ret_1M, sd_abov_ret1M)) |>
+  tab_spanner(label = '6-Monthly', columns = c(ret_6M, sd_abov_ret6M)) |> 
+  tab_spanner(label = 'Yearly', columns = c(ret_1Y, sd_abov_ret1Y)) |> 
+  cols_label(ret_1d = 'ret.', sd_abov_ret1d = 'sd', 
+             ret_1W = 'ret.', sd_abov_ret1W = 'sd', 
+             ret_1M = 'ret.', sd_abov_ret1M = 'sd', 
+             ret_6M = 'ret.', sd_abov_ret6M = 'sd', 
+             ret_1Y = 'ret.', sd_abov_ret1Y = 'sd') |> 
+  opt_stylize(style = 1) 
 ```
 
 
-# Portfolio Assets 
+# My portofolio 
 
 ```{r}
-#| label: xlv
+#| label: myPositions
+#| echo: false
 
-# these 6 stocks make up for more than 40% of the XLV index. 
-tickers = c('EWH', 'GDX', 'CGC', 'EEM') 
-etf1 =    c('EEM', 'UUD', 'SPY', 'UUD')
+# My positions 
+df <- tibble(ticker = c('CGC', 'GROY', 'LUC.TO', 'EEM', 'EWH', 'GDXJ'))
 
-stock_tickers <- c(tickers, 'SPY', 'XLV')
+tickers = c('EWH', 'GDXJ', 'CGC', 'EEM', 'EWJ', 'CBOE', 'NEE') 
+etf1 =    c('EEM', 'UUP', 'SPY', 'UUP', 'SPY', 'SPY', 'SPY')
+
+stock_tickers <- c(tickers, 'UUP')
+```
+
+
+##  Portfolio Charts  
+
+```{r}
+#| label: portfolioGetPrices
+#| echo: false
+#| warning: false
+#| message: false
+#| eval: false
+
 
 for (i in 1:length(stock_tickers)) { 
   tryCatch({ 
@@ -74,13 +203,31 @@ for (i in 1:length(stock_tickers)) {
     print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
+```
 
-df <- tibble(ticker = tickers, etf1 = etf1, etf2 = etf2) 
-pdf(paste0(the_path, "/charts/charts_portfolio.pdf"), width=13, height=8, onefile = TRUE)
+
+```{r}
+#| label: portfolioCharts
+#| echo: false
+#| warning: false
+
+source('../functions/chart_plotting_v1.R')
+
+conform_data <- function(ticker, interval = 'Daily', provider = 'fmpr'){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(index = date, open, high, low, close, adjusted=adjClose, volume) |>  
+      arrange(index) 
+    return(df)
+}
+
+df <- tibble(ticker = tickers, etf1 = etf1)
+
 for (i in 1:nrow(df)){ 
-  print(df$ticker[i])
-  yo <- tibble(ticker = tickers[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
-    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+  #print(df$ticker[i])
+  yo <- tibble(ticker = tickers[i], etf1 = etf1[i]#, etf2 = etf2[i]
+               ) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x)), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
                            start_date = today() - 365, 
@@ -91,15 +238,15 @@ for (i in 1:nrow(df)){
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
-                               df$etf2[i], 
+                               #df$etf2[i], 
                                df$ticker[i], 
                                start_date = today() - 365, 
                                end_date = today())  
-  Sys.sleep(2)
   }
-dev.off()
 
 ```
+
+Click [here](../charts/charts_portfolio.pdf) to see the charts. 
 
 # Momentum
 
