@@ -202,7 +202,7 @@ Using the tidymodel framework with Xgboost.
 #| warning: false
 #| eval: false
 
-ticker <- 'SBUX'
+ticker <- 'AA'
 model_type = "7wClassThirdile"
 yop <- glue("xgboost_modelv8_explo3_", model_type, "_", ticker)
 
@@ -381,7 +381,7 @@ library(tidyr)
 source(glue(the_path, "/models/functions/model_v8_3.R"))
 
 model <- 'version_v8_3'
-tickers = c('AMD', 'AAPL', 'FDX', 'GOOG', 'HAL', 'PYPL', 'CVX', 'SBUX') 
+tickers = c('AA', 'AMD', 'AAPL', 'CVX', 'FDX', 'GOOG', 'HAL', 'PYPL', 'SBUX') 
 create_cor_df <- function(ticker) { 
   df0 <- model_v82(ticker)
   df <- df0 %>% drop_na()
