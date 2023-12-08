@@ -52,13 +52,15 @@ library(roll)
 library(timetk)
 
 mean_roll_21 <- slidify(.f = mean, .align = 'right', .period = 21)
+mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 252)
+sd_roll_200 <- slidify(.f = sd, .align = 'right', .period = 252)
 mean_roll_252 <- slidify(.f = mean, .align = 'right', .period = 252)
 sd_roll_252 <- slidify(.f = sd, .align = 'right', .period = 252)
 
 augment_df_fin <- function(df){
   df <- df |>   
     arrange(date) |>  
-    mutate(roc21 = log(adjusted / lag(adjusted, n = 21)), 
+    mutate(ret21d = log(adjusted / lag(adjusted, n = 21)), 
            
            ema11 = TTR::EMA(adjusted, n = 11), 
            ema23 = TTR::EMA(adjusted, n = 23), 
@@ -70,17 +72,32 @@ augment_df_fin <- function(df){
            perc_abov_sma47 = log(adjusted / sma47), 
            perc_abov_sma101 = log(adjusted / sma101), 
            perc_abov_sma199 = log(adjusted / sma199), 
-           sd_abov_ema11 = (ema11 - mean_roll_252(perc_abov_ema11)) / sd_roll_252(perc_abov_ema11), 
-           sd_abov_ema23 = (ema23 - mean_roll_252(perc_abov_ema23)) / sd_roll_252(perc_abov_ema23), 
-           sd_abov_sma47 = (sma47 - mean_roll_252(perc_abov_sma47)) / sd_roll_252(perc_abov_sma47), 
-           sd_abov_sma101 = (sma101 - mean_roll_252(perc_abov_sma101)) / sd_roll_252(perc_abov_sma101),  
-           sd_abov_sma199 = (sma199 - mean_roll_252(perc_abov_sma199)) / sd_roll_252(perc_abov_sma199),  
+           
+           roll_mean_ema11_200d = mean_roll_200(perc_abov_ema11), 
+           roll_sd_ema11_200d = mean_roll_200(perc_abov_ema11),
+           sd_abov_ema11 = (ema11 - roll_mean_ema11_200d) / roll_sd_ema11_200d, 
+           
+           roll_mean_ema23_200d = mean_roll_200(perc_abov_ema23), 
+           roll_sd_ema23_200d = mean_roll_200(perc_abov_ema23),
+           sd_abov_ema23 = (ema23 - roll_mean_ema23_200d) / roll_sd_ema23_200d, 
+           
+           roll_mean_sma47_200d = mean_roll_200(perc_abov_sma47), 
+           roll_sd_sma47_200d = mean_roll_200(perc_abov_sma47),
+           sd_abov_sma47 = (sma47 - roll_mean_sma47_200d) / roll_sd_sma47_200d, 
+           
+           roll_mean_sma101_1Y = mean_roll_252(perc_abov_sma101), 
+           roll_sd_sma101_1Y = mean_roll_252(perc_abov_sma101),
+           sd_abov_sma101 = (sma101 - roll_mean_sma101_1Y) / roll_sd_sma101_1Y, 
+           
+           roll_mean_sma199_1Y = mean_roll_252(perc_abov_sma199), 
+           roll_sd_sma199_1Y = mean_roll_252(perc_abov_sma199),
+           sd_abov_sma199 = (sma199 - roll_mean_sma199_1Y) / roll_sd_sma199_1Y, 
            
            volum_sma200 = TTR::SMA(volume,  n = 200), 
            volum200_perc = log(volume / volum_sma200), 
            
-           roll_sd_ret21d_1Y = sd_roll_252(roc21), 
-           volat_volu200_252d = sd_roll_252(volum200_perc), 
+           roll_sd_ret21d_1Y = sd_roll_252(ret21d), 
+           rll_sd_volum200_1Y = sd_roll_252(volum200_perc), 
            
            ret_7w = (lead(adjusted, n = 35) / adjusted) - 1) 
   
@@ -92,7 +109,7 @@ reduce_df <- function(df) {
   df <- df |> 
     select(date, 
            sd_abov_ema11, sd_abov_ema23, sd_abov_sma47, sd_abov_sma101, sd_abov_sma199,
-           roll_sd_ret21d_1Y, volat_volu200_252d, 
+           roll_sd_ret21d_1Y, rll_sd_volum200_1Y, 
            ret_7w)
 }
 
@@ -114,6 +131,9 @@ print(paste0("Dealing now with ", ticker))
 print(paste0("The ", model_type, " build on ", ticker, " has ", nrow(df_model), " rows"))
   
 
+######################################################################
+############# SAMPLING FOR CROSS-VALIDATION ##########################
+######################################################################
 library(rsample)
 min_size_training <- 500
 number_of_samples <- 50
@@ -133,6 +153,7 @@ time_slices <- rolling_origin(df_model,
                               initial = training_size, assess = validation_size + laggy, 
                               lag = -laggy, skip = skippy, 
                               cumulative = FALSE)
+######################################################################
 
 library(recipes)
 recipe_base <- recipe(formula = ord_class ~., data = df_model) |> 
@@ -169,6 +190,10 @@ xgboost_resampling <- tune_grid(wf, time_slices,
                                                             save_workflow = TRUE))
 
 print("resampling process over. Looking now for best model.")
+
+######################################################################
+############# ESTABLISHING METRICS  ##################################
+######################################################################
 
 yo_soft_acc <- xgboost_resampling |> collect_predictions() |> 
   mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
@@ -209,18 +234,18 @@ yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %
   left_join(., yo_soft_acc) %>% 
   mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  0.5 * preci_rank + 0.2 * soft_preci_rank + 0.15 * soft_acc_rank + 0.15 * recall_rank)
+         avg_rank =  0.3 * preci_rank + 0.3 * soft_preci_rank + 0.25 * soft_acc_rank + 0.15 * recall_rank)
 
-yo_metric <- left_join(yo_precision, yo_soft_acc) %>% left_join(., yo_recall) %>% 
-  left_join(., yo_soft_preci) %>% left_join(., yo_cost3) %>% 
+yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
+  left_join(yo_soft_preci) |> left_join(yo_cost3) |> 
   select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, mean_soft_acc, 
-         mtry, tree_depth, trees, min_n, learn_rate) %>% 
+         mtry, tree_depth, trees, min_n, learn_rate) |> 
   arrange(desc(avg_rank), mean_preci)
 
 #rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
 
-write_csv(yo_metric, 
-          paste0(the_path, "/models/model_metrics/xgboost_modelv8_explo2_", model_type, "_", ticker, ".csv"))
+write_csv(yo_metric, glue(the_path, "/models/model_metrics/", yop, ".csv"))
+######################################################################
 
 best_model <- yo_metric$.config[1]
 
@@ -307,8 +332,8 @@ volat_roc1_19days and volat_roc1_63days and volat_roc5_29days are all highly cor
 # Summary of important variables and correlation (5 weeks)
 
                           V2    V3    V6    V7       Corr
-volat_volu200_252days     1            1             X
-roll_sd_ret21d_1Y.        2            4    2        X
+rll_sd_volum200_1Y        1            1             X
+roll_sd_ret21d_1Y         2            4    2        X
 min_252                   3                          min_126
 ma_cross_l                4            11            X
 std_away_sma200_1         5     9                    X
