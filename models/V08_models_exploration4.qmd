@@ -85,8 +85,8 @@ augment_df_fin <- function(df){
            volum_sma200 = TTR::SMA(volume,  n = 200), 
            volum200_perc = log(volume / volum_sma200), 
            
-           volat_roc21_252d = sd_roll_252(roc21), 
-           volat_volu200_252d = sd_roll_252(volum200_perc), 
+           roll_sd_ret21d_1Y = sd_roll_252(roc21), 
+           roll_sd_volum200d_1Y = sd_roll_252(volum200_perc), 
            
            ret_7w = (lead(adjusted, n = 35) / adjusted) - 1) 
   
@@ -99,7 +99,7 @@ reduce_df <- function(df) {
     select(date, 
            sd_abov_ema11, sd_abov_ema23, sd_abov_sma47, sd_abov_sma101, sd_abov_sma199, 
            corr_ema23_sma101_252d, corr_ema23_sma47_252d, corr_sma50_sma200_252d,  
-           volat_roc21_252d, volat_volu200_252d, 
+           roll_sd_ret21d_1Y, roll_sd_volum200d_1Y, 
            ret_7w)
 }
 
@@ -161,9 +161,10 @@ stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)),
                                      loss_reduction(range = c(-10, 1.5)), 
                                      mtry(range = c(12L, 17L)), 
                                      learn_rate(range = c(-4, -2)), 
-                                     min_n(range = c(17L, 29L)),   
-                                     tree_depth(range = c(6L, 9L)), 
-                                     size = 10) 
+                                     min_n(range = c(23L, 31L)),   
+                                     tree_depth(range = c(5L, 9L)), 
+                                     size = 15)
+
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
 
 print("Starting now the resampling process")
@@ -210,11 +211,12 @@ yo_soft_preci <- xgboost_resampling |> collect_predictions() |>
   group_by(.config) |> 
   summarize(mean_soft_preci = sum(spec_3)/n())
 
-yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %>% 
+yo_cost3 <- left_join(yo_precision, yo_recall) %>%  
+  left_join(., yo_soft_preci) %>% 
   left_join(., yo_soft_acc) %>% 
   mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  0.5 * preci_rank + 0.2 * soft_preci_rank + 0.15 * soft_acc_rank + 0.15 * recall_rank)
+         avg_rank =  0.3 * preci_rank + 0.3 * soft_preci_rank + 0.25 * soft_acc_rank + 0.15 * recall_rank)
 
 yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
   left_join(yo_soft_preci) |> left_join(yo_cost3) |> 
@@ -303,8 +305,8 @@ volat_roc1_19days and volat_roc1_63days and volat_roc5_29days are all highly cor
 # Summary of important variables and correlation (5 weeks)
 
                           V2    V3    V6    V7       Corr
-volat_volu200_252days     1            1             X
-volat_roc21_252days       2            4    2        X
+roll_sd_volum200d_1Y      1            1             X
+roll_sd_ret21d_1Y         2            4    2        X
 min_252                   3                          min_126
 ma_cross_l                4            11            X
 std_away_sma200_1         5     9                    X

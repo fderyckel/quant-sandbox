@@ -1,5 +1,5 @@
 ---
-title: "Modeling Long or Short 31 days"
+title: "Modeling Long 31 days"
 format: 
   html: 
     toc: true
@@ -117,11 +117,25 @@ library(dials)
 library(tune)
 library(yardstick)
 
-time_slices <- rolling_origin(data = df2, initial = 757, 
-                          lag = -31,   # how much will be skipped in the assessed
-                          skip = 61,   # how many observations between each resamples
-                          assess = 38, # how big the assessed
-                          cumulative = FALSE)
+min_size_training <- 500
+number_of_samples <- 50
+skippy <- 63
+laggy <- 21
+# get the size of the df we are using. 
+validation_size <- floor(nrow(df_model) * 0.2 / number_of_samples) + 1
+training_size <- nrow(df_model) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
+
+if (training_size < 500) {
+  training_size <- min_size_training
+  skippy <- floor((nrow(df_model) - validation_size - laggy - min_size_training) / number_of_samples) 
+  training_size <- nrow(df_model) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
+}
+
+time_slices <- rolling_origin(df_model, 
+                              initial = training_size, assess = validation_size + laggy, 
+                              lag = -laggy, skip = skippy, 
+                              cumulative = FALSE)
+
 
 df_model <- df2 |> arrange(date)
 recipe_base <- recipe(ord_class2 ~ ., data = df2) |> 
@@ -135,70 +149,76 @@ model_xgboost <- boost_tree(trees = tune(),
                             min_n = tune()) |> 
 set_engine("xgboost") |> set_mode("classification") 
 
-stopping_grid <- grid_latin_hypercube(trees(range = c(400, 800)), loss_reduction(range = c(-10, 1.5)), 
-                                     mtry(range = c(12L, 17L)), learn_rate(range = c(-4, -2)), 
-                                     min_n(range = c(17L, 29L)),   
-                                     tree_depth(range = c(5L, 8L)), 
-                                     size = 23) 
+stopping_grid <- grid_latin_hypercube(trees(range = c(400, 800)), 
+                                      loss_reduction(range = c(-10, 1.5)), 
+                                      mtry(range = c(12L, 17L)), 
+                                      learn_rate(range = c(-4, -2)), 
+                                      min_n(range = c(23L, 31L)), 
+                                      tree_depth(range = c(5L, 9L)), 
+                                      size = 15) 
+
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
 
 doParallel::registerDoParallel()
 xgboost_resampling <- tune_grid(wf, time_slices, 
                                 grid = stopping_grid, 
                                 metrics = metric_set(accuracy, mn_log_loss), 
-                                control = control_resamples(save_pred = TRUE, save_workflow = TRUE))
+                                control = control_resamples(save_pred = TRUE, 
+                                                            save_workflow = TRUE))
 ```
 
 # collecting results
 
 ```{r}
-yo_acc <- xgboost_resampling |>  collect_predictions() |>  
-  mutate(soft_acc = case_when(.pred_class == '3' & ord_class2 == '3' ~ 1, 
-                              .pred_class == '2' & ord_class2 == '2' ~ 1, 
-                              .pred_class == '1' & ord_class2 == '1' ~ 1, 
+
+print("resampling process over. Looking now for best model.")
+
+yo_soft_acc <- xgboost_resampling |> collect_predictions() |> 
+  mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
+                              .pred_class!="3" & ord_class != "3" ~ 1, 
                               TRUE ~ 0)) |> 
   group_by(.config) |> 
-  summarize(mean_acc = sum(soft_acc)/n(), 
+  summarize(mean_soft_acc = sum(soft_acc)/n(), 
             mtry = mean(mtry), tree_depth = mean(tree_depth), 
-            trees = mean(trees), learn_rate = mean(learn_rate), 
-            min_n = mean(min_n))
+            trees = mean(trees), 
+            min_n = mean(min_n), learn_rate = mean(learn_rate))
 
 # if I predict a 3, is it indeed a 3? Higher is better
-yo_precision <- xgboost_resampling |> collect_predictions() |> 
-  mutate(model_preci = if_else(.pred_class == '3' & ord_class2 == '3', 1, 0)) |>  
-  filter(.pred_class == '3') |> 
-  group_by(.config) |>  
-  summarize(mean_preci = sum(model_preci)/n())
+yo_precision <- xgboost_resampling %>% collect_predictions() %>% 
+  mutate(spec_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) %>% 
+  filter(.pred_class == "3") %>% 
+  group_by(.config) %>% 
+  summarize(mean_preci = sum(spec_3)/n())
 
 # if there is a "3" in the actual returns, do I manage to predict it! Higher is better
-yo_recall <- xgboost_resampling |> collect_predictions() |>  
-  mutate(model_recall = if_else(.pred_class == '3' & ord_class2 == '3', 1, 0)) |> 
-  filter(ord_class2 == '3') |> 
+yo_recall <- xgboost_resampling %>% collect_predictions() |>  
+  mutate(sens_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) |> 
+  select(-mtry, -min_n, -learn_rate, -loss_reduction, -tree_depth) |> 
+  filter(ord_class == "3") |> 
   group_by(.config) |> 
-  summarize(mean_recall = sum(model_recall)/n())
+  summarize(mean_recall = sum(sens_3)/n())
 
 # if I predict a 3, is it indeed a 3? Higher is better
-yo_soft_preci <- xgboost_resampling |> collect_predictions() |>
-  mutate(spec_3 = case_when(.pred_class=="3" & ord_class2 == "3" ~ 1, 
-                            .pred_class=="3" & ord_class2 == "2" ~ 0.5, 
-                            .pred_class=="3" & ord_class2 == "1" ~ 0, 
-                            TRUE ~ 0)) |>
-  filter(.pred_class == "3") |> 
+yo_soft_preci <- xgboost_resampling |> collect_predictions() |> 
+  mutate(spec_3 = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
+                            .pred_class=="3" & ord_class == "2" ~ 0.5, 
+                            .pred_class=="3" & ord_class == "1" ~ 0, 
+                            TRUE ~ 0)) %>% 
+  filter(.pred_class == "3") |>  
   group_by(.config) |> 
   summarize(mean_soft_preci = sum(spec_3)/n())
 
-yo_cost3 <- left_join(yo_precision, yo_recall, by = join_by(.config)) |> 
-  left_join(yo_soft_preci, by = join_by(.config)) |> 
-  left_join(yo_acc, by = join_by(.config)) |> 
-  mutate(acc_rank = percent_rank(mean_acc), recall_rank = percent_rank(mean_recall), 
+yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %>% 
+  left_join(., yo_soft_acc) %>% 
+  mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  0.3 * preci_rank + 0.3 * soft_preci_rank + 0.2 * acc_rank + 0.2 * recall_rank)
+         avg_rank =  0.3 * preci_rank + 0.3 * soft_preci_rank + 0.25 * soft_acc_rank + 0.15 * recall_rank)
 
-yo_metric <- yo_cost3 |> 
-  select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, mean_acc, 
-         learn_rate, 
-         mtry, tree_depth, trees, min_n) |> 
-  arrange(desc(avg_rank))
+yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
+  left_join(yo_soft_preci) |> left_join(yo_cost3) |> 
+  select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, mean_soft_acc, 
+         mtry, tree_depth, trees, min_n, learn_rate) |> 
+  arrange(desc(avg_rank), mean_preci)
 
 write_csv(yo_metric, paste0(the_path, "/models/model_metrics/xgboost_modelv1b_", model_type, "_", ticker, ".csv"))
 

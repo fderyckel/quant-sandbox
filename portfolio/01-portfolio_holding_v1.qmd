@@ -194,7 +194,7 @@ stock_tickers <- c(tickers, 'UUP')
 #| echo: false
 #| warning: false
 #| message: false
-#| eval: false
+#| eval: true
 
 
 for (i in 1:length(stock_tickers)) { 
