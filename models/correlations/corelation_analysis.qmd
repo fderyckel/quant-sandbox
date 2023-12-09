@@ -188,8 +188,9 @@ read_csv('model_v8_3.csv') |>
 #| echo: false
 
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_modelv8_explo3_7wClassThirdile_')
+tickers <- c('AA', 'AAPL', 'AMD', 'AXP', 'CVX', 'HAL', 'PYPL', 'SBUX')
 
-df_VI_V83 <- tibble(ticker = c('AMD', 'CVX', 'HAL', 'PYPL', 'SBUX')) |> 
+df_VI_V83 <- tibble(ticker = tickers) |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -211,7 +212,7 @@ df_VI_V83 |> gt()
 yop <- glue(the_path, '/models/model_metrics/xgboost_modelv8_explo3_7wClassThirdile_')
 model_name <- 'Model V8_3'
 
-df_V83 <- tibble(ticker = c('AMD', 'CVX', 'HAL', 'PYPL', 'SBUX')) |> 
+df_V83 <- tibble(ticker = tickers) |> 
   mutate(metrics = map2(ticker, model_name, get_metrics_V2)) |> 
   unnest(cols = c(metrics))
 

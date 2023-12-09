@@ -1,24 +1,20 @@
 ---
-title: "V08 - Exploration 3 of for modeling"
+title: "V08 - Exploration of for modeling"
 author: "FdR"
 date: "4-12-2023"
-format: 
-  html: 
-    toc: true
-    toc_depth: 2
+output: html
 ---
 
-# Intro 
 
-* This is a classification model based on thirdile. 
-* The model engine is Xgboost  
-* To predict: Forward return at 7 weeks.  
+
+# TO DO 
+
+* check if there are NA where there are NA.  Imputation have to be done before. 
 
 ```{r}
-#| label: setup
+#| label: basics
 #| message: false
 #| warning: false
-#| eval: false
 
 library(dplyr)
 library(purrr)
@@ -42,138 +38,72 @@ conform_data <- function(ticker){
 
 ```
 
-## Checking on missing values or Zero values 
-
-Checking for missing values and dealing with them. 
-
-```{r mis_val, eval=FALSE}
-#| label: missingValues
-#| message: false
-#| warning: false
-#| eval: false
-
-check_for_na <- function(ticker) { 
-  df <- conform_data(ticker, "Daily", "fmpr") %>% 
-    select(index, open, high, low, close, adjusted, volume) %>% 
-    summarize_all((~ sum(is.na(.))))
-  return(df)
-}
-
-check_for_zero <- function(ticker) { 
-    df <- conform_data(ticker, "Daily", "fmpr") %>% 
-    select(open, high, low, close, adjusted, volume) %>% 
-    filter(if_any(everything(.), ~ . == 0))
-  }
-
-## checking for 0 or NA
-check_na <- tibble(tickers = c(tickers, etf1, etf2)) %>% 
-  mutate(number_na = map(tickers, check_for_na)) %>% 
-  unnest(cols = c(number_na))
-
-check_naa <- tibble(tickers = c(tickers, etf1, etf2)) %>% 
-  mutate(number_zero = map(tickers, check_for_zero)) 
-df <- check_naa %>% unnest()
-```
-
-## fixing NA values 
-
-NA values seems to appear mainly in the Volume part of the data. 
-Noticing missing values in GILD, VOX and VAW.  You can have several days in a row with NA in volume.  
-
-Solution: 
-We are not touching the volume of the ETF.  So we are only interested in the volume of the stock. 
-Noticing that when volume is NA, it is because they were no trading.  So we can just remove these days. 
-
-```{r eval=FALSE}
-#| label: fixingNaValues
-#| message: false
-#| warning: false
-#| eval: false
-
-the_path = here::here()
-yo <- read_csv(paste0(the_path, "/data_stock_fmpr/GILD.csv"))
-yo_na <- yo %>% filter(is.na(volume))
-yo_no_na <- yo %>% filter(is.na(volume) == FALSE)
-
-create_base_fin_df_v8 <- function(df){
-  df <- df %>%  
-    select(index, open, high, low, close, adjusted, volume) %>% arrange(index) %>% 
-    mutate(open = as.numeric(open), high = as.numeric(high), low = as.numeric(low), 
-           close = as.numeric(close), adjusted = as.numeric(adjusted), 
-           volume = as.numeric(volume)) %>% filter(is.na(volume) == FALSE)
-  
-}
-```
-
-
-
 # Building the basic df 
 
-Create all the variables that will be used in the modeling stage. 
+## Ticker df 
 
 ```{r base_df}
-#| label: create_df
-#| message: false
-#| warning: false
-#| eval: false
-
 library(roll)
 library(timetk)
 
-corr_roll_252 <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 252)
 mean_roll_21 <- slidify(.f = mean, .align = 'right', .period = 21)
-mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 252)
-sd_roll_200 <- slidify(.f = sd, .align = 'right', .period = 252)
-mean_roll_252 <- slidify(.f = mean, .align = 'right', .period = 252)
-sd_roll_252 <- slidify(.f = sd, .align = 'right', .period = 252)
+sd_roll_7M <- slidify(.f = sd, .align = 'right', .period = 147)
+mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 200)
+sd_roll_200 <- slidify(.f = sd, .align = 'right', .period = 200)
+mean_roll_1Y <- slidify(.f = mean, .align = 'right', .period = 252)
+sd_roll_1Y <- slidify(.f = sd, .align = 'right', .period = 252)
 
 augment_df_fin <- function(df){
   df <- df |>   
     arrange(date) |>  
-    mutate(ret21d = log(adjusted / lag(adjusted, n = 21)), 
+    mutate(ret1d = log(adjusted / lag(adjusted, n = 1)), 
+           ret11d = log(adjusted / lag(adjusted, n = 11)), 
+           ret21d = log(adjusted / lag(adjusted, n = 21)), 
+           ret_3M = log(close / lag(close, n = 61)), 
+           
            ema11 = TTR::EMA(adjusted, n = 11), 
            ema23 = TTR::EMA(adjusted, n = 23), 
            sma47 = TTR::SMA(adjusted, n = 47), 
-           sma50 = TTR::SMA(adjusted, n = 50), 
            sma101 = TTR::SMA(adjusted, n = 101), 
            sma199 = TTR::SMA(adjusted, n = 199), 
-           sma200 = TTR::SMA(adjusted, n = 200), 
            perc_abov_ema11 = log(adjusted / ema11), 
            perc_abov_ema23 = log(adjusted / ema23), 
            perc_abov_sma47 = log(adjusted / sma47), 
            perc_abov_sma101 = log(adjusted / sma101), 
            perc_abov_sma199 = log(adjusted / sma199), 
            
+           roll_sd_ret1d_7M = sd_roll_7M(ret_1d), 
+           roll_sd_ret3M_1Y = sd_roll_1Y(ret_3M),            
+           
            roll_mean_ema11_200d = mean_roll_200(perc_abov_ema11), 
-           roll_sd_ema11_200d = mean_roll_200(perc_abov_ema11),
+           roll_sd_ema11_200d = sd_roll_200(perc_abov_ema11),
            sd_abov_ema11 = (ema11 - roll_mean_ema11_200d) / roll_sd_ema11_200d, 
            
            roll_mean_ema23_200d = mean_roll_200(perc_abov_ema23), 
-           roll_sd_ema23_200d = mean_roll_200(perc_abov_ema23),
+           roll_sd_ema23_200d = sd_roll_200(perc_abov_ema23),
            sd_abov_ema23 = (ema23 - roll_mean_ema23_200d) / roll_sd_ema23_200d, 
            
            roll_mean_sma47_200d = mean_roll_200(perc_abov_sma47), 
-           roll_sd_sma47_200d = mean_roll_200(perc_abov_sma47),
+           roll_sd_sma47_200d = sd_roll_200(perc_abov_sma47),
            sd_abov_sma47 = (sma47 - roll_mean_sma47_200d) / roll_sd_sma47_200d, 
            
-           roll_mean_sma101_1Y = mean_roll_252(perc_abov_sma101), 
-           roll_sd_sma101_1Y = mean_roll_252(perc_abov_sma101),
+           roll_mean_sma101_1Y = mean_roll_1Y(perc_abov_sma101), 
+           roll_sd_sma101_1Y = sd_roll_1Y(perc_abov_sma101),
            sd_abov_sma101 = (sma101 - roll_mean_sma101_1Y) / roll_sd_sma101_1Y, 
            
-           roll_mean_sma199_1Y = mean_roll_252(perc_abov_sma199), 
-           roll_sd_sma199_1Y = mean_roll_252(perc_abov_sma199),
+           roll_mean_sma199_1Y = mean_roll_1Y(perc_abov_sma199), 
+           roll_sd_sma199_1Y = sd_roll_1Y(perc_abov_sma199),
            sd_abov_sma199 = (sma199 - roll_mean_sma199_1Y) / roll_sd_sma199_1Y, 
            
-           corr_ema23_sma101_1Y = corr_roll_252(ema23, sma101), 
-           corr_ema23_sma47_1Y = corr_roll_252(ema23, sma47), 
-           corr_sma50_sma200_1Y = corr_roll_252(sma50, sma200), 
+           roll_mean_ret11d_1Y = mean_roll_1Y(ret11d), 
+           roll_sd_ret11d_1Y = sd_roll_1Y(ret11d),
+           sd_abov_ret11d_1Y = (ret11d - roll_mean_ret11d_1Y) / roll_sd_ret11d_1Y,
            
-           sma200_volum = TTR::SMA(volume,  n = 200), 
-           perc_abov_volum200 = log(volume / sma200_volum), 
+           volum_sma200 = TTR::SMA(volume,  n = 200), 
+           volum200_perc = log(volume / volum_sma200), 
+           roll_sd_volum200_1Y = sd_roll_1Y(volum200_perc), 
            
-           roll_sd_ret21d_1Y = sd_roll_252(ret21d), 
-           
-           roll_sd_volum200d_1Y = sd_roll_252(perc_abov_volum200), 
+           roll_sd_ret21d_1Y = sd_roll_1Y(ret21d), 
            
            ret_7w = (lead(adjusted, n = 35) / adjusted) - 1) 
   
@@ -185,35 +115,30 @@ reduce_df <- function(df) {
   df <- df |> 
     select(date, 
            sd_abov_ema11, sd_abov_ema23, sd_abov_sma47, sd_abov_sma101, sd_abov_sma199, 
-           corr_ema23_sma101_1Y, corr_ema23_sma47_1Y, corr_sma50_sma200_1Y,  
-           roll_sd_ret21d_1Y, roll_sd_volum200d_1Y, 
+           sd_abov_ret11d_1Y, roll_sd_ret1d_7M, roll_sd_ret3M_1Y, 
+           roll_sd_ret21d_1Y, roll_sd_volum200_1Y, 
            ret_7w)
 }
 
 ```
 
-# Modeling 
-
-Using the tidymodel framework with Xgboost. 
+## modeling 
 
 ```{r}
-#| label: modeling
-#| message: false
-#| warning: false
-#| eval: false
-
-ticker <- 'AA'
-model_type = "7wClassThirdile"
-yop <- glue("xgboost_modelv8_explo3_", model_type, "_", ticker)
+ticker <- 'AMD'
+model_type = "7wClass3ile"
+yop <- glue("xgboost_v8_2_", model_type, "_", ticker)
 
 ## Modeling phase now
+model_type = "7wClassThirdile"
 df0 <- conform_data(ticker) |> augment_df_fin()
 df_model <- reduce_df(df0) |> arrange(date) |> 
-  mutate(ord_class = as.factor(ntile(ret_7w, 3))) |> 
-  na.omit() 
+  mutate(ord_class = as.factor(ntile(ret_7w, 3))) %>% na.omit() 
+
 
 print(paste0("Dealing now with ", ticker))
 print(paste0("The ", model_type, " build on ", ticker, " has ", nrow(df_model), " rows"))
+  
 
 ######################################################################
 ############# SAMPLING FOR CROSS-VALIDATION ##########################
@@ -272,6 +197,7 @@ xgboost_resampling <- tune_grid(wf, time_slices,
                                 metrics = metric_set(accuracy, mn_log_loss), 
                                 control = control_resamples(save_pred = TRUE, 
                                                             save_workflow = TRUE))
+
 print("resampling process over. Looking now for best model.")
 
 ######################################################################
@@ -330,7 +256,6 @@ yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |>
 write_csv(yo_metric, glue(the_path, "/models/model_metrics/", yop, ".csv"))
 ######################################################################
 
-
 best_model <- yo_metric$.config[1]
 
 best_param <-xgboost_resampling |> collect_metrics() |> 
@@ -344,7 +269,6 @@ final_wf <- workflow() |> add_recipe(recipe_base) |> add_model(final_model)
 final_wf
 
 model_base <- fit(object = final_wf, data = df_model)
-
 write_rds(model_base, glue(the_path, "/models/model_raw/", yop, ".rda"))
 
 library(vip)
@@ -353,21 +277,17 @@ var_importance <- final_model %>%
   set_engine("xgboost", importance = "permutation") %>% 
   fit(ord_class ~ ., data = juice(df_prep) %>% select(-date)) %>%
   vi()
-
 write_csv(var_importance, 
-          glue(the_path, "/models/model_vars_imp/", yop, ".csv"))
-
-rm(df_prep)
+          paste0(the_path, "/models/model_vars_imp/", yop, ".csv"))
 
 ```
 
 
-# Correlation analysis
+## Analysis of correlation 
 
 ```{r}
 #| message: false
 #| warning: false
-#| eval: false
 
 # setting up the path within the project for easier portability of code
 the_path <- here::here()
@@ -378,10 +298,10 @@ library(dplyr)
 library(purrr)
 library(tidyr)
 
-source(glue(the_path, "/models/functions/model_v8_3.R"))
+source(glue(the_path, "/models/functions/model_v8_2.R"))
 
-model <- 'version_v8_3'
-tickers = c('AA', 'AMD', 'AAPL', 'CVX', 'FDX', 'GOOG', 'HAL', 'PYPL', 'SBUX') 
+model <- 'version_v8_2'
+tickers = c('AA', 'AMD', 'AAPL', 'CVX', 'FDX', 'GOOG', 'HAL', 'JPM', 'CBOE', 'PYPL', 'SBUX', 'NEE')
 create_cor_df <- function(ticker) { 
   df0 <- model_v82(ticker)
   df <- df0 %>% drop_na()
@@ -397,7 +317,7 @@ df0 <- tibble(model = model, ticker = tickers) %>%
 df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
   arrange(x)
 
-write_csv(df1, 'correlations/model_v8_3.csv')
+write_csv(df1, 'correlations/model_v8_2.csv')
 
 library(gt)
 
@@ -405,13 +325,9 @@ df1 |> gt()
 ```
 
 
-# picking up the important variables 
+## picking up the important variables 
 
 ```{r}
-#| message: false
-#| warning: false
-#| eval: false
-
 
 ```
 
@@ -419,10 +335,10 @@ df1 |> gt()
 volat_roc1_19days and volat_roc1_63days and volat_roc5_29days are all highly correlated. So, I will keep volat_roc5_29days and then use the correlation of volat_roc1_19days and volat_roc1_63days.  DONE
 
 
-## Summary of important variables and correlation (5 weeks)
+# Summary of important variables and correlation (5 weeks)
 
                           V2    V3    V6    V7       Corr
-roll_sd_volum200d_1Y      1            1             X
+rll_sd_volum200_1Y        1            1             X
 roll_sd_ret21d_1Y         2            4    2        X
 min_252                   3                          min_126
 ma_cross_l                4            11            X
@@ -452,4 +368,66 @@ zzmark_volat251_roc23_ms               8
 
 NEW
 corr63_atr13_atr19, 
+
+
+
+
+
+
+
+# Missing values 
+
+## Checking on missing values or Zero values 
+
+Checking for missing values and dealing with them. 
+```{r mis_val, eval=FALSE}
+check_for_na <- function(ticker) { 
+  df <- conform_data(ticker, "Daily", "fmpr") %>% 
+    select(index, open, high, low, close, adjusted, volume) %>% 
+    summarize_all((~ sum(is.na(.))))
+  return(df)
+}
+
+check_for_zero <- function(ticker) { 
+    df <- conform_data(ticker, "Daily", "fmpr") %>% 
+    select(open, high, low, close, adjusted, volume) %>% 
+    filter(if_any(everything(.), ~ . == 0))
+  }
+
+## checking for 0 or NA
+check_na <- tibble(tickers = c(tickers, etf1, etf2)) %>% 
+  mutate(number_na = map(tickers, check_for_na)) %>% 
+  unnest(cols = c(number_na))
+
+check_naa <- tibble(tickers = c(tickers, etf1, etf2)) %>% 
+  mutate(number_zero = map(tickers, check_for_zero)) 
+df <- check_naa %>% unnest()
+```
+
+
+## fixing NA values 
+
+NA values seems to appear mainly in the Volume part of the data. 
+Noticing missing values in GILD, VOX and VAW.  You can have several days in a row with NA in volume.  
+
+Solution: 
+We are not touching the volume of the ETF.  So we are only interested in the volume of the stock. 
+Noticing that when volume is NA, it is because they were no trading.  So we can just remove these days. 
+```{r eval=FALSE}
+the_path = here::here()
+yo <- read_csv(paste0(the_path, "/data_stock_fmpr/GILD.csv"))
+yo_na <- yo %>% filter(is.na(volume))
+yo_no_na <- yo %>% filter(is.na(volume) == FALSE)
+
+create_base_fin_df_v8 <- function(df){
+  df <- df %>%  
+    select(index, open, high, low, close, adjusted, volume) %>% arrange(index) %>% 
+    mutate(open = as.numeric(open), high = as.numeric(high), low = as.numeric(low), 
+           close = as.numeric(close), adjusted = as.numeric(adjusted), 
+           volume = as.numeric(volume)) %>% filter(is.na(volume) == FALSE)
+  
+}
+```
+
+
 
