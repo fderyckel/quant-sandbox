@@ -1,0 +1,77 @@
+---
+title: "02-decreased_volatility"
+format: html
+---
+
+## TODO: 
+* makes date on graph like every 2 month, with minor grid every month
+* remove legend 
+* try 7th-ile and only pick color for 6and7 and 1and2, the rest just keep the line
+
+We have use the 'ADX' indicator on our charts. We use a 17 days ADX.  
+
+Question: what happens when the di+ and di- are as far apart as can be?  Does reversal happen? 
+
+How to go about the question?  Again we are looking for 29 days (6 weeks), 37 days (7 weeks)
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(readr)
+library(dplyr)
+library(lubridate)
+library(glue)
+library(timetk)
+
+the_path <- here::here()
+```
+
+
+```{r}
+
+mean_roll_1000 <- slidify(.f = mean, .period = 1000, .align = 'right')
+sd_roll_1000 <- slidify(.f = sd, .period = 1000, .align = 'right')
+
+create_df <- function(ticker) {
+  df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv'), 
+                 show_col_types = FALSE) |> 
+    select(date, open, high, low, close) |> 
+    arrange(date) 
+  adx <- TTR::ADX(df[,3:5], n = 17) |> 
+    as_tibble() |> 
+    select(adx17 = ADX, din17 = DIn, dip17 = DIp)
+  df <- bind_cols(df, adx) |> 
+    mutate(di_diff = abs(dip17-din17), 
+           di_diff_quint = ntile(di_diff, n = 5), 
+           roll_mean_di_diff = mean_roll_1000(di_diff), 
+           roll_sd_di_diff = sd_roll_1000(di_diff), 
+           roll_sd_above_1000 = (di_diff - roll_mean_di_diff) / roll_sd_di_diff, 
+           forw_ret_29d = log(lead(close, n = 29) / close), 
+           forw_ret_37d = log(lead(close, n = 37) / close), 
+           ret37d_quint = ntile(forw_ret_37d, n = 5)) |> 
+    select(-open, -low, -high, -roll_mean_di_diff, -roll_sd_di_diff)
+}
+  
+ticker <- 'AXP'
+
+df <- create_df(ticker)
+  
+```
+
+# plotting results 
+
+```{r}
+library(ggplot2)
+library(patchwork)
+
+p1 <- ggplot((df |> filter(date > today() - 750)), aes(x = date, y = di_diff)) + 
+  geom_line(aes(color = di_diff_quint))
+p2 <- ggplot((df |> filter(date > today() - 750)), aes(x = date, y = close)) + 
+  geom_line() + 
+  geom_point(aes(color = as.factor(di_diff_quint)))
+#grid.arrange(p1, p2,  ncol = 1, heights = c(2, 2))
+p1+p2 + plot_layout(ncol=1)
+```
+

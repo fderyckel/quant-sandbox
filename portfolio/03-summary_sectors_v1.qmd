@@ -1,0 +1,379 @@
+---
+title: "Summary Reports V3"
+author: "FdR"
+date: "3-12-2023"
+output: html
+---
+
+```{r}
+#| label: yolo
+#| warning: false
+#| message: false
+#| echo: false
+
+library(knitr)
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+the_path <- here::here()
+
+source('../functions/summary_reports_v3.R')
+source('../functions/chart_plotting_v1.R')
+source('../functions/fmpr_functions.R')
+```
+
+
+# XLC - Communication Services Select Sector SPDR Fund 
+
+```{r}
+#| label: xlc
+
+# these 6 stocks make up for more than 40% of the XLV index. 
+xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA') 
+etf1 =    rep('SPY', length(xlc))
+etf2 =    rep('XLC', length(xlc))
+
+stock_tickers <- c(xlc, 'XLC')
+
+for (i in 1:length(stock_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(stock_tickers[i])
+    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+df <- tibble(ticker = xlc, etf1 = etf1, etf2 = etf2) 
+pdf(paste0(the_path, "/charts/charts_stocks_XLC.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = xlc[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today())  
+  Sys.sleep(2)
+  }
+dev.off()
+
+```
+
+
+# XLE - Energy Select Sector SPDR Fund
+
+```{r}
+#| label: xle
+
+# not working because too new:  
+# these 6 stocks make up for more than 40% of the XLV index. 
+xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV') 
+etf1 =    c(rep('SPY', length(xle)))
+etf2 =    c(rep('XLE', length(xle)))
+
+stock_tickers <- c(xle, 'XLE')
+
+for (i in 1:length(stock_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(stock_tickers[i])
+    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+df <- tibble(ticker = xle, etf1 = etf1, etf2 = etf2) 
+pdf(paste0(the_path, "/charts/charts_stocks_XLE.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = xle[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today())  
+  Sys.sleep(2)
+  }
+dev.off()
+
+```
+
+
+
+# XLP - Consumer Staples Select Sector SPDR Fund
+
+```{r}
+#| label: xlp
+
+# not working because too new: KVUE, 
+# these 6 stocks make up for more than 40% of the XLV index. 
+xlp = c('PG',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'DLTR', 'CHD', 'CLX') 
+etf1 =    c(rep('SPY', length(xlp)))
+etf2 =    c(rep('XLP', length(xlp)))
+
+stock_tickers <- c(xlp, 'XLP')
+
+#for (i in 1:length(stock_tickers)) { 
+#  tryCatch({ 
+#    get_fmpr_prices(stock_tickers[i])
+#    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
+#    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+#}
+
+df <- tibble(ticker = xlp, etf1 = etf1, etf2 = etf2) 
+pdf(paste0(the_path, "/charts/charts_stocks_XLP.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = xlp[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today())  
+  Sys.sleep(2)
+  }
+dev.off()
+
+```
+
+
+# XLV 
+
+```{r}
+#| label: xlv
+
+# these 6 stocks make up for more than 40% of the XLV index. 
+xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'PFE', 'RVTY') 
+etf1 =    rep('SPY', length(xlv))
+etf2 =    rep('XLV', length(xlv))
+
+stock_tickers <- c(xlv, 'XLV')
+
+for (i in 1:length(stock_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(stock_tickers[i])
+    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+df <- tibble(ticker = xlv, etf1 = etf1, etf2 = etf2) 
+pdf(paste0(the_path, "/charts/charts_stocks_XLV.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = xlv[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today())  
+  Sys.sleep(2)
+  }
+dev.off()
+
+```
+
+  
+# XLY - Consumer Discretionary Select Sector SPDR Fund 
+
+```{r}
+# these 6 stocks make up for more than 40% of the XLV index. 
+xly = c('AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'LOW', 'BKNG', 'PAG', 'SBUX', 'TJX', 'CMG', 
+        'ABNB', 'LULU', 'ORLY', 'MAR', 'GM', 'F', 'HLT', 'AZO', 'ROST', 'DHI', 'YUM', 
+        'RCL', 'TSCO', 'PHM', 'EXPE', 'DRI', 'GRMN') 
+etf1 =    rep('SPY', length(xly))
+etf2 =    rep('XLY', length(xly))
+
+stock_tickers <- c(xly, 'XLY')
+
+for (i in 1:length(stock_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(stock_tickers[i])
+    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+df <- tibble(ticker = xly, etf1 = etf1, etf2 = etf2) 
+pdf(paste0(the_path, "/charts/charts_stocks_XLY.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = xly[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today())  
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+
+# stocks with changed of volatility 
+ 
+Check for higher monthly volatility and change in higher monthly volatility (from this week to last).  make list of top 20 volatility. 
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+library(timetk)
+library(tidyr)
+
+the_path <- here::here()
+
+xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA') 
+xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV') 
+xlp = c('PG',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'DLTR', 'CHD', 'CLX') 
+xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'PFE', 'RVTY') 
+xly = c('AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'BKNG', 'PAG') 
+
+conform_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(date, adjusted=adjClose) |>  
+      arrange(date)
+    return(df)
+}
+
+sd_roll_21d = slidify(.f = sd, .period = 21, .align = 'right')
+sd_roll_252d = slidify(.f = sd, .period = 252, .align = 'right')
+
+calc_vol <- function(ticker) {
+  df <- conform_data(ticker) |> 
+    select(date, adjusted) |> 
+    mutate(ret_1d = log(adjusted / lag(adjusted, n = 1)), 
+           ret_1M = log(adjusted / lag(adjusted, n = 21)), 
+           roll21d_sd_ret1d = sd_roll_21d(ret_1d), 
+           roll252d_sd_ret1d = sd_roll_252d(ret_1d),
+           weekly_vol_change = log(roll21d_sd_ret1d / lag(roll21d_sd_ret1d, n = 5))) |> 
+    slice_tail(n = 1)
+}
+
+df <- tibble(ticker = c(xlc, xle, xlp, xlv, xly)) |> 
+  mutate(vol = map(ticker, calc_vol)) |> 
+  unnest(cols = c(vol)) |> 
+  arrange(desc(roll252d_sd_ret1d))
+```
+
+  
+# Breadth of markets 
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+library(timetk)
+library(scales)
+
+the_path <- here::here()
+
+conform_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(date, open, high, low, close, adjusted=adjClose, volume) |>  
+      arrange(date)
+    return(df)
+}
+
+mean_roll_50 <- slidify(.f = mean, .align = 'right', .period = 50)
+mean_roll_100 <- slidify(.f = mean, .align = 'right', .period = 100)
+mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 200)
+
+create_averages <- function(ticker) {
+  df <- conform_data(ticker) |> 
+    mutate(sma50 = mean_roll_50(adjusted), 
+           above_sma50 = if_else(adjusted > sma50, 1, 0), 
+           sma100 = mean_roll_100(adjusted), 
+           above_sma100 = if_else(adjusted > sma100, 1, 0), 
+           sma200 = mean_roll_50(adjusted), 
+           above_sma200 = if_else(adjusted > sma200, 1, 0)) |> 
+    select(date, above_sma50, above_sma100, above_sma200) |> 
+    na.omit()
+    
+}
+
+df <- tibble(ticker = c(xlc, xle, xlp, xlv, xly)) |> 
+  mutate(breadth = map(ticker, create_averages)) |> 
+  unnest(cols = c(breadth)) |> 
+  group_by(date) |> 
+  summarize(num_stocks = n(), 
+            avg_abov50 = mean(above_sma50), 
+            avg_abov100 = mean(above_sma100), 
+            avg_abov200 = mean(above_sma200)) 
+
+ggplot(df |> filter(date > today() - 1500), aes(x = date)) + 
+  geom_line(aes(y = avg_abov100), color = 'purple') + 
+  geom_hline(aes(yintercept = 0.9), color = 'red', linetype = 'dashed') + 
+  geom_hline(aes(yintercept = 0.1), color = 'red', linetype = 'dashed') + 
+  scale_x_date(breaks = breaks_width("4 months"),labels = label_date("%b %y")) + 
+  #title(main = 'XLE') + 
+  #annotate("text", x = 1, y = 1, label = 'XLE', color = "white") + 
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(angle = 90), 
+        axis.text.x = element_text(angle = 30, vjust = 0.4), 
+        plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
+        panel.background = element_rect(fill = "black"), 
+        plot.background = element_rect(fill = "Gray 65"), 
+        panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+        panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+        panel.grid.minor.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+        panel.grid.minor.y = element_blank()
+        )
+
+
+  
+```
+
+ 
+ 

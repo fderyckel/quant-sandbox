@@ -42,43 +42,16 @@ get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) {
   d <- tibble::as_tibble(d$historical)
   write_csv(d, glue({the_path}, "/data_stock_fmpr/", {ticker}, ".csv"))
 }
-```
-
-```{r}
-#| eval: true
-#| echo: false
-
-markets <- c('SPY', 'DIA', 'QQQ')
-sectors <- c('XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLRE', 'XLK', 'XLU')
-tickers <- c(markets, sectors)
-
-for (i in 1:length(tickers)) { 
-  tryCatch({ 
-    get_fmpr_prices(tickers[i])
-    print(glue("just downloaded data for ", tickers[i], " and saved it."))
-    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-}
-```
 
 
-# How did the market perform ? 
-
-Return of main indices and sectors over the week / month / year
-```{r}
-#| label: marketOverall
-#| echo: false
-#| message: false
-#| warning: false
-#| eval: true
-
-# now we make 2 tables one for overall market and one for sectors
-# rows are markets, columns are daily, weekly, monthly, yearly. 
-
+############### Function to get returns and sd of returns ##############
+# to be used in the get_returns function
 roll_sd_3Y = slidify(.f = sd, .period = 756, .align = 'right')
 roll_mean_3Y = slidify(.f = mean, .period = 756, .align = 'right')
 
 get_returns <- function(ticker) { 
-  df <- read_csv(paste0(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
+  df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv', 
+                      show_col_types = FALSE)) |> 
     select(date, adjusted = adjClose) |> 
     arrange(date) |> 
     mutate(ret_1d = log(adjusted / lag(adjusted, n = 1)), 
@@ -106,10 +79,28 @@ get_returns <- function(ticker) {
   
 }
 
-#yo <- df |> filter(ticker == 'QQQ' & date > '2006-01-01') |> 
- # select(date, ret_1Y, roll3Y_mean_ret1Y, roll3Y_sd_ret1Y, sd_abov_ret1Y)
-
 ```
+
+```{r}
+#| eval: true
+#| echo: false
+
+markets <- c('SPY', 'DIA', 'QQQ')
+sectors <- c('XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLRE', 'XLK', 'XLU')
+tickers <- c(markets, sectors)
+
+for (i in 1:length(tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(tickers[i])
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+```
+
+
+# How did the market perform ? 
+
+Return of main indices and sectors over the week / month / year.  
+The standard deviation are calculated on a 3 years rolling basis. 
 
 ```{r}
 #| label: marketReturns
@@ -123,8 +114,9 @@ df <- tibble(ticker = markets) |>
 
 df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
   gt() |> 
-  tab_header(title = 'Returns of main markets') |> 
+  tab_header(title = 'Returns of Portfolio Assets') |> 
   fmt_percent(columns = starts_with('ret_'), decimals = 1) |> 
+  fmt_number(columns = 'adjusted', decimals = 2) |>
   fmt_number(columns = starts_with('sd_abov_'), decimals = 2) |> 
   tab_spanner(label = 'Daily', columns = c(ret_1d, sd_abov_ret1d)) |> 
   tab_spanner(label = 'Weekly', columns = c(ret_1W, sd_abov_ret1W)) |> 
@@ -178,12 +170,42 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 #| echo: false
 
 # My positions 
-df <- tibble(ticker = c('CGC', 'GROY', 'LUC.TO', 'EEM', 'EWH', 'GDXJ'))
+df <- tibble(ticker = c('CBOE', 'NEE', 'OXY', 'EWZ', 'EWJ', 'EEM', 'EWH', 'GDXJ', 'CGC', 'GROY', 'LUC.TO'))
 
 tickers = c('EWH', 'GDXJ', 'CGC', 'EEM', 'EWJ', 'CBOE', 'NEE') 
 etf1 =    c('EEM', 'UUP', 'SPY', 'UUP', 'SPY', 'SPY', 'SPY')
 
 stock_tickers <- c(tickers, 'UUP')
+
+for (i in 1:length(df)) { 
+  tryCatch({ 
+    get_fmpr_prices(df$ticker[i])
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+df <- df |> 
+  mutate(returns = map(ticker, possibly(.f = get_returns, otherwise = NULL))) |> 
+  unnest(cols = c(returns)) 
+
+yo <- df |> filter(ticker == 'XLP' & date > '2006-01-01') |> 
+ select(date, ret_1Y, roll3Y_mean_ret1Y, roll3Y_sd_ret1Y, sd_abov_ret1Y)
+
+df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
+  gt() |> 
+  tab_header(title = 'Returns of S&P Sectors') |> 
+  fmt_percent(columns = starts_with('ret_'), decimals = 1) |> 
+  fmt_number(columns = starts_with('sd_abov_'), decimals = 2) |> 
+  tab_spanner(label = 'Daily', columns = c(ret_1d, sd_abov_ret1d)) |> 
+  tab_spanner(label = 'Weekly', columns = c(ret_1W, sd_abov_ret1W)) |> 
+  tab_spanner(label = 'Monthly', columns = c(ret_1M, sd_abov_ret1M)) |>
+  tab_spanner(label = '6-Monthly', columns = c(ret_6M, sd_abov_ret6M)) |> 
+  tab_spanner(label = 'Yearly', columns = c(ret_1Y, sd_abov_ret1Y)) |> 
+  cols_label(ret_1d = 'ret.', sd_abov_ret1d = 'sd', 
+             ret_1W = 'ret.', sd_abov_ret1W = 'sd', 
+             ret_1M = 'ret.', sd_abov_ret1M = 'sd', 
+             ret_6M = 'ret.', sd_abov_ret6M = 'sd', 
+             ret_1Y = 'ret.', sd_abov_ret1Y = 'sd') |> 
+  opt_stylize(style = 1) 
 ```
 
 
@@ -200,7 +222,6 @@ stock_tickers <- c(tickers, 'UUP')
 for (i in 1:length(stock_tickers)) { 
   tryCatch({ 
     get_fmpr_prices(stock_tickers[i])
-    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
 ```

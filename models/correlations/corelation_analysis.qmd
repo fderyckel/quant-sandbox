@@ -102,9 +102,8 @@ df_V1b <- tibble(ticker = c('AMD', 'AXP', 'FDX', 'HAL', 'JPM', 'SBUX')) |>
   mutate(metrics = map2(ticker, model_name, get_metrics)) |> 
   unnest(cols = c(metrics))
 
-df_V1b |> gt()
-```
-
+#df_V1b |> gt()
+``` 
 
 
 # model V8_2 Explo 
@@ -130,9 +129,9 @@ read_csv('model_v8_2.csv') |>
 #| message: false
 #| echo: false
 
-yop <- glue(the_path, '/models/model_vars_imp/xgboost_modelv8_explo2_7wClassThirdile_')
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v8_2_7wClass3ile_')
 
-df_VI_V82 <- tibble(ticker = c('AA', 'AAPL', 'AMD', 'GOOG')) |> 
+df_VI_V82 <- tibble(ticker = c('AA', 'AAPL', 'AMD', 'CVX', 'FDX', 'JPM')) |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -151,14 +150,14 @@ df_VI_V82 |> gt()
 #| message: false
 #| echo: false
 
-yop <- glue(the_path, '/models/model_metrics/xgboost_modelv8_explo2_7wClassThirdile_')
+yop <- glue(the_path, '/models/model_metrics/xgboost_v8_2_7wClass3ile_')
 model_name <- 'Model V8_2'
 
-df_V82 <- tibble(ticker = c('AA', 'AAPL', 'AMD', 'GOOG')) |> 
+df_V82 <- tibble(ticker = c('AA', 'AAPL', 'AMD', 'CVX', 'FDX', 'JPM')) |> 
   mutate(metrics = map2(ticker, model_name, get_metrics_V2)) |> 
   unnest(cols = c(metrics))
 
-df_V82 |> gt()
+#df_V82 |> gt()
 ```
 
 
@@ -187,8 +186,8 @@ read_csv('model_v8_3.csv') |>
 #| message: false
 #| echo: false
 
-yop <- glue(the_path, '/models/model_vars_imp/xgboost_modelv8_explo3_7wClassThirdile_')
-tickers <- c('AA', 'AAPL', 'AMD', 'AXP', 'CVX', 'HAL', 'PYPL', 'SBUX')
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v8_3_7wClass3ile_')
+tickers <- c('AA', 'AAPL', 'AMD', 'CVX', 'HAL', 'FDX', 'JPM')
 
 df_VI_V83 <- tibble(ticker = tickers) |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
@@ -199,7 +198,7 @@ df_VI_V83 <- tibble(ticker = tickers) |>
             sd_imp = sd(Importance, na.rm=TRUE)) |> 
   arrange(desc(mean_imp))
 
-df_VI_V83 |> gt()
+#df_VI_V83 |> gt()
 ```
 
 ## Metrics 
@@ -209,7 +208,7 @@ df_VI_V83 |> gt()
 #| message: false
 #| echo: false
 
-yop <- glue(the_path, '/models/model_metrics/xgboost_modelv8_explo3_7wClassThirdile_')
+yop <- glue(the_path, '/models/model_metrics/xgboost_v8_3_7wClass3ile_')
 model_name <- 'Model V8_3'
 
 df_V83 <- tibble(ticker = tickers) |> 
@@ -223,6 +222,10 @@ df_V83 |> gt()
 # Variables importance 
 
 ```{r}
+df_VI_V1b <- df_VI_V1b |> mutate(model = 'V1b')
+df_VI_V82 <- df_VI_V82 |> mutate(model = 'V8_2')
+df_VI_V83 <- df_VI_V83 |> mutate(model = 'V8_3')
+
 df <- df_VI_V1b |> add_row(df_VI_V82) |> 
   add_row(df_VI_V83) |> 
   arrange(mean_rank, Variable)

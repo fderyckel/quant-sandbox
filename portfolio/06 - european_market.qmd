@@ -1,0 +1,39 @@
+---
+title: "06 - European Market"
+format: html
+editor: source
+---
+
+Create functions to quickly see some seasonality effects
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(lubridate)
+library(dplyr)
+
+the_path <- here::here()
+
+get_option_price <- function(spot, strike, rate, dte, volat) {
+  ssdt = volat * sqrt(dte) 
+  
+  d1 = (log(spot/strike) + (rate + volat^2/2) * dte) / ssdt
+  d2 = d1 - ssdt
+  
+  call_price = spot * pnorm(d1) - strike * exp(-rate * dte) * pnorm(d2)
+  put_price = strike * exp(-rate * dte) * pnorm(-d2) - spot * pnorm(-d1)
+  
+  df <- tibble(spot = spot, strike = strike, rate = rate, 
+               dte = dte, volat = volat, call_price, put_price, 
+               delta_call = pnorm(d1), delta_put = -pnorm(-d1), 
+               gamma = dnorm(d1) / (spot * ssdt))
+  return(df)
+}
+
+#return norm.pdf(self._d1_) / (self.spot * self._a_)
+
+
+get_option_price(spot = 60, strike = 60, rate = 0.05, dte = 28/365, volat = 0.2)
+```

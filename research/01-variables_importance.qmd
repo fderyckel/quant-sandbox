@@ -7,4 +7,4 @@ format: html
 
 I am trying to see which variables do matter when going in market. 
 
-1st way to go about: have fifth of data (last 2 fifht are for short, top2 fights are for long, middle is nothing) same kind of marking as before.   
+1st way to go about: have fifth of data (last 2 fifth are for short, top2 fights are for long, middle is nothing) same kind of marking as before.   

@@ -49,7 +49,7 @@ for (i in 1:length(etf_tickers)) {
 stock_tickers <- c("AMD", "TSM", "BAH", "PYPL", "JPM", "AXP", 
                    "TFII", "FDX", "CAT", "HAL", "CVX", "PSX", 
                    "BBWI", "SBUX", "MNST", "DIS", "PARA", 
-                   "GILD", "PKI", "CGC", 
+                   "GILD", "CGC", 
                    "PAAS", "AA", "VALE", "STLD", "MOS", 
                    "ATKR", "RYN", 'NVDA')
 
@@ -82,15 +82,15 @@ Creating charts for tickers. They are available for review as pdf in the portfol
 
 ```{r plot_data2}
 tickers = c("AMD", "TSM", "BAH", "PYPL", "AXP", "JPM", 
-            "GILD", "PKI", "BBWI", "SBUX", "MNST", "DIS", "PARA",
+            "GILD", "BBWI", "SBUX", "MNST", "DIS", "PARA",
             "FDX", "CAT", "AA", "CVX", "HAL", "MOS", "STLD", "PAAS") 
 
 etf1 = c("QQQ", "QQQ", "SPY", "QQQ", "SPY", "SPY", 
-         "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", 
+         "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", 
          "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "SPY", "DIA")
 
 etf2 = c("SMH", "SMH", "HACK", "IPAY", "XLF", "XLF", 
-         "XLV", "XLV", "XLY", "XLY", "FXG", "VOX", "VOX", 
+         "XLV", "XLY", "XLY", "FXG", "VOX", "VOX", 
          "IYT", "XLI", "XME", "XLE", "VDE", "VAW", "VAW", "GDX")
 
 df <- tibble(ticker = tickers, etf1 = etf1, etf2 = etf2) 

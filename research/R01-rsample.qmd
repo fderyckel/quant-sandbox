@@ -9,13 +9,13 @@ format: html
 
 ## Introduction 
 
-When doing cross-validation, we usually tend to have a training set, a validation set and then finally a testing set.  We need a testing set because whatever algorithm you have used has been fine-tuned to increase 'success' (however you measure it in your problem) on the validation set.  Hence, you have the best possible outcomes, but it doesn't mean it translates further to an 'accurate' forecasting (again, however ways you measure that in your problem).  This is why we save some observations (the latest one), to really see if our model have any predictive power. 
+When doing cross-validation, we usually tend to have a training set, a validation set and then finally a testing set.  We need a testing set because whatever algorithm we have used, that algorithm has been fine-tuned to increase 'success' (however you measure it in your problem) on the validation set.  Hence, you have the best possible outcomes, but it doesn't mean it translates further to an 'accurate' forecasting (again, however ways you measure that in your problem).  This is why we save some observations (the latest one), to really see if our model have any predictive power. 
 
 What I am looking for here is to keep the last 6 months of data + look ahead time (7 weeks in my case) for testing.  So I will keep 8 months worth of data for testing.  The rest, I would like to break it into a 80-20 training / validation sets. 
 
 Problem to solve: how to automate the above training/validation/test splits.  
 
-This require a deeper dive into how the rsample library works.  
+This require a deeper dive into how the **rsample** library works.  
 
 ```{r}
 #| warning: false
@@ -32,6 +32,7 @@ the_path <- here::here()
 
 ticker <- 'SPY' 
 
+# rsample assume the data are already ordered (oldest to newest)
 create_cv_data <- function(ticker){
     df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
                    show_col_types = FALSE) |>  
@@ -47,19 +48,21 @@ df <- create_cv_data(ticker)
 
 ## How rolling_origin() works
 
-First, we create time_slices using the  *rolling_origin()* function from the **rsample** package.  
+First, we create time_slices using the **rolling_origin()** function from the *rsample* package.  
 
 The arguments used by *rolling_oring()* are 
 
 * initial: number of observations (time units) used for a training sample
-* assess: number of observations (time units) used for the associated testing sample 
-* skip: how many observations (time units, days here) we jump between each training sample.  Skip is just between training samples.  
-* lag: if we want a lag (a certain amount of days) between the training and testing samples().  This is suggested to avoid any auto-correlation issues.  We are going to put a month of trading in between the training samples and testing samples
+* assess: number of observations (time units) used for the associated validation sample 
+* skip: how many observations (time units, days here) we jump between each training sample.   Skip is just between training samples.  
+* lag: if we want a lag (a certain amount of days) between the training and validation samples().  This is suggested to avoid any auto-correlation issues.  We are going to put a month of trading in between the training samples and validation samples
 
-What took me a while to understand is the relationship between assess and lag.  So here is how I am currently understanding it.  
-lag is based on assess.  It skips unit of times from the assess sample. And assess starts right after the initial samples. 
-The size of the validation sample = assess + lag.  
-Now, lag has to be negative for us validation = 10, which 31 (assess) - 21 (lag)
+What took me a while to understand is the relationship between the **assess** and **lag** arguments.  So here is how I am currently understanding it:   
+
+* lag is based on assess.  It skips unit of times from the assess sample  
+* and assess starts right after the initial samples 
+* the size of the validation sample = assess + lag  
+* Now, lag has to be negative for us validation = 10, which 31 (assess) - 21 (lag)
 
 The output of that function is a tibble with 2 columns. 
 
@@ -76,7 +79,7 @@ time_slices <- rolling_origin(df,
 glimpse(time_slices)
 ```
 
-## extracting training and testing samples 
+## Extracting training and testing samples 
 
 Next step is to extract the training and testing set from the split.   We use the 2 functions **training()** and **testing()** for extraction.
 
@@ -91,11 +94,13 @@ ts_df <- time_slices |>
 glimpse(ts_df)
 ```
 
-## extracting dates 
+## Extracting dates 
 
 All of this is to access the dates in the split and check that the splits has done what I want it to do.  we use map_dbl this time to get the date (we have to reconvert it to a date though)
 
 ```{r}
+#| label: extracting-dates
+
 # create our 2 simple functions to check the dates 
 get_start_date <- function(x){ min(x$index) }
 get_end_date <- function(x){ max(x$index) }
@@ -127,13 +132,14 @@ Constant:
 * skip between training samples = 63 (3 months)
 * lag before starting testing = 21 (1 month)
 
-Problem can arise when the training set becomes then too small because the whole dataset is not big enough.  In this case, we'll then size down the skip time in order to have at least 500 training observations to work with.  
+A problem can arise when the training set becomes too small for appropriate training for the chosen machine learning algorithm.  This can happen because the whole dataset is not big enough to start with.  In this case, we'll then *size down* the skip time in order to have at least 500 training observations to work with.  The alternative would have been to reduce the number of the cross-validation samples. 
 
 ```{r}
-#ticker <- 'SPY' 
+#| label: rsample-workflow
+
 ticker <- 'HACK'
 
-df <- create_cv_data(ticker) #|> filter(index > '2009-09-01')
+df <- create_cv_data(ticker) 
 get_start_date <- function(x){ min(x$index) }
 get_end_date <- function(x){ max(x$index) }
 

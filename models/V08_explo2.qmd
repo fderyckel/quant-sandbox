@@ -59,7 +59,7 @@ augment_df_fin <- function(df){
     mutate(ret1d = log(adjusted / lag(adjusted, n = 1)), 
            ret11d = log(adjusted / lag(adjusted, n = 11)), 
            ret21d = log(adjusted / lag(adjusted, n = 21)), 
-           ret_3M = log(close / lag(close, n = 61)), 
+           ret3M = log(close / lag(close, n = 61)), 
            
            ema11 = TTR::EMA(adjusted, n = 11), 
            ema23 = TTR::EMA(adjusted, n = 23), 
@@ -72,8 +72,8 @@ augment_df_fin <- function(df){
            perc_abov_sma101 = log(adjusted / sma101), 
            perc_abov_sma199 = log(adjusted / sma199), 
            
-           roll_sd_ret1d_7M = sd_roll_7M(ret_1d), 
-           roll_sd_ret3M_1Y = sd_roll_1Y(ret_3M),            
+           roll_sd_ret1d_7M = sd_roll_7M(ret1d), 
+           roll_sd_ret3M_1Y = sd_roll_1Y(ret3M),            
            
            roll_mean_ema11_200d = mean_roll_200(perc_abov_ema11), 
            roll_sd_ema11_200d = sd_roll_200(perc_abov_ema11),

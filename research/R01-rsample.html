@@ -112,10 +112,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>Getting to know Cross-validation with time-series</h1>
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
-<p>When doing cross-validation, we usually tend to have a training set, a validation set and then finally a testing set. We need a testing set because whatever algorithm you have used has been fine-tuned to increase ‘success’ (however you measure it in your problem) on the validation set. Hence, you have the best possible outcomes, but it doesn’t mean it translates further to an ‘accurate’ forecasting (again, however ways you measure that in your problem). This is why we save some observations (the latest one), to really see if our model have any predictive power.</p>
+<p>When doing cross-validation, we usually tend to have a training set, a validation set and then finally a testing set. We need a testing set because whatever algorithm we have used, that algorithm has been fine-tuned to increase ‘success’ (however you measure it in your problem) on the validation set. Hence, you have the best possible outcomes, but it doesn’t mean it translates further to an ‘accurate’ forecasting (again, however ways you measure that in your problem). This is why we save some observations (the latest one), to really see if our model have any predictive power.</p>
 <p>What I am looking for here is to keep the last 6 months of data + look ahead time (7 weeks in my case) for testing. So I will keep 8 months worth of data for testing. The rest, I would like to break it into a 80-20 training / validation sets.</p>
 <p>Problem to solve: how to automate the above training/validation/test splits.</p>
-<p>This require a deeper dive into how the rsample library works.</p>
+<p>This require a deeper dive into how the <strong>rsample</strong> library works.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr) </span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
@@ -127,32 +127,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>ticker <span class="ot">&lt;-</span> <span class="st">'SPY'</span> </span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>create_cv_data <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker){</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">paste0</span>(the_path, <span class="st">"/data_stock_fmpr/"</span>, ticker, <span class="st">".csv"</span>), </span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>                   <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span>  </span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(<span class="at">index =</span> date, <span class="at">adjusted =</span> adjClose) <span class="sc">|&gt;</span> </span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>      <span class="fu">arrange</span>(index) <span class="sc">|&gt;</span> </span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(index <span class="sc">&lt;</span> <span class="fu">today</span>()  <span class="sc">-</span> <span class="dv">8</span><span class="sc">*</span><span class="dv">21</span>) <span class="co"># removing the last 8 months of data for testing</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(df)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">create_cv_data</span>(ticker) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># rsample assume the data are already ordered (oldest to newest)</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>create_cv_data <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker){</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">paste0</span>(the_path, <span class="st">"/data_stock_fmpr/"</span>, ticker, <span class="st">".csv"</span>), </span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>                   <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span>  </span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(<span class="at">index =</span> date, <span class="at">adjusted =</span> adjClose) <span class="sc">|&gt;</span> </span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>      <span class="fu">arrange</span>(index) <span class="sc">|&gt;</span> </span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(index <span class="sc">&lt;</span> <span class="fu">today</span>()  <span class="sc">-</span> <span class="dv">8</span><span class="sc">*</span><span class="dv">21</span>) <span class="co"># removing the last 8 months of data for testing</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(df)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">create_cv_data</span>(ticker) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="how-rolling_origin-works" class="level2">
 <h2 class="anchored" data-anchor-id="how-rolling_origin-works">How rolling_origin() works</h2>
-<p>First, we create time_slices using the <em>rolling_origin()</em> function from the <strong>rsample</strong> package.</p>
+<p>First, we create time_slices using the <strong>rolling_origin()</strong> function from the <em>rsample</em> package.</p>
 <p>The arguments used by <em>rolling_oring()</em> are</p>
 <ul>
 <li>initial: number of observations (time units) used for a training sample</li>
-<li>assess: number of observations (time units) used for the associated testing sample</li>
+<li>assess: number of observations (time units) used for the associated validation sample</li>
 <li>skip: how many observations (time units, days here) we jump between each training sample. Skip is just between training samples.<br>
 </li>
-<li>lag: if we want a lag (a certain amount of days) between the training and testing samples(). This is suggested to avoid any auto-correlation issues. We are going to put a month of trading in between the training samples and testing samples</li>
+<li>lag: if we want a lag (a certain amount of days) between the training and validation samples(). This is suggested to avoid any auto-correlation issues. We are going to put a month of trading in between the training samples and validation samples</li>
 </ul>
-<p>What took me a while to understand is the relationship between assess and lag. So here is how I am currently understanding it.<br>
-lag is based on assess. It skips unit of times from the assess sample. And assess starts right after the initial samples. The size of the validation sample = assess + lag.<br>
-Now, lag has to be negative for us validation = 10, which 31 (assess) - 21 (lag)</p>
+<p>What took me a while to understand is the relationship between the <strong>assess</strong> and <strong>lag</strong> arguments. So here is how I am currently understanding it:</p>
+<ul>
+<li>lag is based on assess. It skips unit of times from the assess sample<br>
+</li>
+<li>and assess starts right after the initial samples</li>
+<li>the size of the validation sample = assess + lag<br>
+</li>
+<li>Now, lag has to be negative for us validation = 10, which 31 (assess) - 21 (lag)</li>
+</ul>
 <p>The output of that function is a tibble with 2 columns.</p>
 <ul>
 <li>splits: a <strong>binary split</strong> of ‘list’ type</li>
@@ -167,13 +174,13 @@ Now, lag has to be negative for us validation = 10, which 31 (assess) - 21 (lag)
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 73
 Columns: 2
-$ splits &lt;list&gt; [&lt;rof_split[1000 x 10 x 5650 x 2]&gt;], [&lt;rof_split[1000 x 10 x 5…
+$ splits &lt;list&gt; [&lt;rof_split[1000 x 10 x 5662 x 2]&gt;], [&lt;rof_split[1000 x 10 x 5…
 $ id     &lt;chr&gt; "Slice01", "Slice02", "Slice03", "Slice04", "Slice05", "Slice06…</code></pre>
 </div>
 </div>
 </section>
 <section id="extracting-training-and-testing-samples" class="level2">
-<h2 class="anchored" data-anchor-id="extracting-training-and-testing-samples">extracting training and testing samples</h2>
+<h2 class="anchored" data-anchor-id="extracting-training-and-testing-samples">Extracting training and testing samples</h2>
 <p>Next step is to extract the training and testing set from the split. We use the 2 functions <strong>training()</strong> and <strong>testing()</strong> for extraction.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># the use of map() in mutate() is for the training() and testing() functions from the rsample package.</span></span>
@@ -185,7 +192,7 @@ $ id     &lt;chr&gt; "Slice01", "Slice02", "Slice03", "Slice04", "Slice05", "Sli
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 73
 Columns: 4
-$ splits     &lt;list&gt; [&lt;rof_split[1000 x 10 x 5650 x 2]&gt;], [&lt;rof_split[1000 x 10…
+$ splits     &lt;list&gt; [&lt;rof_split[1000 x 10 x 5662 x 2]&gt;], [&lt;rof_split[1000 x 10…
 $ id         &lt;chr&gt; "Slice01", "Slice02", "Slice03", "Slice04", "Slice05", "Sli…
 $ train      &lt;list&gt; [&lt;tbl_df[1000 x 2]&gt;], [&lt;tbl_df[1000 x 2]&gt;], [&lt;tbl_df[1000 …
 $ validation &lt;list&gt; [&lt;tbl_df[10 x 2]&gt;], [&lt;tbl_df[10 x 2]&gt;], [&lt;tbl_df[10 x 2]&gt;]…</code></pre>
@@ -193,7 +200,7 @@ $ validation &lt;list&gt; [&lt;tbl_df[10 x 2]&gt;], [&lt;tbl_df[10 x 2]&gt;], [&
 </div>
 </section>
 <section id="extracting-dates" class="level2">
-<h2 class="anchored" data-anchor-id="extracting-dates">extracting dates</h2>
+<h2 class="anchored" data-anchor-id="extracting-dates">Extracting dates</h2>
 <p>All of this is to access the dates in the split and check that the splits has done what I want it to do. we use map_dbl this time to get the date (we have to reconvert it to a date though)</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create our 2 simple functions to check the dates </span></span>
@@ -247,45 +254,44 @@ Here is what we decided for our problem:</p>
 <li>skip between training samples = 63 (3 months)</li>
 <li>lag before starting testing = 21 (1 month)</li>
 </ul>
-<p>Problem can arise when the training set becomes then too small because the whole dataset is not big enough. In this case, we’ll then size down the skip time in order to have at least 500 training observations to work with.</p>
+<p>A problem can arise when the training set becomes too small for appropriate training for the chosen machine learning algorithm. This can happen because the whole dataset is not big enough to start with. In this case, we’ll then <em>size down</em> the skip time in order to have at least 500 training observations to work with. The alternative would have been to reduce the number of the cross-validation samples.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">#ticker &lt;- 'SPY' </span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>ticker <span class="ot">&lt;-</span> <span class="st">'HACK'</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">create_cv_data</span>(ticker) <span class="co">#|&gt; filter(index &gt; '2009-09-01')</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>get_start_date <span class="ot">&lt;-</span> <span class="cf">function</span>(x){ <span class="fu">min</span>(x<span class="sc">$</span>index) }</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>get_end_date <span class="ot">&lt;-</span> <span class="cf">function</span>(x){ <span class="fu">max</span>(x<span class="sc">$</span>index) }</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>min_size_training <span class="ot">&lt;-</span> <span class="dv">500</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>number_of_samples <span class="ot">&lt;-</span> <span class="dv">50</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>skippy <span class="ot">&lt;-</span> <span class="dv">63</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>laggy <span class="ot">&lt;-</span> <span class="dv">21</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co"># get the size of the df we are using. </span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>validation_size <span class="ot">&lt;-</span> <span class="fu">floor</span>(<span class="fu">nrow</span>(df) <span class="sc">*</span> <span class="fl">0.2</span> <span class="sc">/</span> number_of_samples) <span class="sc">+</span> <span class="dv">1</span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>training_size <span class="ot">&lt;-</span> <span class="fu">nrow</span>(df) <span class="sc">-</span> </span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  (skippy <span class="sc">*</span> (number_of_samples <span class="sc">-</span> <span class="dv">1</span>)) <span class="sc">-</span> </span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  (laggy <span class="sc">+</span> validation_size) <span class="sc">-</span> <span class="dv">49</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (training_size <span class="sc">&lt;</span> <span class="dv">500</span>) {</span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  training_size <span class="ot">&lt;-</span> min_size_training</span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  skippy <span class="ot">&lt;-</span> <span class="fu">floor</span>((<span class="fu">nrow</span>(df) <span class="sc">-</span> validation_size <span class="sc">-</span> laggy <span class="sc">-</span> min_size_training) <span class="sc">/</span> number_of_samples) </span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  training_size <span class="ot">&lt;-</span> <span class="fu">nrow</span>(df) <span class="sc">-</span> (skippy <span class="sc">*</span> (number_of_samples <span class="sc">-</span> <span class="dv">1</span>)) <span class="sc">-</span> (laggy <span class="sc">+</span> validation_size) <span class="sc">-</span> <span class="dv">49</span></span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  <span class="co">#training_size &lt;- 517</span></span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>time_slices2 <span class="ot">&lt;-</span> <span class="fu">rolling_origin</span>(df, </span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>                              <span class="at">initial =</span> training_size, <span class="at">assess =</span> validation_size <span class="sc">+</span> laggy, </span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>                              <span class="at">lag =</span> <span class="sc">-</span>laggy, <span class="at">skip =</span> skippy, </span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>                              <span class="at">cumulative =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">train =</span> <span class="fu">map</span>(splits, training), </span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>         <span class="at">validation =</span> <span class="fu">map</span>(splits, testing)) <span class="sc">|&gt;</span> </span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">start_train_date =</span> <span class="fu">as_date</span>(<span class="fu">map_dbl</span>(train, get_start_date)), </span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>         <span class="at">end_train_date =</span> <span class="fu">as_date</span>(<span class="fu">map_dbl</span>(train, get_end_date)), </span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>         <span class="at">start_test_date =</span> <span class="fu">as_date</span>(<span class="fu">map_dbl</span>(validation, get_start_date)), </span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>         <span class="at">end_test_date =</span> <span class="fu">as_date</span>(<span class="fu">map_dbl</span>(validation, get_end_date))) <span class="sc">|&gt;</span> </span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>splits)</span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(skippy)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>ticker <span class="ot">&lt;-</span> <span class="st">'HACK'</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">create_cv_data</span>(ticker) </span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>get_start_date <span class="ot">&lt;-</span> <span class="cf">function</span>(x){ <span class="fu">min</span>(x<span class="sc">$</span>index) }</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>get_end_date <span class="ot">&lt;-</span> <span class="cf">function</span>(x){ <span class="fu">max</span>(x<span class="sc">$</span>index) }</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>min_size_training <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>number_of_samples <span class="ot">&lt;-</span> <span class="dv">50</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>skippy <span class="ot">&lt;-</span> <span class="dv">63</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>laggy <span class="ot">&lt;-</span> <span class="dv">21</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co"># get the size of the df we are using. </span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>validation_size <span class="ot">&lt;-</span> <span class="fu">floor</span>(<span class="fu">nrow</span>(df) <span class="sc">*</span> <span class="fl">0.2</span> <span class="sc">/</span> number_of_samples) <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>training_size <span class="ot">&lt;-</span> <span class="fu">nrow</span>(df) <span class="sc">-</span> </span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  (skippy <span class="sc">*</span> (number_of_samples <span class="sc">-</span> <span class="dv">1</span>)) <span class="sc">-</span> </span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  (laggy <span class="sc">+</span> validation_size) <span class="sc">-</span> <span class="dv">49</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (training_size <span class="sc">&lt;</span> <span class="dv">500</span>) {</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  training_size <span class="ot">&lt;-</span> min_size_training</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  skippy <span class="ot">&lt;-</span> <span class="fu">floor</span>((<span class="fu">nrow</span>(df) <span class="sc">-</span> validation_size <span class="sc">-</span> laggy <span class="sc">-</span> min_size_training) <span class="sc">/</span> number_of_samples) </span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  training_size <span class="ot">&lt;-</span> <span class="fu">nrow</span>(df) <span class="sc">-</span> (skippy <span class="sc">*</span> (number_of_samples <span class="sc">-</span> <span class="dv">1</span>)) <span class="sc">-</span> (laggy <span class="sc">+</span> validation_size) <span class="sc">-</span> <span class="dv">49</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  <span class="co">#training_size &lt;- 517</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>time_slices2 <span class="ot">&lt;-</span> <span class="fu">rolling_origin</span>(df, </span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>                              <span class="at">initial =</span> training_size, <span class="at">assess =</span> validation_size <span class="sc">+</span> laggy, </span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>                              <span class="at">lag =</span> <span class="sc">-</span>laggy, <span class="at">skip =</span> skippy, </span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>                              <span class="at">cumulative =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">train =</span> <span class="fu">map</span>(splits, training), </span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>         <span class="at">validation =</span> <span class="fu">map</span>(splits, testing)) <span class="sc">|&gt;</span> </span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">start_train_date =</span> <span class="fu">as_date</span>(<span class="fu">map_dbl</span>(train, get_start_date)), </span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>         <span class="at">end_train_date =</span> <span class="fu">as_date</span>(<span class="fu">map_dbl</span>(train, get_end_date)), </span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>         <span class="at">start_test_date =</span> <span class="fu">as_date</span>(<span class="fu">map_dbl</span>(validation, get_start_date)), </span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>         <span class="at">end_test_date =</span> <span class="fu">as_date</span>(<span class="fu">map_dbl</span>(validation, get_end_date))) <span class="sc">|&gt;</span> </span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>splits)</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(skippy)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 32</code></pre>
 </div>
@@ -294,24 +300,24 @@ Here is what we decided for our problem:</p>
 <pre><code>Rows: 50
 Columns: 7
 $ id               &lt;chr&gt; "Slice01", "Slice02", "Slice03", "Slice04", "Slice05"…
-$ train            &lt;list&gt; [&lt;tbl_df[516 x 2]&gt;], [&lt;tbl_df[516 x 2]&gt;], [&lt;tbl_df[5…
+$ train            &lt;list&gt; [&lt;tbl_df[528 x 2]&gt;], [&lt;tbl_df[528 x 2]&gt;], [&lt;tbl_df[5…
 $ validation       &lt;list&gt; [&lt;tbl_df[9 x 2]&gt;], [&lt;tbl_df[9 x 2]&gt;], [&lt;tbl_df[9 x 2…
 $ start_train_date &lt;date&gt; 2014-11-12, 2014-12-31, 2015-02-19, 2015-04-08, 2015…
-$ end_train_date   &lt;date&gt; 2016-11-29, 2017-01-18, 2017-03-07, 2017-04-24, 2017…
-$ start_test_date  &lt;date&gt; 2016-12-30, 2017-02-17, 2017-04-06, 2017-05-24, 2017…
-$ end_test_date    &lt;date&gt; 2017-01-12, 2017-03-02, 2017-04-19, 2017-06-06, 2017…</code></pre>
+$ end_train_date   &lt;date&gt; 2016-12-15, 2017-02-03, 2017-03-23, 2017-05-10, 2017…
+$ start_test_date  &lt;date&gt; 2017-01-19, 2017-03-08, 2017-04-25, 2017-06-12, 2017…
+$ end_test_date    &lt;date&gt; 2017-01-31, 2017-03-20, 2017-05-05, 2017-06-22, 2017…</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span>(time_slices2 <span class="sc">|&gt;</span> <span class="fu">select</span>(<span class="sc">-</span>train, <span class="sc">-</span>validation))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 5
   id      start_train_date end_train_date start_test_date end_test_date
   &lt;chr&gt;   &lt;date&gt;           &lt;date&gt;         &lt;date&gt;          &lt;date&gt;       
-1 Slice45 2020-08-20       2022-09-07     2022-10-07      2022-10-19   
-2 Slice46 2020-10-07       2022-10-24     2022-11-23      2022-12-06   
-3 Slice47 2020-11-23       2022-12-09     2023-01-12      2023-01-25   
-4 Slice48 2021-01-12       2023-01-30     2023-03-02      2023-03-14   
-5 Slice49 2021-03-02       2023-03-17     2023-04-19      2023-05-01   
-6 Slice50 2021-04-19       2023-05-04     2023-06-06      2023-06-16   </code></pre>
+1 Slice45 2020-08-20       2022-09-23     2022-10-25      2022-11-04   
+2 Slice46 2020-10-07       2022-11-09     2022-12-12      2022-12-22   
+3 Slice47 2020-11-23       2022-12-28     2023-01-31      2023-02-10   
+4 Slice48 2021-01-12       2023-02-15     2023-03-20      2023-03-30   
+5 Slice49 2021-03-02       2023-04-04     2023-05-05      2023-05-17   
+6 Slice50 2021-04-19       2023-05-22     2023-06-23      2023-07-06   </code></pre>
 </div>
 </div>
 </section>
