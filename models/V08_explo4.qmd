@@ -14,6 +14,8 @@ format:
 * The model engine is Xgboost  
 * To predict: Forward return at 7 weeks.  
 
+roll_sd_ret11d_1Y
+
 ```{r}
 #| label: setup
 #| message: false
@@ -120,44 +122,83 @@ Create all the variables that will be used in the modeling stage.
 #| warning: false
 #| eval: false
 
-library(roll)
 library(timetk)
 
-corr_roll_252 <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 252)
-mean_roll_21 <- slidify(.f = mean, .align = 'right', .period = 21)
-mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 200)
-sd_roll_200 <- slidify(.f = sd, .align = 'right', .period = 200)
-mean_roll_252 <- slidify(.f = mean, .align = 'right', .period = 252)
-sd_roll_252 <- slidify(.f = sd, .align = 'right', .period = 252)
+mean_roll_21 <- slidify(.f = mean, .align = 'right', .period = 23)
+sd_roll_3M <-   slidify(.f = sd, .align = 'right', .period = 61)
+min_roll_67 <-  slidify(.f = min, .align = 'right', .period = 67)
+max_roll_67 <-  slidify(.f = max, .align = 'right', .period = 67)
+sd_roll_7M <-   slidify(.f = sd, .align = 'right', .period = 149)
+mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 199)
+sd_roll_200 <-  slidify(.f = sd, .align = 'right', .period = 199)
+corr_roll_200 <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 199)
+sd_roll_227 <-  slidify(.f = sd, .align = 'right', .period = 227)
+min_roll_241 <-  slidify(.f = min, .align = 'right', .period = 241)
+max_roll_241 <-  slidify(.f = max, .align = 'right', .period = 241)
+mean_roll_1Y <- slidify(.f = mean, .align = 'right', .period = 251)
+sd_roll_1Y <-   slidify(.f = sd, .align = 'right', .period = 251)
+corr_roll_1Y <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 251)
 
 augment_df_fin <- function(df){
   df <- df |>   
     arrange(date) |>  
-    mutate(ret21d = log(adjusted / lag(adjusted, n = 21)), 
-           ema11 = TTR::EMA(adjusted, n = 11), 
+    mutate(ret1d = log(adjusted / lag(adjusted, n = 1)), 
+           ret11d = log(adjusted / lag(adjusted, n = 11)), 
+           ret21d = log(adjusted / lag(adjusted, n = 21)), 
+           ret3M = log(close / lag(close, n = 61)), 
+           min67d = min_roll_67(adjusted), 
+           max67d = max_roll_67(adjusted), 
+           min241d = min_roll_241(adjusted), 
+           max241d = max_roll_241(adjusted), 
+           
+           ema11 = TTR::EMA(adjusted, n = 11),
            ema23 = TTR::EMA(adjusted, n = 23), 
            sma47 = TTR::SMA(adjusted, n = 47), 
            sma53 = TTR::SMA(adjusted, n = 53), 
+           sma59 = TTR::SMA(adjusted, n = 59), 
+           sma97 = TTR::SMA(adjusted, n = 97),
+           sma101 = TTR::SMA(adjusted, n = 101), 
            sma199 = TTR::SMA(adjusted, n = 199), 
-           perc_abov_ema11 = log(adjusted / ema11), 
+           sma211 = TTR::SMA(adjusted, n = 211), 
+           sma223 = TTR::SMA(adjusted, n = 223), 
+           perc_abov_ema11 = log(adjusted / ema11),
+           perc_abov_sma97 = log(adjusted / sma97),
            perc_abov_sma199 = log(adjusted / sma199), 
-
-           roll_mean_ema11_200d = mean_roll_200(perc_abov_ema11), 
-           roll_sd_ema11_200d = mean_roll_200(perc_abov_ema11),
-           sd_abov_ema11 = (ema11 - roll_mean_ema11_200d) / roll_sd_ema11_200d,           
-           roll_mean_sma199_1Y = mean_roll_252(perc_abov_sma199), 
-           roll_sd_sma199_1Y = mean_roll_252(perc_abov_sma199),
-           sd_abov_sma199 = (sma199 - roll_mean_sma199_1Y) / roll_sd_sma199_1Y, 
+           perc_abov_sma223 = log(adjusted / sma223), 
+           ma_cross_l = sma47 / sma101, 
+           intra_day = (high - low) / open, 
            
-           corr_ema23_sma47_200d = corr_roll_200(ema23, sma47), 
-           corr_sma53_sma199_1Y = corr_roll_252(sma53, sma199), 
-
-           sma200_volum = TTR::SMA(volume,  n = 200), 
+           roll_sd_intraday_3M = sd_roll_3M(intra_day), 
+           roll_mean_ema11_200d = mean_roll_200(perc_abov_ema11),
+           roll_sd_ema11_200d = sd_roll_200(perc_abov_ema11),
+           roll_mean_sma97_1Y = mean_roll_1Y(perc_abov_sma97),
+           roll_sd_sma97_1Y = sd_roll_1Y(perc_abov_sma97),
+           roll_mean_sma199_1Y = mean_roll_1Y(perc_abov_sma199),
+           roll_sd_sma199_1Y = sd_roll_1Y(perc_abov_sma199), 
+           roll_mean_sma223_1Y = mean_roll_1Y(perc_abov_sma223),
+           roll_sd_sma223_1Y = sd_roll_1Y(perc_abov_sma223),
+           
+           roll_sd_ret1d_7M = sd_roll_7M(ret1d), 
+           roll_sd_ret11d_227d = sd_roll_227(ret11d),
+           roll_sd_ret21d_1Y = sd_roll_1Y(ret21d), 
+           roll_sd_ret3M_1Y = sd_roll_1Y(ret3M), 
+           
+           perc_abov_roll_min67d = log(adjusted / min67d), 
+           perc_abov_roll_max67d = log(adjusted / max67d), 
+           perc_abov_roll_min241d = log(adjusted / min241d), 
+           perc_abov_roll_max241d = log(adjusted / max241d),
+           sd_abov_ema11 = (ema11 - roll_mean_ema11_200d) / roll_sd_ema11_200d,
+           sd_abov_sma97 = (sma97 - roll_mean_sma97_1Y) / roll_sd_sma97_1Y,
+           sd_abov_sma199 = (sma199 - roll_mean_sma199_1Y) / roll_sd_sma199_1Y,
+           sd_abov_sma223 = (sma223 - roll_mean_sma223_1Y) / roll_sd_sma223_1Y,
+           
+           sma200_volum = TTR::SMA(volume,  n = 199), 
            perc_abov_volum200 = log(volume / sma200_volum), 
-           roll_sd_volum200d_1Y = sd_roll_252(perc_abov_volum200),
+           roll_sd_volum200d_1Y = sd_roll_1Y(perc_abov_volum200), 
            
-           roll_sd_ret21d_1Y = sd_roll_252(ret21d), 
-           
+           corr_ema23_sma53_200d = corr_roll_200(ema23, sma53), 
+           corr_sma59_sma211_1Y = corr_roll_1Y(sma59, sma211), 
+           corr_sdabovsma97_sdabovsma223_1Y = corr_roll_1Y(sd_abov_sma97, sd_abov_sma223), 
            
            ret_7w = (lead(adjusted, n = 35) / adjusted) - 1) 
   
@@ -168,9 +209,11 @@ augment_df_fin <- function(df){
 reduce_df <- function(df) { 
   df <- df |> 
     select(date, 
-           sd_abov_sma199, sd_abov_ema11, 
-           roll_sd_ret21d_1Y, roll_sd_volum200d_1Y, 
-           corr_sma53_sma199_1Y, corr_ema23_sma47_200d, 
+           roll_sd_ret21d_1Y, roll_sd_ret1d_7M, corr_sma59_sma211_1Y, 
+           roll_sd_volum200d_1Y, sd_abov_sma199, corr_ema23_sma53_200d, 
+           roll_sd_ret3M_1Y, ma_cross_l, corr_sdabovsma97_sdabovsma223_1Y, 
+           sd_abov_ema11, roll_sd_intraday_3M, roll_sd_ret11d_227d, perc_abov_roll_min67d, 
+           perc_abov_roll_max67d, perc_abov_roll_min241d, perc_abov_roll_max241d, 
  
            ret_7w)
 }
@@ -197,7 +240,7 @@ df_model <- reduce_df(df0) |> arrange(date) |>
   mutate(ord_class = as.factor(ntile(ret_7w, 3))) |> 
   na.omit() 
 
-print(paste0("Dealing now with ", ticker))
+ print(paste0("Dealing now with ", ticker))
 print(paste0("The ", model_type, " build on ", ticker, " has ", nrow(df_model), " rows"))
 
 ######################################################################

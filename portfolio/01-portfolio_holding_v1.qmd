@@ -170,7 +170,7 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 #| echo: false
 
 # My positions 
-df <- tibble(ticker = c('CBOE', 'NEE', 'OXY', 'EWZ', 'EWJ', 'EEM', 'EWH', 'GDXJ', 'CGC', 'GROY', 'LUC.TO'))
+df <- tibble(ticker = c('CBOE', 'NEE', 'OXY', 'EWZ', 'EWJ', 'EEM', 'EWH', 'GDXJ', 'CGC', 'GROY', 'LUC.TO', 'TSLA'))
 
 tickers = c('EWH', 'GDXJ', 'CGC', 'EEM', 'EWJ', 'CBOE', 'NEE') 
 etf1 =    c('EEM', 'UUP', 'SPY', 'UUP', 'SPY', 'SPY', 'SPY')
@@ -210,22 +210,6 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 
 
 ##  Portfolio Charts  
-
-```{r}
-#| label: portfolioGetPrices
-#| echo: false
-#| warning: false
-#| message: false
-#| eval: true
-
-
-for (i in 1:length(stock_tickers)) { 
-  tryCatch({ 
-    get_fmpr_prices(stock_tickers[i])
-    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-}
-```
-
 
 ```{r}
 #| label: portfolioCharts
