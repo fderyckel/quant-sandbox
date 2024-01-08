@@ -110,7 +110,8 @@ The standard deviation are calculated on a 3 years rolling basis.
 
 df <- tibble(ticker = markets) |> 
   mutate(returns = map(ticker, get_returns)) |> 
-  unnest(cols = c(returns)) 
+  unnest(cols = c(returns)) |> 
+  arrange(desc(ret_1M))
 
 df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
   gt() |> 
@@ -172,23 +173,20 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 # My positions 
 df <- tibble(ticker = c('CBOE', 'NEE', 'OXY', 'EWZ', 'EWJ', 'EEM', 'EWH', 'GDXJ', 'CGC', 'GROY', 'LUC.TO', 'TSLA'))
 
-tickers = c('EWH', 'GDXJ', 'CGC', 'EEM', 'EWJ', 'CBOE', 'NEE') 
-etf1 =    c('EEM', 'UUP', 'SPY', 'UUP', 'SPY', 'SPY', 'SPY')
+tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'OXY', 'CGC', 'CBOE', 'NEE', 'TSLA') 
+etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP', 'UUP',  'SPY', 'SPY',  'SPY', 'SPY',  'SPY')
 
-stock_tickers <- c(tickers, 'UUP')
+stock_tickers <- c(tickers, 'UUP', 'EEM')
 
-for (i in 1:length(df)) { 
+for (i in 1:length(stock_tickers)) { 
   tryCatch({ 
-    get_fmpr_prices(df$ticker[i])
+    get_fmpr_prices(stock_tickers[i])
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
 
 df <- df |> 
   mutate(returns = map(ticker, possibly(.f = get_returns, otherwise = NULL))) |> 
   unnest(cols = c(returns)) 
-
-yo <- df |> filter(ticker == 'XLP' & date > '2006-01-01') |> 
- select(date, ret_1Y, roll3Y_mean_ret1Y, roll3Y_sd_ret1Y, sd_abov_ret1Y)
 
 df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
   gt() |> 
@@ -215,6 +213,7 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 #| label: portfolioCharts
 #| echo: false
 #| warning: false
+#| message: false
 
 source('../functions/chart_plotting_v1.R')
 
@@ -228,6 +227,7 @@ conform_data <- function(ticker, interval = 'Daily', provider = 'fmpr'){
 
 df <- tibble(ticker = tickers, etf1 = etf1)
 
+pdf(paste0(the_path, "/charts/charts_portfolio.pdf"), width=13, height=8, onefile = TRUE)
 for (i in 1:nrow(df)){ 
   #print(df$ticker[i])
   yo <- tibble(ticker = tickers[i], etf1 = etf1[i]#, etf2 = etf2[i]
@@ -246,7 +246,8 @@ for (i in 1:nrow(df)){
                                #df$etf2[i], 
                                df$ticker[i], 
                                start_date = today() - 365, 
-                               end_date = today())  
+                               end_date = today()) 
+  Sys.sleep(2)
   }
 
 ```

@@ -160,7 +160,9 @@ dev.off()
 
 ```{r}
 #downloading foreign markets
-st <- c('EWQ', 'EWP', 'EWG', 'EPOL', 'EEM', 'EWZ', 'EWW', 'EWJ', 'EWY', 'EWS', 'EWM', 'THD', 'EIDO', 'EPHE', 'EWA', 'EZA', 'EWC')
+st <- c('EWQ', 'EWP', 'EWG', 'EWU', 'EWI', 'EWL', 'EPOL', 'EWD', 'EWN', 
+        'EEM', 'EWZ', 'EWW', 'EWJ', 'EWY', 'EWS', 'EWM', 'FXI', 'KWEB', 
+        'EWH', 'EWT', 'THD', 'EIDO', 'EPHE', 'EWA', 'EZA', 'EWC')
 for (i in 1:length(st)) { 
   tryCatch({ 
     get_fmpr_prices(st[i])
@@ -184,13 +186,14 @@ ETF with highest monthly returns.
 
 ```{r etf_returns}
 return_ndays <- function(df, ndays = 21) { 
-  yo <- df %>% mutate(returns = log(adjusted / lag(adjusted, n = ndays))) %>% 
-    select(index, returns) %>% 
-    filter(index > today() - 4)
+  yo <- df |> arrange(index) |>  
+    mutate(returns = log(adjusted / lag(adjusted, n = ndays))) |>  
+    select(index, returns) |>  
+    tail(n = 1)
   return(yo)
 }
 
-etf_returns_2 <- tibble(ticker = etf_tickers) %>% 
+etf_returns_2 <- tibble(ticker = c(etf_tickers, st)) %>% 
   mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
          return_4w = map(raw_df, function(.x) return_ndays(.x))) %>% 
   select(-raw_df) %>% 

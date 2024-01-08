@@ -1,0 +1,397 @@
+---
+title: "V08 - Exploration 4 of for modeling"
+author: "FdR"
+date: "4-12-2023"
+format: 
+  html: 
+    toc: true
+    toc_depth: 2
+---
+
+# Intro 
+
+* This is regression-ish problem.  It is basically a ranking problem that we put out of 100
+* The model engine is Xgboost  
+* To predict: Forward return at 7 weeks.  
+
+While V8 is kind of individual tracking, I'd like this to be very much just comparative tracking (ranked kind of everything)
+
+for volume: volum_SMA5 / volum_SMA200 of volume (short term trend vs long term trend)
+volum_SMA11 / volum_SMA251
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+#| eval: true
+
+library(dplyr)
+library(purrr)
+library(readr)
+library(lubridate)
+library(tidyr)
+library(glue)
+
+the_path <- here::here()
+
+### Function to harmonize the data. 
+### ### This is copied from summary_report_v3
+conform_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(date, open, high, low, close, adjusted=adjClose, volume) |>  
+      arrange(date) # |> filter(date < today() - 252)
+    return(df)
+}
+
+
+tickers <- c(#xlc 
+            'META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 
+            'WBD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA',  
+             #xle
+            'XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 
+            'OKE', 'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 
+            'AMR', 'MRO', 'EQT', 'OVV', 
+             #xlf
+            'BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 
+            'AXP', 'SCHW', 'C', 'MMC', 'BX', 'PGR', 'CB', 'CME', 'ICE', 'USB', 
+            'PYPL', 'MCO', 'PNC', 'AON', 
+            #xlp 
+            'PG',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 
+            'TGT', 'STZ', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 
+            'HSY', 'DLTR', 'CHD', 'CLX', 
+            #xlv
+            'UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'PFE', 'RVTY', 
+            #xly
+            'AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'LOW', 'BKNG', 'PAG', 'SBUX', 
+            'TJX', 'CMG', 'ABNB', 'LULU', 'ORLY', 'MAR', 'GM', 'F', 'HLT', 'AZO', 
+            'ROST', 'DHI', 'YUM', 'RCL', 'TSCO', 'PHM', 'EXPE', 'DRI', 'GRMN', 
+            #mine
+            'AA', 'AAPL', 'AMD', 'FDX') 
+
+df <- tibble(ticker = tickers)
+```
+
+## Checking on missing values or Zero values 
+
+Checking for missing values and dealing with them. 
+
+```{r mis_val, eval=FALSE}
+#| label: missingValues
+#| message: false
+#| warning: false
+#| eval: true
+
+check_for_na <- function(ticker) { 
+  df <- conform_data(ticker) %>% 
+    select(date, open, high, low, close, adjusted, volume) %>% 
+    summarize_all((~ sum(is.na(.))))
+  return(df)
+}
+
+check_for_zero <- function(ticker) { 
+    df <- conform_data(ticker) %>% 
+    select(open, high, low, close, adjusted, volume) %>% 
+    filter(if_any(everything(.), ~ . == 0))
+    if (nrow(df) == 0) { 
+      print('No zeros, we are good to go!') 
+    } else { 
+      return(df) 
+    }
+  }
+
+## checking for 0 or NA
+check_for_na(ticker)
+check_for_zero(ticker)
+
+```
+
+
+
+# Building the basic df 
+
+Create all the variables that will be used in the modeling stage. 
+
+```{r base_df}
+#| label: create_df
+#| message: false
+#| warning: false
+#| eval: false
+
+library(timetk)
+sd_roll_1M <-  slidify(.f = sd, .align = 'right', .period = 21)
+mean_roll_67d <- slidify(.f = mean, .align = 'right', .period = 67)
+sd_roll_67d <-  slidify(.f = sd, .align = 'right', .period = 67)
+sd_roll_7M <-  slidify(.f = sd, .align = 'right', .period = 151)
+mean_roll_199d <- slidify(.f = mean, .align = 'right', .period = 199)
+sd_roll_199d <-  slidify(.f = sd, .align = 'right', .period = 199)
+sd_roll_1Y <-  slidify(.f = sd, .align = 'right', .period = 251)
+corr_roll_257 <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 257)
+mean_roll_277d <- slidify(.f = mean, .align = 'right', .period = 277)
+sd_roll_277d <-  slidify(.f = sd, .align = 'right', .period = 277)
+
+augment_df_fin <- function(df){
+  df <- df |>   
+    arrange(date) |>  
+    mutate(ret1d = log(adjusted / lag(adjusted, n = 1)), 
+           ret5d = log(adjusted / lag(adjusted, n = 5)), 
+           ret13d = log(adjusted / lag(adjusted, n = 13)), 
+           ret21d = log(adjusted / lag(adjusted, n = 21)), 
+           ret2M = log(adjusted / lag(adjusted, n = 41)),
+           ret5M = log(adjusted / lag(adjusted, n = 107)), 
+           ret11M = log(adjusted / lag(adjusted, n = 223)), 
+           roll_sd_ret1d_67d = sd_roll_67d(ret1d), 
+           roll_sd_ret1d_7M = sd_roll_7M(ret1d), 
+           sd_sd_ret21d_1M = sd_roll_1M(ret21d), 
+           roll_sd_ret13d_1Y = sd_roll_1Y(ret13d), 
+           
+           sma47 = TTR::SMA(adjusted, n = 47), 
+           sma100 = TTR::SMA(adjusted, n = 100), 
+           sma197 = TTR::SMA(adjusted, n = 197), 
+           sma200 = TTR::SMA(adjusted, n = 200),
+
+           roll_mean_ret5d_199d = mean_roll_199d(ret5d), 
+           roll_sd_ret5d_199d = sd_roll_199d(ret5d), 
+           sd_above_ret5d_199d = (ret1d - roll_mean_ret5d_199d) / roll_sd_ret5d_199d,
+           corr_sma47_sma197_257d = corr_roll_257(sma47, sma197), 
+           perc_abov_sma100 = log(adjusted / sma100), 
+           roll_mean_perc_abov_sma100 = mean_roll_277d(perc_abov_sma100), 
+           roll_sd_perc_abov_sma100 = sd_roll_277d(perc_abov_sma100), 
+           sd_abov_sma100_277d = (perc_abov_sma100 - roll_mean_perc_abov_sma100) / roll_sd_perc_abov_sma100, 
+           perc_abov_sma200 = log(adjusted / sma200), 
+           roll_mean_perc_abov_sma200 = mean_roll_277d(perc_abov_sma200), 
+           roll_sd_perc_abov_sma200 = sd_roll_277d(perc_abov_sma200), 
+           sd_abov_sma200_277d = (perc_abov_sma200 - roll_mean_perc_abov_sma200) / roll_sd_perc_abov_sma200, 
+           
+           volum_sma5 = TTR::SMA(volume, n = 5), 
+           volum_sma11 = TTR::SMA(volume, n = 11), 
+           volum_sma200 = TTR::SMA(volume, n = 200), 
+           volum_sma283 = TTR::SMA(volume, n = 283), 
+           ratio_volSMA5_volSMA200 = volum_sma5 / volum_sma200, 
+           ratio_volSMA11_volSMA283 = volum_sma11 / volum_sma283, 
+           ret_7w = (lead(adjusted, n = 35) / adjusted) - 1) 
+  
+  return(df)
+  
+}
+
+reduce_df <- function(df) { 
+  df <- df |> 
+    select(date, 
+           ret2M, ret5M, ret11M, 
+           roll_sd_ret1d_67d, roll_sd_ret1d_7M, roll_sd_ret13d_1Y, 
+           sd_above_ret5d_199d, sd_abov_sma100_277d, sd_abov_sma200_277d,  
+           ratio_volSMA5_volSMA200, ratio_volSMA11_volSMA283, corr_sma47_sma197_257d, 
+           sd_sd_ret21d_1M, 
+           ret_7w)
+}
+
+```
+
+# Modeling 
+
+Using the tidymodel framework with Xgboost. 
+
+```{r}
+#| label: modeling
+#| message: false
+#| warning: false
+#| eval: false
+
+tickery <- 'AA'
+
+## Modeling phase now
+df0 <- df |> 
+  mutate(loaded_csv = map(ticker, conform_data), 
+         augmented_df = map(loaded_csv, augment_df_fin), 
+         reduced_df = map(augmented_df, reduce_df)) |> 
+  select(-loaded_csv, -augmented_df) |> 
+  unnest(cols = c(reduced_df)) |> 
+  group_by(date) |> 
+  summarize(ticker = ticker, 
+            ret2M_rank = percent_rank(ret2M), 
+            ret5M_rank = percent_rank(ret5M), 
+            ret11M_rank = percent_rank(ret11M),
+            roll_sd_ret1d_67d_rank = percent_rank(roll_sd_ret1d_67d), 
+            roll_sd_ret1d_7M_rank = percent_rank(roll_sd_ret1d_7M), 
+            roll_sd_ret13d_1Y_rank = percent_rank(roll_sd_ret13d_1Y), 
+            sd_above_ret5d_199d_rank = percent_rank(sd_above_ret5d_199d), 
+            sd_abov_sma100_277d_rank = percent_rank(sd_abov_sma100_277d), 
+            sd_abov_sma200_277d_rank = percent_rank(sd_abov_sma200_277d), 
+            ratio_volSMA5_volSMA200_rank = percent_rank(ratio_volSMA5_volSMA200), 
+            ratio_volSMA11_volSMA283_rank = percent_rank(ratio_volSMA11_volSMA283), 
+            corr_sma47_sma197_257d_rank = percent_rank(corr_sma47_sma197_257d), 
+            sd_sd_ret21d_1M_rank = percent_rank(sd_sd_ret21d_1M), 
+            ret_ranking = percent_rank(ret_7w)) |> 
+  na.omit() 
+         
+         
+df_model <- df0 |> filter(ticker == tickery) |> 
+  arrange(date) |> 
+  select(-ticker)
+rm(df0)
+model_type = "7wRegRanking"
+yop <- glue("xgboost_modelv9_explo1a_", model_type, "_", tickery)
+
+print(paste0("Dealing now with ", tickery))
+print(paste0("The ", model_type, " build on ", tickery, " has ", nrow(df_model), " rows"))
+
+######################################################################
+############# SAMPLING FOR CROSS-VALIDATION ##########################
+######################################################################
+library(rsample)
+min_size_training <- 500
+number_of_samples <- 50
+skippy <- 63
+laggy <- 21
+# get the size of the df we are using. 
+validation_size <- floor(nrow(df_model) * 0.2 / number_of_samples) + 1
+training_size <- nrow(df_model) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
+
+if (training_size < 500) {
+  training_size <- min_size_training
+  skippy <- floor((nrow(df_model) - validation_size - laggy - min_size_training) / number_of_samples) 
+  training_size <- nrow(df_model) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
+}
+
+time_slices <- rolling_origin(df_model, 
+                              initial = training_size, assess = validation_size + laggy, 
+                              lag = -laggy, skip = skippy, 
+                              cumulative = FALSE)
+######################################################################
+
+library(recipes)
+recipe_base <- recipe(formula = ret_ranking ~., data = df_model) |> 
+  update_role(date, new_role="ID") 
+
+library(parsnip)
+library(tune)
+library(dials)
+library(workflows)
+library(yardstick)
+model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune(), 
+                            tree_depth = tune(), 
+                            learn_rate = tune(), min_n = tune()) |> 
+  set_engine("xgboost") |>  
+  set_mode("regression") 
+
+stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)), 
+                                     loss_reduction(range = c(-10, 1.5)), 
+                                     mtry(range = c(12L, 17L)), 
+                                     learn_rate(range = c(-4, -2)), 
+                                     min_n(range = c(23L, 31L)),   
+                                     tree_depth(range = c(5L, 9L)), 
+                                     size = 15)
+
+wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
+
+print("Starting now the resampling process")
+doParallel::registerDoParallel()
+xgboost_resampling <- tune_grid(wf, time_slices, 
+                                grid = stopping_grid, 
+                                metrics = metric_set(rmse), 
+                                control = control_resamples(save_pred = TRUE, 
+                                                            save_workflow = TRUE))
+print("resampling process over. Looking now for best model.")
+
+######################################################################
+############# ESTABLISHING METRICS  ##################################
+######################################################################
+
+yo_metric <- xgboost_resampling |> collect_metrics() |> 
+  arrange(mean)
+
+write_csv(yo_metric, glue(the_path, "/models/model_metrics/", yop, ".csv"))
+######################################################################
+
+
+best_param <- yo_metric[1,]
+best_param
+
+final_model <- finalize_model(model_xgboost, best_param)
+final_model
+
+final_wf <- workflow() |> add_recipe(recipe_base) |> add_model(final_model)
+final_wf
+
+model_base <- fit(object = final_wf, data = df_model)
+
+write_rds(model_base, glue(the_path, "/models/model_raw/", yop, ".rda"))
+
+library(vip)
+df_prep <- prep(recipe_base)
+var_importance <- final_model %>% 
+  set_engine("xgboost", importance = "permutation") %>% 
+  fit(ret_ranking ~ ., data = juice(df_prep) %>% select(-date)) %>%
+  vi()
+
+write_csv(var_importance, 
+          glue(the_path, "/models/model_vars_imp/", yop, ".csv"))
+
+rm(df_prep)
+
+```
+
+
+# Correlation analysis
+
+```{r}
+#| message: false
+#| warning: false
+#| eval: false
+
+# setting up the path within the project for easier portability of code
+the_path <- here::here()
+
+library(corrr)
+library(glue)
+library(dplyr)
+library(purrr)
+library(tidyr)
+
+source(glue(the_path, "/models/functions/model_v8_3.R"))
+
+model <- 'version_v8_3'
+tickers = c('AA', 'AMD', 'AAPL', 'CVX', 'FDX', 'GOOG', 'HAL', 'PYPL', 'SBUX') 
+create_cor_df <- function(ticker) { 
+  df0 <- model_v82(ticker)
+  df <- df0 %>% drop_na()
+  df_cor <- df %>% select(-date, -ret_7w) 
+  yo <- correlate(df_cor) %>% shave() %>% stretch()
+  return(yo)
+  }
+
+df0 <- tibble(model = model, ticker = tickers) %>% 
+  mutate(cor_df = map(ticker, create_cor_df)) %>% 
+  unnest()
+
+df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
+  arrange(x)
+
+write_csv(df1, 'correlations/model_v8_3.csv')
+
+library(gt)
+
+df1 |> gt()
+```
+
+
+# picking up the important variables 
+
+```{r}
+#| message: false
+#| warning: false
+#| eval: false
+
+
+```
+
+
+
+# Building up the models
+
+
+
+
+
+
