@@ -125,7 +125,7 @@ reduce_df <- function(df) {
 ## modeling 
 
 ```{r}
-ticker <- 'AMD'
+ticker <- 'HAL'
 model_type = "7wClass3ile"
 yop <- glue("xgboost_v8_2_", model_type, "_", ticker)
 

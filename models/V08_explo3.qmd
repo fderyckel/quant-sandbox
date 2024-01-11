@@ -18,7 +18,7 @@ format:
 #| label: setup
 #| message: false
 #| warning: false
-#| eval: false
+#| eval: true
 
 library(dplyr)
 library(purrr)
@@ -115,15 +115,15 @@ Create all the variables that will be used in the modeling stage.
 #| label: create_df
 #| message: false
 #| warning: false
-#| eval: false
+#| eval: true
 
-library(roll)
 library(timetk)
 
 mean_roll_21 <- slidify(.f = mean, .align = 'right', .period = 21)
 sd_roll_7M <- slidify(.f = sd, .align = 'right', .period = 147)
 mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 200)
 sd_roll_200 <- slidify(.f = sd, .align = 'right', .period = 200)
+corr_roll_200 <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 200)
 mean_roll_1Y <- slidify(.f = mean, .align = 'right', .period = 252)
 sd_roll_1Y <- slidify(.f = sd, .align = 'right', .period = 252)
 corr_roll_1Y <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 252)
@@ -213,9 +213,9 @@ Using the tidymodel framework with Xgboost.
 #| label: modeling
 #| message: false
 #| warning: false
-#| eval: false
+#| eval: true
 
-ticker <- 'AA'
+ticker <- 'SBUX'
 model_type = "7wClass3ile"
 yop <- glue("xgboost_v8_3_", model_type, "_", ticker)
 

@@ -14,13 +14,12 @@ format:
 * The model engine is Xgboost  
 * To predict: Forward return at 7 weeks.  
 
-roll_sd_ret11d_1Y
 
 ```{r}
 #| label: setup
 #| message: false
 #| warning: false
-#| eval: false
+#| eval: true
 
 library(dplyr)
 library(purrr)
@@ -42,8 +41,7 @@ conform_data <- function(ticker){
     return(df)
 }
 
-ticker <- 'CVX'
-
+ticker <- 'SBUX'
 ```
 
 ## Checking on missing values or Zero values 
@@ -54,7 +52,7 @@ Checking for missing values and dealing with them.
 #| label: missingValues
 #| message: false
 #| warning: false
-#| eval: false
+#| eval: true
 
 check_for_na <- function(ticker) { 
   df <- conform_data(ticker) %>% 
@@ -120,7 +118,7 @@ Create all the variables that will be used in the modeling stage.
 #| label: create_df
 #| message: false
 #| warning: false
-#| eval: false
+#| eval: true
 
 library(timetk)
 
@@ -228,11 +226,10 @@ Using the tidymodel framework with Xgboost.
 #| label: modeling
 #| message: false
 #| warning: false
-#| eval: false
+#| eval: true
 
-ticker <- 'AA'
-model_type = "7wClassThirdile"
-yop <- glue("xgboost_modelv8_explo3_", model_type, "_", ticker)
+model_type = '7wClass3ile'
+yop <- glue('xgboost_v8_4_', model_type, "_", ticker)
 
 ## Modeling phase now
 df0 <- conform_data(ticker) |> augment_df_fin()
@@ -240,7 +237,7 @@ df_model <- reduce_df(df0) |> arrange(date) |>
   mutate(ord_class = as.factor(ntile(ret_7w, 3))) |> 
   na.omit() 
 
- print(paste0("Dealing now with ", ticker))
+print(paste0("Dealing now with ", ticker))
 print(paste0("The ", model_type, " build on ", ticker, " has ", nrow(df_model), " rows"))
 
 ######################################################################
@@ -406,10 +403,10 @@ library(dplyr)
 library(purrr)
 library(tidyr)
 
-source(glue(the_path, "/models/functions/model_v8_3.R"))
+source(glue(the_path, "/models/functions/model_v8_4.R"))
 
-model <- 'version_v8_3'
-tickers = c('AA', 'AMD', 'AAPL', 'CVX', 'FDX', 'GOOG', 'HAL', 'PYPL', 'SBUX') 
+model <- 'version_v8_4'
+tickers = c('AA', 'AMD', 'AAPL', 'CVX', 'FDX', 'JPM', 'HAL', 'SBUX') 
 create_cor_df <- function(ticker) { 
   df0 <- model_v82(ticker)
   df <- df0 %>% drop_na()
@@ -425,7 +422,7 @@ df0 <- tibble(model = model, ticker = tickers) %>%
 df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
   arrange(x)
 
-write_csv(df1, 'correlations/model_v8_3.csv')
+write_csv(df1, 'correlations/model_v8_4.csv')
 
 library(gt)
 
