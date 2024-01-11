@@ -21,7 +21,6 @@ source('../functions/chart_plotting_v1.R')
 source('../functions/fmpr_functions.R')
 ```
 
-
 # XLC - Communication Services Select Sector SPDR Fund 
 
 ```{r}
@@ -440,17 +439,20 @@ conform_data <- function(ticker){
 }
 
 sd_roll_21d = slidify(.f = sd, .period = 21, .align = 'right')
-sd_roll_252d = slidify(.f = sd, .period = 252, .align = 'right')
+sd_roll_211d = slidify(.f = sd, .period = 211, .align = 'right')
 
 calc_vol <- function(ticker) {
   df <- conform_data(ticker) |> 
     select(date, adjusted) |> 
     mutate(ret_1d = log(adjusted / lag(adjusted, n = 1)), 
            ret_1M = log(adjusted / lag(adjusted, n = 21)), 
+           ret_2M = log(adjusted / lag(adjusted, n = 42)), 
+           ret_3M = log(adjusted / lag(adjusted, n = 63)), 
            ret_5M = log(adjusted / lag(adjusted, n = 107)), 
            ret_7M = log(adjusted / lag(adjusted, n = 149)), 
+           ret_1Y = log(adjusted / lag(adjusted, n = 251)),
            roll21d_sd_ret1d = sd_roll_21d(ret_1d), 
-           roll252d_sd_ret1d = sd_roll_252d(ret_1d),
+           roll211d_sd_ret1d = sd_roll_211d(ret_1d),
            weekly_vol_change = log(roll21d_sd_ret1d / lag(roll21d_sd_ret1d, n = 5))) |> 
     slice_tail(n = 1)
 }
@@ -458,7 +460,7 @@ calc_vol <- function(ticker) {
 df_vol <- tibble(ticker = c(xlc, xle, xlf, xlp, xlu, xlv, xly, xme)) |> 
   mutate(vol = map(ticker, calc_vol)) |> 
   unnest(cols = c(vol)) |> 
-  arrange(desc(roll252d_sd_ret1d))
+  arrange(desc(roll211d_sd_ret1d))
 ```
  
 # Breadth of markets 

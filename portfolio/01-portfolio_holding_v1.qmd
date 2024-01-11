@@ -79,15 +79,16 @@ get_returns <- function(ticker) {
   
 }
 
-```
-
-```{r}
-#| eval: true
-#| echo: false
-
 markets <- c('SPY', 'DIA', 'QQQ')
 sectors <- c('XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLRE', 'XLK', 'XLU')
 tickers <- c(markets, sectors)
+
+```
+
+```{r}
+#| eval: false
+#| echo: false
+
 
 for (i in 1:length(tickers)) { 
   tryCatch({ 
@@ -140,10 +141,8 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 
 df <- tibble(ticker = sectors) |> 
   mutate(returns = map(ticker, get_returns)) |> 
-  unnest(cols = c(returns)) 
-
-yo <- df |> filter(ticker == 'XLP' & date > '2006-01-01') |> 
- select(date, ret_1Y, roll3Y_mean_ret1Y, roll3Y_sd_ret1Y, sd_abov_ret1Y)
+  unnest(cols = c(returns)) |> 
+  arrange(desc(ret_1M))
 
 df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
   gt() |> 
@@ -173,8 +172,10 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 # My positions 
 df <- tibble(ticker = c('CBOE', 'NEE', 'OXY', 'EWZ', 'EWJ', 'EEM', 'EWH', 'GDXJ', 'CGC', 'GROY', 'LUC.TO', 'TSLA'))
 
-tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'OXY', 'CGC', 'CBOE', 'NEE', 'TSLA') 
-etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP', 'UUP',  'SPY', 'SPY',  'SPY', 'SPY',  'SPY')
+tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'OXY', 'CGC', 'CBOE', 
+            'NEE', 'TSLA', 'ABBV', 'RVTY') 
+etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP', 'UUP',  'SPY', 'SPY',  'SPY', 
+            'SPY',  'SPY', 'SPY',  'SPY')
 
 stock_tickers <- c(tickers, 'UUP', 'EEM')
 
