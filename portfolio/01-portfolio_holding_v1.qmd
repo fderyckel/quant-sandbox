@@ -173,9 +173,9 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 df <- tibble(ticker = c('CBOE', 'NEE', 'OXY', 'EWZ', 'EWJ', 'EEM', 'EWH', 'GDXJ', 'CGC', 'GROY', 'LUC.TO', 'TSLA'))
 
 tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'OXY', 'CGC', 'CBOE', 
-            'NEE', 'TSLA', 'ABBV', 'RVTY') 
+            'C', 'NEE', 'TSLA', 'ABBV', 'RVTY') 
 etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP', 'UUP',  'SPY', 'SPY',  'SPY', 
-            'SPY',  'SPY', 'SPY',  'SPY')
+            'SPY', 'SPY', 'SPY', 'SPY', 'SPY')
 
 stock_tickers <- c(tickers, 'UUP', 'EEM')
 
