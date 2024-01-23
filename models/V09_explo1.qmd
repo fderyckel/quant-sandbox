@@ -1,5 +1,5 @@
 ---
-title: "V08 - Exploration 4 of for modeling"
+title: "V09 - Exploration 4 of for modeling"
 author: "FdR"
 date: "4-12-2023"
 format: 
@@ -72,42 +72,6 @@ tickers <- c(#xlc
 df <- tibble(ticker = tickers)
 ```
 
-## Checking on missing values or Zero values 
-
-Checking for missing values and dealing with them. 
-
-```{r mis_val, eval=FALSE}
-#| label: missingValues
-#| message: false
-#| warning: false
-#| eval: true
-
-check_for_na <- function(ticker) { 
-  df <- conform_data(ticker) %>% 
-    select(date, open, high, low, close, adjusted, volume) %>% 
-    summarize_all((~ sum(is.na(.))))
-  return(df)
-}
-
-check_for_zero <- function(ticker) { 
-    df <- conform_data(ticker) %>% 
-    select(open, high, low, close, adjusted, volume) %>% 
-    filter(if_any(everything(.), ~ . == 0))
-    if (nrow(df) == 0) { 
-      print('No zeros, we are good to go!') 
-    } else { 
-      return(df) 
-    }
-  }
-
-## checking for 0 or NA
-check_for_na(ticker)
-check_for_zero(ticker)
-
-```
-
-
-
 # Building the basic df 
 
 Create all the variables that will be used in the modeling stage. 
@@ -138,6 +102,7 @@ augment_df_fin <- function(df){
            ret13d = log(adjusted / lag(adjusted, n = 13)), 
            ret21d = log(adjusted / lag(adjusted, n = 21)), 
            ret2M = log(adjusted / lag(adjusted, n = 41)),
+           ret3M = log(adjusted / lag(adjusted, n = 61)),
            ret5M = log(adjusted / lag(adjusted, n = 107)), 
            ret11M = log(adjusted / lag(adjusted, n = 223)), 
            roll_sd_ret1d_67d = sd_roll_67d(ret1d), 
@@ -178,7 +143,7 @@ augment_df_fin <- function(df){
 reduce_df <- function(df) { 
   df <- df |> 
     select(date, 
-           ret2M, ret5M, ret11M, 
+           ret2M, ret3M, ret5M, ret11M, 
            roll_sd_ret1d_67d, roll_sd_ret1d_7M, roll_sd_ret13d_1Y, 
            sd_above_ret5d_199d, sd_abov_sma100_277d, sd_abov_sma200_277d,  
            ratio_volSMA5_volSMA200, ratio_volSMA11_volSMA283, corr_sma47_sma197_257d, 
@@ -198,7 +163,7 @@ Using the tidymodel framework with Xgboost.
 #| warning: false
 #| eval: false
 
-tickery <- 'AA'
+tickery <- 'SBUX'
 
 ## Modeling phase now
 df0 <- df |> 
@@ -210,6 +175,7 @@ df0 <- df |>
   group_by(date) |> 
   summarize(ticker = ticker, 
             ret2M_rank = percent_rank(ret2M), 
+            ret3M_rank = percent_rank(ret3M), 
             ret5M_rank = percent_rank(ret5M), 
             ret11M_rank = percent_rank(ret11M),
             roll_sd_ret1d_67d_rank = percent_rank(roll_sd_ret1d_67d), 
@@ -255,7 +221,8 @@ if (training_size < 500) {
 }
 
 time_slices <- rolling_origin(df_model, 
-                              initial = training_size, assess = validation_size + laggy, 
+                              initial = training_size, 
+                              assess = validation_size + laggy, 
                               lag = -laggy, skip = skippy, 
                               cumulative = FALSE)
 ######################################################################
@@ -269,7 +236,8 @@ library(tune)
 library(dials)
 library(workflows)
 library(yardstick)
-model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune(), 
+model_xgboost <- boost_tree(trees = tune(), mtry = tune(), 
+                            loss_reduction = tune(), 
                             tree_depth = tune(), 
                             learn_rate = tune(), min_n = tune()) |> 
   set_engine("xgboost") |>  
@@ -281,7 +249,7 @@ stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)),
                                      learn_rate(range = c(-4, -2)), 
                                      min_n(range = c(23L, 31L)),   
                                      tree_depth(range = c(5L, 9L)), 
-                                     size = 15)
+                                     size = 10)
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
 
@@ -315,15 +283,18 @@ final_wf <- workflow() |> add_recipe(recipe_base) |> add_model(final_model)
 final_wf
 
 model_base <- fit(object = final_wf, data = df_model)
+model_base <- final_wf |> fit(data = df_model)
 
 write_rds(model_base, glue(the_path, "/models/model_raw/", yop, ".rda"))
 
 library(vip)
 df_prep <- prep(recipe_base)
 var_importance <- final_model %>% 
-  set_engine("xgboost", importance = "permutation") %>% 
+  set_engine("xgboost") %>% 
   fit(ret_ranking ~ ., data = juice(df_prep) %>% select(-date)) %>%
   vi()
+
+var_importance2 <- model_base |> vi(method = 'permute')
 
 write_csv(var_importance, 
           glue(the_path, "/models/model_vars_imp/", yop, ".csv"))
@@ -331,48 +302,48 @@ write_csv(var_importance,
 rm(df_prep)
 
 ```
+model explanation 
 
+To compute any kind of model explanation, global or local, using DALEX, we first prepare the appropriate data and then create an explainer for each model:
 
-# Correlation analysis
 
 ```{r}
-#| message: false
-#| warning: false
-#| eval: false
+library(DALEXtra)
 
-# setting up the path within the project for easier portability of code
-the_path <- here::here()
+vip_features <- c('ret2M_rank', 'ret3M_rank', 'ret5M_rank', 'ret11M_rank', 
+                  'roll_sd_ret1d_67d_rank', 'roll_sd_ret1d_7M_rank', 
+                  'roll_sd_ret13d_1Y_rank', 
+                  'sd_above_ret5d_199d_rank',  'sd_abov_sma100_277d_rank', 
+                  'sd_abov_sma200_277d_rank', 'ratio_volSMA5_volSMA200_rank', 
+                  'ratio_volSMA11_volSMA283_rank', 'corr_sma47_sma197_257d_rank', 
+                  'sd_sd_ret21d_1M_rank')
+vip_train <- df_model |> ungroup() |> select(date, all_of(vip_features))
 
-library(corrr)
-library(glue)
-library(dplyr)
-library(purrr)
-library(tidyr)
+explainer_xgboost_tm <- explain_tidymodels(model = model_base, 
+                                           data = vip_train, 
+                                           y = df_model$ret_ranking)
 
-source(glue(the_path, "/models/functions/model_v8_3.R"))
+explainer_xgboost <- explain_xgboost(model = model_base, 
+                                     data = vip_train, 
+                                     y = df_model$ret_ranking)
+```
 
-model <- 'version_v8_3'
-tickers = c('AA', 'AMD', 'AAPL', 'CVX', 'FDX', 'GOOG', 'HAL', 'PYPL', 'SBUX') 
-create_cor_df <- function(ticker) { 
-  df0 <- model_v82(ticker)
-  df <- df0 %>% drop_na()
-  df_cor <- df %>% select(-date, -ret_7w) 
-  yo <- correlate(df_cor) %>% shave() %>% stretch()
-  return(yo)
-  }
 
-df0 <- tibble(model = model, ticker = tickers) %>% 
-  mutate(cor_df = map(ticker, create_cor_df)) %>% 
-  unnest()
 
-df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
-  arrange(x)
 
-write_csv(df1, 'correlations/model_v8_3.csv')
 
-library(gt)
 
-df1 |> gt()
+# Understanding Recipes Better 
+
+These steps are applied after building our original df
+So once the recipe is established 
+
+```{r}
+prep_base <- prep(x = recipe_base, training = df_model)
+prep_base
+prep_base |> tidy()
+
+yo_bake <- bake(object = prep_base, new_data = df_model)
 ```
 
 

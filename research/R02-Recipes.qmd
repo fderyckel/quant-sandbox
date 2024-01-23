@@ -1,0 +1,286 @@
+---
+title: "Understanding Recipes"
+author: "François de Ryckel"
+format: html
+---
+
+# Introduction
+
+The *recipes* package is used in the tidymodel framework to do most of the features-engineering steps before we start the modeling process.  It's really about the cleaning of data. 
+
+The basic principle is adding a few steps like **step_log()** then **prep()** then **bake()**
+The prep and bake will apply straight away these steps. 
+Normally, we don't do that as the recipe steps will only be applied in the modeling phase. 
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(readr)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(ggplot2)
+library(timetk)
+library(recipes)
+
+sd_roll_21 <- slidify(.f = sd, .align = 'right', .period = 21)
+sd_roll_61 <- slidify(.f = sd, .align = 'right', .period = 61)
+sd_roll_149 <- slidify(.f = sd, .align = 'right', .period = 149)
+sd_roll_251 <- slidify(.f = sd, .align = 'right', .period = 251)
+corr_roll_107 <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 107)
+corr_roll_199 <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 199)
+
+df <- read_csv('../data_stock_fmpr/AA.csv') |> 
+  select(date, high, low, close, adjusted = adjClose, volume) |> 
+  arrange(date)
+adx <- TTR::ADX(df[,2:4], n = 17) |>  
+  as_tibble() |> select(adx17 = ADX, din17 = DIn, dip17 = DIp)
+df <- bind_cols(df, adx) |> 
+  mutate(ret1d = log(adjusted, lag(adjusted, n = 1)),
+         ret5d = log(adjusted, lag(adjusted, n = 5)), 
+         ret1M = log(adjusted, lag(adjusted, n = 21)), 
+         ret5M = log(adjusted, lag(adjusted, n = 107)), 
+         adx17_slope = adx17 / lag(adx17, n = 5), 
+         din17_slope = din17 / lag(din17, n = 5), 
+         dip17_slope = din17 / lag(din17, n = 5), 
+         ema20 = TTR::EMA(adjusted, n = 20), 
+         sma50 = TTR::EMA(adjusted, n = 50), 
+         sma50_slope7 = sma50 / lag(sma50, n = 7), 
+         sma100 = TTR::SMA(adjusted, n = 100), 
+         sma200 = TTR::SMA(adjusted, n = 200), 
+         volum200 = TTR::SMA(volume, n = 200), 
+         sma200_slope11 = sma200 / lag(sma200, n = 11), 
+         roll_cor_sma50_sma200_107d = corr_roll_107(sma50, sma200), 
+         roll_cor_sma50_sma200_199d = corr_roll_199(sma50, sma200),
+         perc_abov_ema20 = log(adjusted / ema20), 
+         perc_abov_sma100 = log(adjusted / sma100), 
+         roll_sd_ret1d_3M = sd_roll_61(ret1d), 
+         roll_sd_ret5d_3M = sd_roll_61(ret5d), 
+         roll_sd_ret1d_7M = sd_roll_149(ret1d), 
+         roll_sd_ret5d_1Y = sd_roll_251(ret5d), 
+         roll_sd_ret21d_1Y = sd_roll_251(ret1M), 
+         roll_sd_volum200_1Y = sd_roll_251(volum200),
+         forw_ret61 = log(adjusted / lead(adjusted, n = 61)), 
+         forw_ret61_rank = ntile(forw_ret61, n = 100)) |> 
+  select(-high, -low, -close, -adjusted, -sma50, -sma200, -volum200, 
+         -ema20, -sma100, -ret1d, -forw_ret61) 
+
+df_train <- df |> filter(date < today() - 200) |> drop_na() 
+df_test <- df |> filter(date > today() - 200)
+```
+
+```{r}
+recipe(forw_ret61_rank ~ ., data = df) |> summary()
+
+recipe(forw_ret61_rank ~ ., data = df_train) |> 
+  update_role(date, new_role = 'ID') |> 
+  step_date(date, features = c('dow', 'week', 'month')) |> 
+  step_dummy(date_dow, date_month) |> 
+  step_zv(all_predictors()) |>   
+  summary()
+
+```
+
+```{r}
+recipe_base <- recipe(forw_ret61_rank ~ ., data = df_train) |> 
+  update_role(date, new_role = 'ID') |> 
+  step_date(date, features = c('week', 'month'), abbr = FALSE) |> 
+  step_dummy(date_month) |> 
+  step_corr(all_numeric_predictors()) |> 
+  step_zv(all_predictors()) #|> step_rm()    #in case you want to remove a variable
+
+recipe_base
+
+baked_df <- recipe_base |> 
+  prep(training = df_train) |> 
+  bake(new_data = NULL)
+
+str(baked_df)
+```
+
+```{r}
+#### Cross validation
+library(rsample)
+
+min_size_training <- 500
+number_of_samples <- 50
+skippy <- 63
+laggy <- 21
+# get the size of the df we are using. 
+validation_size <- floor(nrow(df_train) * 0.2 / number_of_samples) + 1
+training_size <- nrow(df_train) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
+
+if (training_size < 500) {
+  training_size <- min_size_training
+  skippy <- floor((nrow(df_train) - validation_size - laggy - min_size_training) / number_of_samples) 
+  training_size <- nrow(df_train) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
+}
+
+time_slices <- rolling_origin(df_train, 
+                              initial = training_size, assess = validation_size + laggy, 
+                              lag = -laggy, skip = skippy, 
+                              cumulative = FALSE)
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+library(workflows)
+library(parsnip)
+library(tune)
+library(dials)
+library(yardstick)
+
+model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune(), 
+                            tree_depth = tune(), 
+                            learn_rate = tune(), min_n = tune()) |> 
+  set_engine('xgboost') |> 
+  set_mode('regression')
+
+model_xgboost
+
+stopping_grid <-grid_latin_hypercube(trees(range = c(500, 900)), 
+                                     loss_reduction(range = c(-10, 1.5)), 
+                                     mtry(range = c(13L, 15L)), 
+                                     learn_rate(range = c(-2, -1)), 
+                                     min_n(range = c(23L, 29L)),   
+                                     tree_depth(range = c(6L, 10L)), 
+                                     size = 25)
+
+# a workflow need a recipe and a model
+wf_xgboost <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)
+wf_xgboost
+
+doParallel::registerDoParallel()
+xgboost_resampling <- tune_grid(wf_xgboost, time_slices, 
+                                grid = stopping_grid, 
+                                metrics = metric_set(mae, rmse), 
+                                control = control_resamples(save_pred = TRUE, 
+                                                            save_workflow = TRUE))
+
+
+
+best_param <- xgboost_resampling |> collect_metrics() |> 
+  filter(.metric == 'rmse') |> 
+  arrange(mean) |> slice_head()
+
+final_model <- finalize_model(model_xgboost, best_param)
+final_model
+
+final_wf <- workflow() |> add_recipe(recipe_base) |> add_model(final_model)
+final_wf
+
+model_xgboost_fitted <- fit(object = final_wf, data = df_train)
+write_rds(model_xgboost_fitted, '../models/model_raw/trials04AA.rda')
+```
+
+```{r}
+yo_best <- xgboost_resampling |> collect_metrics() |> 
+  filter(.metric == 'rmse') |> 
+  arrange(mean) |> head(1)
+
+yo <- xgboost_resampling |> collect_metrics() |> 
+  filter(.metric == 'rmse') |> 
+  arrange(mean) |> 
+  pivot_longer(cols = c(mtry, trees, min_n, tree_depth, learn_rate)) |> 
+  mutate(best_model = mean == min(mean)) |> 
+  select(-loss_reduction, -.estimator, -n) |> 
+  ggplot(aes(x = value, y = mean)) + 
+    geom_point(aes(color = best_model)) + 
+    facet_wrap(~name, scales = 'free_x') + 
+    scale_x_continuous(breaks = scales::pretty_breaks()) + 
+    labs(y = 'Mean', x = '', title = 'Xgboost X-validation hyper-parameters', 
+         color = 'Best Model') + 
+    theme(legend.position = 'bottom')
+  
+
+yo |> 
+  ggplot(aes(x = trees, y = mean)) + 
+  geom_point() + geom_line()
+  
+```
+
+
+```{r}
+model_xgboost_fitted |> extract_fit_parsnip() 
+
+model_xgboost_fitted |> extract_parameter_dials()
+```
+
+
+Shapiz
+
+https://ema.drwhy.ai/shapley.html
+
+```{r}
+library(shapviz)
+
+yo <- df_test |> 
+  mutate(prediction = predict(model_xgboost_fitted, new_data = df_test)) |> 
+  unnest(cols = c(prediction))
+
+```
+
+At the moment, I got these results (9 depts, 500 mtry) no cross-validation. 
+> min(yo$prediction) = 19.49795
+> max(yo$prediction) = 23.67053
+
+After hyperparameters tuning (15 models on a hypergrid), we got already better predictions on testing (unseen data).  rmse mean = 28.4 
+> min(yo$prediction) = 33.39946
+> max(yo$prediction) = 75.59279
+
+After hyperparameters tuning (25 models on a hypergrid), we got already better predictions on testing (unseen data).  rmse mean = 28.2 
+> min(yo$prediction) = 36.78697
+> max(yo$prediction) = 70.79962
+
+After hyperparameters tuning (25 models on a hypergrid), we got already better predictions on testing (unseen data).  rmse mean = 27.97  
+> min(yo$prediction) = 37.12446
+> max(yo$prediction) = 81.27045
+
+After hyperparameters tuning (25 models on a hypergrid), we got already better predictions on testing (unseen data).  rmse mean = 26.74. (version 4)  
+> min(yo$.pred) = 40.61456
+> max(yo$.pred) = 77.97873
+
+At the moment, I can not make treeshap work due to the unify function ...
+https://medium.com/responsibleml/treeshap-explain-tree-based-models-with-shap-values-2900f95f426
+
+SHAP (SHapley Additive exPlanations) by Lundberg and Lee (2017) is a method to explain individual predictions. SHAP is based on the game theoretically optimal Shapley values.
+SHAP (SHapley Additive exPlanations, see Lundberg and Lee (2017)) is an ingenious way to study black box models. SHAP values decompose - as fair as possible - predictions into additive feature contributions. Crunching SHAP values requires clever algorithms. Analyzing them, however, is super easy with the right visualizations. {shapviz} offers the latter.
+
+You have trained a machine learning model to predict apartment prices. For a certain apartment it predicts €300,000 and you need to explain this prediction. The apartment has an area of 50 m2, is located on the 2nd floor, has a park nearby and cats are banned:
+The average prediction for all apartments is €310,000. How much has each feature value contributed to the prediction compared to the average prediction?
+In our apartment example, the feature values park-nearby, cat-banned, area-50 and floor-2nd worked together to achieve the prediction of €300,000. Our goal is to explain the difference between the actual prediction (€300,000) and the average prediction (€310,000): a difference of -€10,000.
+The answer could be: The park-nearby contributed €30,000; area-50 contributed €10,000; floor-2nd contributed €0; cat-banned contributed -€50,000. The contributions add up to -€10,000, the final prediction minus the average predicted apartment price.
+
+
+
+```{r}
+library(DALEX)
+library(DALEXtra)
+
+#model_xgboost_fitted <- read_rds('../models/model_raw/trials02AA.rda')
+
+explain_xgboost <- explain_tidymodels(model = model_xgboost_fitted, 
+                           data = df_train, y = df_train$forw_ret61_rank)
+explain_xgboost
+
+library(shapviz)
+df_train_small <- df_train[sample(nrow(df_train), 1500), ]
+df_train_baked <- bake(prep(recipe_base), has_role('predictor'), 
+                       new_data = df_train_small, composition = 'matrix')
+head(df_train_baked)
+shap <- shapviz(extract_fit_engine(model_xgboost_fitted), 
+                X_pred = df_train_baked, X = df_train_baked)
+
+
+sv_importance(shap, kind = "both", show_numbers = TRUE)
+sv_dependence(shap, "perc_abov_sma100", color_var = "auto")
+sv_dependence(shap, "roll_sd_ret5d_1Y", color_var = "auto")
+sv_force(shap, row_id = 1)
+sv_waterfall(shap, row_id = 1)
+
+```
+

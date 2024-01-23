@@ -21,13 +21,16 @@ source('../functions/chart_plotting_v1.R')
 source('../functions/fmpr_functions.R')
 ```
 
-# XLC - Communication Services Select Sector SPDR Fund 
+# Download data and charts - US sectors 
+
+## XLC - Communication Services Select Sector SPDR Fund 
 
 ```{r}
 #| label: xlc
 
 # these 6 stocks make up for more than 40% of the XLV index. 
-xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA') 
+xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
+        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA')
 etf1 =    rep('SPY', length(xlc))
 etf2 =    rep('XLC', length(xlc))
 
@@ -67,14 +70,16 @@ dev.off()
 ```
 
 
-# XLE - Energy Select Sector SPDR Fund
+## XLE - Energy Select Sector SPDR Fund
 
 ```{r}
 #| label: xle
 
 # not working because too new:  
 # these 6 stocks make up for more than 40% of the XLV index. 
-xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV') 
+xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
+        'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
+        'EQT', 'OVV') 
 etf1 =    c(rep('SPY', length(xle)))
 etf2 =    c(rep('XLE', length(xle)))
 
@@ -115,7 +120,7 @@ dev.off()
 
 
 
-# XLF - Financial Select Sector SPDR Fund
+## XLF - Financial Select Sector SPDR Fund
 
 ```{r}
 #| label: xle
@@ -163,15 +168,59 @@ dev.off()
 
 ```
 
+ 
+## XLK 
 
-# XLP - Consumer Staples Select Sector SPDR Fund
+```{r}
+xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
+        'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'ORCL', 'INTU', 'QCOM', 
+        'IBM', 'NOW', 'TXN', 'AMAT', 'PANW') 
+etf1 =    rep('QQQ', length(xlk))
+etf2 =    rep('XLK', length(xlk))
+
+stock_tickers <- c(xlk, 'XLK')
+
+for (i in 1:length(stock_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(stock_tickers[i])
+    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+df <- tibble(ticker = xlk, etf1 = etf1, etf2 = etf2) 
+pdf(paste0(the_path, "/charts/charts_stocks_XLK.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = xlk[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today())  
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+## XLP - Consumer Staples Select Sector SPDR Fund
 
 ```{r}
 #| label: xlp
 
 # not working because too new: KVUE, 
-# these 6 stocks make up for more than 40% of the XLV index. 
-xlp = c('PG',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'DLTR', 'CHD', 'CLX', 'BG') 
+xlp = c('PG', 'UL',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 
+        'DEO', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'MKC', 'DLTR', 
+        'HRL', 'CHD', 'CLX', 'COTY', 'ELF', 'SJM', 'K', 'CAG') 
 etf1 =    c(rep('SPY', length(xlp)))
 etf2 =    c(rep('XLP', length(xlp)))
 
@@ -211,7 +260,7 @@ dev.off()
 ```
 
 
-# XLU 
+## XLU 
 
 ```{r}
 #| label: xlu
@@ -257,7 +306,7 @@ dev.off()
 ```
 
 
-# XLV 
+## XLV 
 
 ```{r}
 #| label: xlv
@@ -304,7 +353,7 @@ dev.off()
 
 ```
 
-# XLY - Consumer Discretionary Select Sector SPDR Fund 
+## XLY - Consumer Discretionary Select Sector SPDR Fund 
 
 ```{r}
 # these 6 stocks make up for more than 40% of the XLV index. 
@@ -349,7 +398,7 @@ dev.off()
 ```
 
 
-# XME 
+## XME 
 
 ```{r}
 # XME
@@ -393,7 +442,40 @@ for (i in 1:nrow(df)){
 dev.off()
 ```
 
- 
+# Download data and charts - US & International indices
+
+```{r}
+#| label: indicses
+
+etf_tickers <- c("XLF", "XLI", "XLY", "XLV", "XME", "XLB", "XBI", "IYT", "HACK", 
+                 "VOX", "ITB", "FXG",  'VCR', 'XLC', 'IYW', 'VGT', 
+                 "SMH", "IPAY", "SPY", "RSP", "QQQ", "XLE", "VDE", "XOP", 'GLD', 
+                 "GDXJ", "VAW", 'PBW', "EEM", 'DIA', 'GDX', 'UUP', 'FLOT', 
+                 "KWEB", "HYG", "TLT", "DBB", "DBA", "IWD", "IWF")
+
+for (i in 1:length(etf_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(etf_tickers[i])
+    print(glue("just downloaded data for ", etf_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+df <- tibble(ticker = etf_tickers) 
+pdf(paste0(the_path,"/charts/charts_index.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = df$ticker[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today()-600, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                               start_date = today()-600, end_date = today())
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
 
 # stocks with changed of volatility 
  
@@ -414,11 +496,17 @@ library(tidyr)
 
 the_path <- here::here()
 
-xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA') 
-xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV') 
+xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
+        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA')
+xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
+        'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
+        'EQT', 'OVV') 
 xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP', 'SCHW', 
-        'C', 'MMC', 'BX', 'PGR', 'CB', 'CME', 'ICE', 'USB', 'PYPL', 'MCO', 'PNC', 'AON') 
-xlp = c('PG',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'DLTR', 'CHD', 'CLX') 
+        'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 
+        'CBOE', 'CME', 'ICE') 
+xlp = c('PG', 'UL',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 
+        'DEO', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'MKC', 'DLTR', 
+        'HRL', 'CHD', 'CLX', 'COTY', 'ELF', 'SJM', 'K', 'CAG') 
 xlu = c('NEE', 'SO', 'DUK', 'SRE', 'AEP', 'D', 'PCG', 'CEG', 'EXC', 'XEL', 'ED', 
         'PEG', 'EIX', 'WEC', 'AWK', 'DTE', 'ES', 'ETR', 'PPL', 'AEE', 'FE') 
 xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'PFE', 'RVTY', 'TMO', 'AMGN', 'DHR', 
@@ -428,8 +516,8 @@ xly = c('AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'LOW', 'BKNG', 'PAG', 'SBUX', 'TJX',
         'ABNB', 'LULU', 'ORLY', 'MAR', 'GM', 'F', 'HLT', 'AZO', 'ROST', 'DHI', 'YUM', 
         'RCL', 'TSCO', 'PHM', 'EXPE', 'DRI', 'GRMN') 
 xme = c('AA', 'X', 'MP', 'CLF', 'ATI', 'AMR', 'FCX', 'NUE', 'CRS', 'NEM', 'RS', 
-        'STLD', 'BTU', 'HL', 'RGLD', 'UEC', 'CEIX', 'PAAS', 'PLL', 'CMP', 'RYI', 
-        'MTRN', 'KALU', 'SXC', 'TMST', 'METC') 
+        'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'NEM', 'AEM', 'UEC', 'ALB', 'PAAS', 
+        'FMC', 'MOS', 'SQM', 'PBR', 'RIO', 'VALE', 'TECK', 'SCCO', 'BHP')  
 
 conform_data <- function(ticker){
     df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 

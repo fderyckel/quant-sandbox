@@ -86,7 +86,7 @@ tickers <- c(markets, sectors)
 ```
 
 ```{r}
-#| eval: false
+#| eval: true
 #| echo: false
 
 
@@ -167,17 +167,19 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 
 ```{r}
 #| label: myPositions
+#| message: false
+#| warning: false
 #| echo: false
 
 # My positions 
-df <- tibble(ticker = c('CBOE', 'NEE', 'OXY', 'EWZ', 'EWJ', 'EEM', 'EWH', 'GDXJ', 'CGC', 'GROY', 'LUC.TO', 'TSLA'))
+tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'FCX', 'OXY', 'CGC', 'CHTR', 
+            'CBOE', 'C', 'NEE',  'EL', 'YUM', 'ABBV', 'RVTY') 
+etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP',  'UUP', 'SPY',  'SPY', 'SPY', 'SPY', 
+            'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY')
+etf2 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP',  'XME', 'XME', 'XLE', 'XLV',  'XLC', 
+            'XLF', 'XLF', 'XLU', 'XLP', 'XLY', 'XLV', 'XLV')
 
-tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'OXY', 'CGC', 'CBOE', 
-            'C', 'NEE', 'TSLA', 'ABBV', 'RVTY') 
-etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP', 'UUP',  'SPY', 'SPY',  'SPY', 
-            'SPY', 'SPY', 'SPY', 'SPY', 'SPY')
-
-stock_tickers <- c(tickers, 'UUP', 'EEM')
+stock_tickers <- unique(c(tickers, etf1, etf2))
 
 for (i in 1:length(stock_tickers)) { 
   tryCatch({ 
@@ -185,11 +187,12 @@ for (i in 1:length(stock_tickers)) {
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
 
-df <- df |> 
+df <- tibble(ticker = tickers) |> 
   mutate(returns = map(ticker, possibly(.f = get_returns, otherwise = NULL))) |> 
   unnest(cols = c(returns)) 
 
 df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
+  arrange(ret_1W) |> 
   gt() |> 
   tab_header(title = 'Returns of S&P Sectors') |> 
   fmt_percent(columns = starts_with('ret_'), decimals = 1) |> 
@@ -226,13 +229,12 @@ conform_data <- function(ticker, interval = 'Daily', provider = 'fmpr'){
     return(df)
 }
 
-df <- tibble(ticker = tickers, etf1 = etf1)
+df <- tibble(ticker = tickers, etf1 = etf1, etf2 = etf2)
 
 pdf(paste0(the_path, "/charts/charts_portfolio.pdf"), width=13, height=8, onefile = TRUE)
 for (i in 1:nrow(df)){ 
   #print(df$ticker[i])
-  yo <- tibble(ticker = tickers[i], etf1 = etf1[i]#, etf2 = etf2[i]
-               ) %>% 
+  yo <- tibble(ticker = tickers[i], etf1 = etf1[i], etf2 = etf2[i]) %>% 
     mutate(raw_df = map(ticker, function(.x) conform_data(.x)), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
@@ -244,13 +246,13 @@ for (i in 1:nrow(df)){
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
-                               #df$etf2[i], 
+                               df$etf2[i], 
                                df$ticker[i], 
                                start_date = today() - 365, 
                                end_date = today()) 
   Sys.sleep(2)
   }
-
+dev.off()
 ```
 
 Click [here](../charts/charts_portfolio.pdf) to see the charts. 
@@ -259,4 +261,43 @@ Click [here](../charts/charts_portfolio.pdf) to see the charts.
 
 
 # volatility 
+
+```{r}
+#| message: false
+#| warning: false
+
+df <- tibble(ticker = tickers, etf1 = etf1)
+
+conform_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(date, adjusted=adjClose) |>  
+      arrange(date)
+    return(df)
+}
+
+sd_roll_21d = slidify(.f = sd, .period = 21, .align = 'right')
+sd_roll_211d = slidify(.f = sd, .period = 211, .align = 'right')
+
+calc_vol <- function(ticker) {
+  df <- conform_data(ticker) |> 
+    select(date, adjusted) |> 
+    mutate(ret_1d = log(adjusted / lag(adjusted, n = 1)), 
+           ret_1M = log(adjusted / lag(adjusted, n = 21)), 
+           ret_2M = log(adjusted / lag(adjusted, n = 42)), 
+           ret_3M = log(adjusted / lag(adjusted, n = 63)), 
+           ret_5M = log(adjusted / lag(adjusted, n = 107)), 
+           ret_7M = log(adjusted / lag(adjusted, n = 149)), 
+           ret_1Y = log(adjusted / lag(adjusted, n = 251)),
+           roll21d_sd_ret1d = sd_roll_21d(ret_1d), 
+           roll211d_sd_ret1d = sd_roll_211d(ret_1d),
+           weekly_vol_change = log(roll21d_sd_ret1d / lag(roll21d_sd_ret1d, n = 5))) |> 
+    slice_tail(n = 1)
+}
+
+df_vol <- tibble(ticker = df$ticker) |> 
+  mutate(vol = map(ticker, calc_vol)) |> 
+  unnest(cols = c(vol)) |> 
+  arrange(desc(roll211d_sd_ret1d))
+```
 
