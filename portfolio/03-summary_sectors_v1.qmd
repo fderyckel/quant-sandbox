@@ -173,6 +173,7 @@ dev.off()
 
 ```{r}
 xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
+        'BABA', 
         'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'ORCL', 'INTU', 'QCOM', 
         'IBM', 'NOW', 'TXN', 'AMAT', 'PANW') 
 etf1 =    rep('QQQ', length(xlk))
