@@ -42,11 +42,11 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'JPM'
+ticker <- 'AMD'
 num_days <- 41
 
 model_type = '8wClass3ile'
-yop <- glue('xgboost_v1b_', model_type, "_", ticker)
+yop <- glue('xgboost_v1a_', model_type, "_", ticker)
 ```
 
 ## Buidling df 
@@ -112,13 +112,7 @@ df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |>
          roll_sd_volu200_31days = sd_roll_31d(volum200_perc), 
          roll_sd_volu200_251days = sd_roll_1Y(volum200_perc), 
          forw_ret = log(lead(close, n = num_days) / close), 
-         ord_class = ntile(forw_ret, 5), 
-         ord_class2 = case_when(ord_class == 1 ~ 1, 
-                                ord_class == 2 ~ 1, 
-                                ord_class == 3 ~ 2, 
-                                ord_class == 4 ~ 3, 
-                                ord_class == 5 ~ 3), 
-         ord_class2 = as.factor(ord_class2))
+         ord_class = as.factor(ntile(forw_ret, 3)))
 
 df2 <- df |> 
   select(date, roll_sd_ret1d_63days, roll_sd_ret5d_3M, roll_sd_ret5d_7M, 
@@ -127,7 +121,7 @@ df2 <- df |>
          ma_cross_l, corr_ema20_sma50_199d, corr_ema20_sma50_1Y, 
          corr_sma50_sma200_199d, corr_sma50_sma200_1Y,  
          roll_sd_volu200_31days, roll_sd_volu200_251days, 
-         ord_class = ord_class2) |> 
+         ord_class) |> 
   drop_na()
 
 df_model <- df2 |> filter(date < '2023-06-30')
@@ -186,7 +180,7 @@ model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune
   set_engine("xgboost") |>  
   set_mode("classification") 
 
-stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)), 
+stopping_grid <- grid_latin_hypercube(trees(range = c(400, 800)), 
                                      loss_reduction(range = c(-10, 1.5)), 
                                      mtry(range = c(12L, 17L)), 
                                      learn_rate(range = c(-4, -2)), 
@@ -202,8 +196,6 @@ xgboost_resampling <- tune_grid(wf, time_slices,
                                 metrics = metric_set(accuracy, mn_log_loss), 
                                 control = control_resamples(save_pred = TRUE, 
                                                             save_workflow = TRUE))
-
-
 ```
 
 
@@ -216,8 +208,8 @@ xgboost_resampling <- tune_grid(wf, time_slices,
 ######################################################################
 
 yo_soft_acc <- xgboost_resampling |> collect_predictions() |> 
-  mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
-                              .pred_class!="3" & ord_class != "3" ~ 1, 
+  mutate(soft_acc = case_when(.pred_class == "3" & ord_class == "3" ~ 1, 
+                              .pred_class != "3" & ord_class != "3" ~ 1, 
                               TRUE ~ 0)) |> 
   group_by(.config) |> 
   summarize(mean_soft_acc = sum(soft_acc)/n(), 
@@ -269,10 +261,9 @@ write_csv(yo_metric, glue(the_path, "/models/model_metrics/", yop, ".csv"))
 
 ######################################################################
 
-
 best_model <- yo_metric$.config[1]
 
-best_param <-xgboost_resampling |> collect_metrics() |> 
+best_param <- xgboost_resampling |> collect_metrics() |> 
   filter(.config == best_model) |> slice_tail()
 best_param
 
