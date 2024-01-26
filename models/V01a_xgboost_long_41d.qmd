@@ -13,19 +13,19 @@ format:
       margin-width: 0px
 ---
 
-# Intro 
+# Intro
 
-* This is a classification model.  Forward returns have been ordered in quintile and we put this quintile back into thirdile in the following way: bottom 1 and 2 back to #1, middle 3 to #2, top 4 and 5 quintile to #3 thirdile.  Bascially bottom 40% of returns are thirdile 1, middle 20% (the ones that are around 0%) in thirdile 2 and top 40% of returns are in thirdile 3. 
-* The model engine is Xgboost  
-* To predict: Forward return at 41 days and 61 days.  
+-   This is a classification model. Forward returns have been ordered in quintile and we put this quintile back into thirdile in the following way: bottom 1 and 2 back to #1, middle 3 to #2, top 4 and 5 quintile to #3 thirdile. Bascially bottom 40% of returns are thirdile 1, middle 20% (the ones that are around 0%) in thirdile 2 and top 40% of returns are in thirdile 3.
+-   The model engine is Xgboost\
+-   To predict: Forward return at 41 days and 61 days.
 
-Other idiosyncrasies of this model: 
+Other idiosyncrasies of this model:
 
-* all returns are log returns
+-   all returns are log returns
 
-# Pre-processing 
+# Pre-processing
 
-## Setting up 
+## Setting up
 
 ```{r}
 #| label: setup
@@ -42,14 +42,14 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'AXP'
+ticker <- 'CVX'
 num_days <- 41
 
 model_type = '8wClass3ile'
 yop <- glue('xgboost_v01a_', model_type, "_", ticker)
 ```
 
-## Buidling df 
+## Buidling df
 
 ```{r}
 #| label: building-df
@@ -107,7 +107,7 @@ df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |>
          ma_cross_l = sma50 / sma100, 
          corr_ema20_sma50_199d = corr_roll_199d(ema20, sma50), 
          corr_ema20_sma50_1Y = corr_roll_1Y(ema20, sma50), 
-         corr_sma50_sma200_199d = corr_roll_1Y(sma50, sma200), 
+         corr_sma50_sma200_199d = corr_roll_199d(sma50, sma200), 
          corr_sma50_sma200_1Y = corr_roll_1Y(sma50, sma200), 
          roll_sd_volu200_31days = sd_roll_31d(volum200_perc), 
          roll_sd_volu200_251days = sd_roll_1Y(volum200_perc), 
@@ -127,7 +127,7 @@ df2 <- df |>
 df_model <- df2 |> filter(date < '2023-06-30')
 ```
 
-## Resampling and Recipes 
+## Resampling and Recipes
 
 ```{r}
 #| label: preprocessing
@@ -161,8 +161,7 @@ recipe_base <- recipe(formula = ord_class ~., data = df_model) |>
   update_role(date, new_role="ID") 
 ```
 
-
-# Modeling 
+# Modeling
 
 ```{r}
 #| label: modeling
@@ -200,9 +199,7 @@ xgboost_resampling <- tune_grid(wf, time_slices,
 
 ```
 
-
-
-# Variables importance & Metrics 
+# Variables importance & Metrics
 
 ```{r}
 ######################################################################
@@ -290,7 +287,6 @@ var_importance <- final_model %>%
 write_csv(var_importance, 
           glue(the_path, "/models/model_vars_imp/", yop, ".csv"))
 ```
-
 
 # rsample
 
