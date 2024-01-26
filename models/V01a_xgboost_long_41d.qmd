@@ -42,7 +42,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'CVX'
+ticker <- 'SBUX'
 num_days <- 41
 
 model_type = '8wClass3ile'
