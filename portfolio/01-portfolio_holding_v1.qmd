@@ -1,5 +1,5 @@
 ---
-title: "Summary portfolio V3"
+title: "Summary Market & Portfolio holdings"
 author: "FdR"
 date: "`r Sys.Date()`"
 date-format: full
@@ -80,21 +80,59 @@ get_returns <- function(ticker) {
 }
 
 markets <- c('SPY', 'DIA', 'QQQ')
-sectors <- c('XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLRE', 'XLK', 'XLU')
+sectors <- c('XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLRE', 'XLK', 
+             'XLU', 'XME', 'IYT', 'XBI')
 tickers <- c(markets, sectors)
 
 ```
 
 ```{r}
+#| label: sectors
 #| eval: true
 #| echo: false
-
+#| warning: false
+#| message: false
 
 for (i in 1:length(tickers)) { 
   tryCatch({ 
     get_fmpr_prices(tickers[i])
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
+
+source('../functions/chart_plotting_v1.R')
+
+conform_data <- function(ticker, interval = 'Daily', provider = 'fmpr'){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(index = date, open, high, low, close, adjusted=adjClose, volume) |>  
+      arrange(index) 
+    return(df)
+}
+
+df <- tibble(ticker = sectors, etf1 = 'SPY', etf2 = 'QQQ')
+
+pdf(paste0(the_path, "/charts/charts_sectors.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  #print(df$ticker[i])
+  yo <- tibble(ticker = df$ticker[i], etf1 = df$etf1[i], etf2 = df$etf2[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x)), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
+                           start_date = today() - 365, 
+                           end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], 
+                               yo$ticker, 
+                               start_date = today() - 365, 
+                               end_date = today())
+  create_rel_candlestick_chart(df$ticker[i], 
+                               df$etf1[i], 
+                               df$etf2[i], 
+                               df$ticker[i], 
+                               start_date = today() - 365, 
+                               end_date = today()) 
+  Sys.sleep(2)
+  }
+dev.off()
 ```
 
 
@@ -172,14 +210,17 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 #| echo: false
 
 # My positions 
-tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'FCX', 'OXY', 'CGC', 'CHTR', 
+tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'FCX', 'OXY', 'HAL', 
+            'CGC', 'CHTR', 
             'CBOE', 'C', 'NEE',  'EL', 'YUM', 'ABBV', 'RVTY') 
-etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP',  'UUP', 'SPY',  'SPY', 'SPY', 'SPY', 
+etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP',  'UUP', 'SPY',  'SPY', 'SPY', 
+            'SPY', 'SPY', 
             'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY')
-etf2 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP',  'XME', 'XME', 'XLE', 'XLV',  'XLC', 
+etf2 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP',  'XME', 'XME', 'XLE', 'SPY', 
+            'XLV', 'XLC', 
             'XLF', 'XLF', 'XLU', 'XLP', 'XLY', 'XLV', 'XLV')
 
-stock_tickers <- unique(c(tickers, etf1, etf2))
+stock_tickers <- unique(c(tickers, 'UUP', 'EEM')) 
 
 for (i in 1:length(stock_tickers)) { 
   tryCatch({ 
@@ -192,9 +233,9 @@ df <- tibble(ticker = tickers) |>
   unnest(cols = c(returns)) 
 
 df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_')) |> 
-  arrange(ret_1W) |> 
+  arrange(desc(ret_1M)) |> 
   gt() |> 
-  tab_header(title = 'Returns of S&P Sectors') |> 
+  tab_header(title = 'Returns of Portfolio holdings') |> 
   fmt_percent(columns = starts_with('ret_'), decimals = 1) |> 
   fmt_number(columns = starts_with('sd_abov_'), decimals = 2) |> 
   tab_spanner(label = 'Daily', columns = c(ret_1d, sd_abov_ret1d)) |> 
