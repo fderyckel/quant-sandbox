@@ -56,7 +56,7 @@ model01a <- function(ticker, num_days){
            ma_cross_l = sma50 / sma100, 
            corr_ema20_sma50_199d = corr_roll_199d(ema20, sma50), 
            corr_ema20_sma50_1Y = corr_roll_1Y(ema20, sma50), 
-           corr_sma50_sma200_199d = corr_roll_1Y(sma50, sma200), 
+           corr_sma50_sma200_199d = corr_roll_199d(sma50, sma200), 
            corr_sma50_sma200_1Y = corr_roll_1Y(sma50, sma200), 
            roll_sd_volu200_31days = sd_roll_31d(volum200_perc), 
            roll_sd_volu200_251days = sd_roll_1Y(volum200_perc), 

@@ -255,7 +255,7 @@ yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %
   left_join(., yo_soft_acc) %>% 
   mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  0.3 * preci_rank + 0.3 * soft_preci_rank + 0.25 * soft_acc_rank + 0.15 * recall_rank)
+         avg_rank =  0.4 * preci_rank + 0.2 * soft_preci_rank + 0.25 * soft_acc_rank + 0.15 * recall_rank)
 
 yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
   left_join(yo_soft_preci) |> left_join(yo_cost3) |> 
@@ -320,3 +320,49 @@ ts_df_dates <- ts_df |>
 glimpse(ts_df_dates)
 
 ```
+
+
+# Analyses of correlation 
+
+```{r correlation}
+#| message: false
+#| warning: false
+
+# setting up the path within the project for easier portability of code
+the_path <- here::here()
+
+library(corrr)
+library(glue)
+library(dplyr)
+library(purrr)
+library(tidyr)
+
+source(glue(the_path, "/models/functions/model_v01c.R"))
+
+model <- 'v01c'
+tickers = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX') 
+create_cor_df <- function(ticker) { 
+  df0 <- model01c(ticker)
+  df <- df0 %>% drop_na()
+  df_cor <- df %>% select(-date, -ord_class2) 
+  yo <- correlate(df_cor) %>% shave() %>% stretch()
+  return(yo)
+  }
+
+df0 <- tibble(model = model, ticker = tickers) %>% 
+  mutate(cor_df = map(ticker, create_cor_df)) %>% 
+  unnest()
+
+df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
+  arrange(x)
+
+write_csv(df1, 'correlations/model_v01c.csv')
+
+library(gt)
+
+df1 |> gt()
+```
+
+
+
+
