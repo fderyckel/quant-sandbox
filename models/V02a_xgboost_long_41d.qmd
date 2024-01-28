@@ -357,6 +357,7 @@ glimpse(ts_df_dates)
 #| message: false
 #| warning: false
 
+
 # setting up the path within the project for easier portability of code
 the_path <- here::here()
 
@@ -366,14 +367,14 @@ library(dplyr)
 library(purrr)
 library(tidyr)
 
-source(glue(the_path, "/models/functions/model_v1b.R"))
+source(glue(the_path, "/models/functions/model_v02a.R"))
 
-model <- 'version_1b'
-tickers = c('AMD', 'AAPL', 'FDX', 'HAL', 'PYPL', 'CVX') 
-create_cor_df <- function(ticker) { 
-  df0 <- model_v1b(ticker)
+model <- 'v02a'
+tickers = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX') 
+create_cor_df <- function(ticker, num_days=41) { 
+  df0 <- model01a(ticker, num_days)
   df <- df0 %>% drop_na()
-  df_cor <- df %>% select(-date, -ord_class2) 
+  df_cor <- df %>% select(-date, -ord_class) 
   yo <- correlate(df_cor) %>% shave() %>% stretch()
   return(yo)
   }
@@ -383,9 +384,9 @@ df0 <- tibble(model = model, ticker = tickers) %>%
   unnest()
 
 df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
-  arrange(x)
+  arrange(desc(abs(r)))
 
-write_csv(df1, 'correlations/model_v1b.csv')
+write_csv(df1, glue(the_path, '/models/analysis/model_v02a_corr.csv'))
 
 library(gt)
 

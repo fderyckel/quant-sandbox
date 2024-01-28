@@ -1,5 +1,5 @@
 ---
-title: "Modeling Long 31 days"
+title: "Xgboost Modeling Long 41 days. Regression with percentile returns"
 format: 
   html: 
     toc: true
@@ -43,7 +43,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'AXP'
+ticker <- 'AMD'
 num_days <- 41
 
 model_type = '8wRegPerc'
