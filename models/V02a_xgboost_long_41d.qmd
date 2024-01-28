@@ -372,7 +372,7 @@ source(glue(the_path, "/models/functions/model_v02a.R"))
 model <- 'v02a'
 tickers = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX') 
 create_cor_df <- function(ticker, num_days=41) { 
-  df0 <- model01a(ticker, num_days)
+  df0 <- model02a(ticker, num_days)
   df <- df0 %>% drop_na()
   df_cor <- df %>% select(-date, -ord_class) 
   yo <- correlate(df_cor) %>% shave() %>% stretch()
