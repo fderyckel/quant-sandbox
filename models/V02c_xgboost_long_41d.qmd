@@ -13,6 +13,8 @@ format:
       margin-width: 0px
 ---
 
+DO NOT USE DO NOT USE COPY BACK FROM V02A .... mistakes in code
+
 # Intro 
 
 * This is a classification model.  Forward returns have been ordered in quintile and we put this quintile back into thirdile in the following way: bottom 1 and 2 back to #1, middle 3 to #2, top 4 and 5 quintile to #3 thirdile.  Bascially bottom 40% of returns are thirdile 1, middle 20% (the ones that are around 0%) in thirdile 2 and top 40% of returns are in thirdile 3. 

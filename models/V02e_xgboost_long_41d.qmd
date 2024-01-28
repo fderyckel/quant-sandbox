@@ -112,7 +112,7 @@ df <- df |>
          corr_rollSdRet5d3M_rollSdRet5d7M_229d = corr_roll_229d(roll_sd_ret5d_61d, roll_sd_ret5d_147d), 
          roll_sd_ret21d_251d = sd_roll_251d(ret_21d),     
          roll_sd_ret21d_251d_lag7 = lag(roll_sd_ret21d_251d, n = 7), 
-         roll_sd_ret21d_251d_lag19 = lag(roll_sd_ret21d_251d, n = 11),
+         roll_sd_ret21d_251d_lag19 = lag(roll_sd_ret21d_251d, n = 19),
          
          intraday = (high - low) / open, 
          roll_sd_intraday_61d = sd_roll_61d(intraday), 
@@ -131,7 +131,7 @@ df <- df |>
          corr_ema20_sma50_199d = corr_roll_199d(ema20, sma50), 
          corr_ema20_sma50_251d = corr_roll_251d(ema20, sma50), 
          corr_sma50_sma200_101d = corr_roll_101d(sma50, sma200), 
-         corr_sma50_sma200_199d = corr_roll_251d(sma50, sma200), 
+         corr_sma50_sma200_199d = corr_roll_199d(sma50, sma200), 
          
          volum_sma200 = TTR::SMA(volume,  n = 200), 
          volum200_perc = log(volume / volum_sma200), 
@@ -229,7 +229,7 @@ wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)
 doParallel::registerDoParallel()
 xgboost_resampling <- tune_grid(wf, time_slices, 
                                 grid = stopping_grid, 
-                                metrics = metric_set(accuracy, mn_log_loss), 
+                                metrics = metric_set(rmse), 
                                 control = control_resamples(save_pred = TRUE, 
                                                             save_workflow = TRUE))
 
