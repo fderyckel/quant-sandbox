@@ -22,7 +22,7 @@ sd_roll_1Y <- slidify(.f = sd, .align = 'right', .period = 251)
 corr_roll_199d <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 199)
 corr_roll_1Y <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 251)
 
-model01a <- function(ticker, num_days){ 
+model01c <- function(ticker, num_days){ 
   df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
     arrange(date) |> 
     select(date, open, high, low, close, volume) |>

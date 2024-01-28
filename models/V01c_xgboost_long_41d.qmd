@@ -43,7 +43,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'AAPL'
+ticker <- 'AXP'
 num_days <- 41
 
 model_type = '8wClass3ile'
@@ -302,6 +302,10 @@ write_csv(var_importance,
 # rsample
 
 ```{r}
+#| message: false
+#| warning: false
+#| eval: false
+
 library(lubridate)
 ts_df <- time_slices |> 
   mutate(train = map(splits, training), 
@@ -327,6 +331,7 @@ glimpse(ts_df_dates)
 ```{r correlation}
 #| message: false
 #| warning: false
+#| eval: false
 
 # setting up the path within the project for easier portability of code
 the_path <- here::here()
@@ -342,9 +347,9 @@ source(glue(the_path, "/models/functions/model_v01c.R"))
 model <- 'v01c'
 tickers = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX') 
 create_cor_df <- function(ticker) { 
-  df0 <- model01c(ticker)
+  df0 <- model01c(ticker, num_days = 41)
   df <- df0 %>% drop_na()
-  df_cor <- df %>% select(-date, -ord_class2) 
+  df_cor <- df %>% select(-date, -ord_class) 
   yo <- correlate(df_cor) %>% shave() %>% stretch()
   return(yo)
   }
@@ -354,9 +359,9 @@ df0 <- tibble(model = model, ticker = tickers) %>%
   unnest()
 
 df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
-  arrange(x)
+  arrange(desc(abs(r)))
 
-write_csv(df1, 'correlations/model_v01c.csv')
+write_csv(df1, glue(the_path, '/models/analysis/model_v01c_corr.csv'))
 
 library(gt)
 
