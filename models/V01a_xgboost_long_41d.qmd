@@ -42,7 +42,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'SBUX'
+ticker <- 'YUM'
 num_days <- 41
 
 model_type = '8wClass3ile'
@@ -291,6 +291,8 @@ write_csv(var_importance,
 # rsample
 
 ```{r}
+#| eval: false
+
 library(lubridate)
 ts_df <- time_slices |> 
   mutate(train = map(splits, training), 
@@ -316,6 +318,7 @@ glimpse(ts_df_dates)
 ```{r correlation}
 #| message: false
 #| warning: false
+#| eval: false
 
 # setting up the path within the project for easier portability of code
 the_path <- here::here()
