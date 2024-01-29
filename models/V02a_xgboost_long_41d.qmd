@@ -1,5 +1,5 @@
 ---
-title: "Modeling Long 31 days"
+title: "Xgboost Modeling Long 41 days. classification with thirdile returns. V02a"
 format: 
   html: 
     toc: true

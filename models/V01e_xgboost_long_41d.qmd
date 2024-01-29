@@ -1,5 +1,5 @@
 ---
-title: "Xgboost Modeling Long 41 days. Regression with percentile returns"
+title: "Xgboost Modeling Long 41 days. Regression with percentile returns. V01e"
 format: 
   html: 
     toc: true
