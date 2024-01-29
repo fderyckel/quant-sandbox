@@ -256,7 +256,7 @@ yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %
   left_join(., yo_soft_acc) %>% 
   mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  0.3 * preci_rank + 0.3 * soft_preci_rank + 0.25 * soft_acc_rank + 0.15 * recall_rank)
+         avg_rank =  0.2 * preci_rank + 0.4 * soft_preci_rank + 0.25 * soft_acc_rank + 0.15 * recall_rank)
 
 yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
   left_join(yo_soft_preci) |> left_join(yo_cost3) |> 

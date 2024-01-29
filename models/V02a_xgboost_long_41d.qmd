@@ -58,7 +58,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'CVX'
+ticker <- 'SBUX'
 num_days <- 41
 
 model_type = '8wClass3ile'
@@ -216,7 +216,7 @@ model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune
   set_engine("xgboost") |>  
   set_mode("classification") 
 
-stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)), 
+stopping_grid <-grid_latin_hypercube(trees(range = c(600, 1000)), 
                                      loss_reduction(range = c(-10, 1.5)), 
                                      mtry(range = c(12L, 17L)), 
                                      learn_rate(range = c(-4, -2)), 
@@ -319,7 +319,7 @@ write_rds(model_base, glue(the_path, "/models/model_raw/", yop, ".rda"))
 library(vip)
 df_prep <- prep(recipe_base)
 var_importance <- final_model %>% 
-  set_engine("xgboost", importance = "permutation") %>% 
+  set_engine("xgboost", importance = TRUE) %>% 
   fit(ord_class ~ ., data = juice(df_prep) %>% select(-date)) %>%
   vi()
 

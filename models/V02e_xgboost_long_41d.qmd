@@ -58,7 +58,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'AXP'
+ticker <- 'CVX'
 num_days <- 41
 
 model_type = '8wRegPerc'
@@ -141,7 +141,7 @@ df <- df |>
          roll_sd_volu200_251d_lag17 = lag(roll_sd_volu200_251d, n = 17), 
          
          forw_ret = log(lead(close, n = num_days) / close), 
-         ord_class = ntile(forw_ret, 3))
+         ord_class = ntile(forw_ret, 100))
 
 df2 <- df |> 
   select(date, atr11_open, atr17_open, 
@@ -216,12 +216,12 @@ model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune
   set_engine("xgboost") |>  
   set_mode("regression") 
 
-stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)), 
+stopping_grid <-grid_latin_hypercube(trees(range = c(500, 900)), 
                                      loss_reduction(range = c(-10, 1.5)), 
-                                     mtry(range = c(12L, 17L)), 
+                                     mtry(range = c(13L, 19L)), 
                                      learn_rate(range = c(-4, -2)), 
                                      min_n(range = c(17L, 31L)),   
-                                     tree_depth(range = c(5L, 11L)), 
+                                     tree_depth(range = c(7L, 13L)), 
                                      size = 25)
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
@@ -308,6 +308,7 @@ glimpse(ts_df_dates)
 ```{r correlation}
 #| message: false
 #| warning: false
+#| eval: false
 
 # setting up the path within the project for easier portability of code
 the_path <- here::here()
@@ -318,12 +319,12 @@ library(dplyr)
 library(purrr)
 library(tidyr)
 
-source(glue(the_path, "/models/functions/model_v1b.R"))
+source(glue(the_path, "/models/functions/model_v2e.R"))
 
-model <- 'version_1b'
+model <- 'version_2e'
 tickers = c('AMD', 'AAPL', 'FDX', 'HAL', 'PYPL', 'CVX') 
 create_cor_df <- function(ticker) { 
-  df0 <- model_v1b(ticker)
+  df0 <- model_v2e(ticker)
   df <- df0 %>% drop_na()
   df_cor <- df %>% select(-date, -ord_class2) 
   yo <- correlate(df_cor) %>% shave() %>% stretch()
@@ -337,7 +338,7 @@ df0 <- tibble(model = model, ticker = tickers) %>%
 df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
   arrange(x)
 
-write_csv(df1, 'correlations/model_v1b.csv')
+write_csv(df1, 'correlations/model_v2e.csv')
 
 library(gt)
 
