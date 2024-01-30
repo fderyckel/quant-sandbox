@@ -43,7 +43,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'AMD'
+ticker <- 'CVX'
 num_days <- 41
 
 model_type = '8wRegPerc'
