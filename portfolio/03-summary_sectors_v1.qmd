@@ -443,7 +443,35 @@ for (i in 1:nrow(df)){
 dev.off()
 ```
 
-# Download data and charts - US & International indices
+
+# Download data and charts - International Indices
+
+```{r}
+#downloading foreign markets
+st <- c('EWQ', 'EWP', 'EWG', 'EWU', 'EWI', 'EWL', 'EPOL', 'EWD', 'EWN', 
+        'EEM', 'EWZ', 'EWW', 'EWJ', 'EWY', 'EWS', 'EWM', 'FXI', 'KWEB', 
+        'EWH', 'EWT', 'THD', 'EIDO', 'EPHE', 'EWA', 'EZA', 'EWC')
+for (i in 1:length(st)) { 
+  tryCatch({ 
+    get_fmpr_prices(st[i])
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+df <- tibble(ticker = st) 
+pdf(paste0(the_path,"/charts/charts_foreign.pdf"), width=13, height=8, onefile = TRUE)
+for (i in 1:nrow(df)){ 
+  print(df$ticker[i])
+  yo <- tibble(ticker = df$ticker[i]) %>% 
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-350, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-350, end_date = today())
+  Sys.sleep(2)
+  }
+dev.off()
+```
+
+
+# Download data and charts - US Sectors & indices
 
 ```{r}
 #| label: indicses

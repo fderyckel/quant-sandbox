@@ -78,7 +78,7 @@ model02a <- function(ticker, num_days){
            roll_sd_volu200_251d_lag17 = lag(roll_sd_volu200_251d, n = 17), 
            
            forw_ret = log(lead(close, n = num_days) / close), 
-           ord_class = ntile(forw_ret, 3)) |> 
+           ord_class = as.factor(ntile(forw_ret, 3))) |> 
     
     select(date, atr11_open, atr17_open, 
            roll_mean_ret1d_61d, roll_mean_ret5d_61d, roll_mean_ret5d_147d, 

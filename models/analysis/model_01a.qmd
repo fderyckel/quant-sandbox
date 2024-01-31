@@ -21,6 +21,7 @@ We are analysis all variables here, checking predictions certainties, checking f
 #| message: false
 
 source('../functions/model_v01a.R')
+source('../functions/model_v02a.R')
 
 library(readr)
 library(dplyr)
@@ -31,22 +32,37 @@ library(gt)
 
 the_path <- here::here()
 
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX'))
+
 get_var_imp <- function(ticker) {
   df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
     arrange(desc(Importance)) |> 
     mutate(rank_order = row_number())
   return(df)
 }
+
+get_metrics <- function(ticker, model_name) {
+  df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
+    slice_head(n=3)
+  df2 <- tibble(name = model_name, 'Precision' = mean(df$mean_preci), 
+                'SoftPreci' = mean(df$mean_soft_preci), 
+                'Accuracy' = mean(df$mean_soft_acc), 
+                'Recall' = mean(df$mean_recall))
+  return(df2)
+}
+
 ```
+
 
 # Analyzing Variable Importance 
 
+## Standard with xgboost and tidymodel 
 ```{r}
 #| label: varimp
 
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01a_8wClass3ile_')
 
-df_VI_v01a <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX')) |> 
+df_VI_v01a <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -56,6 +72,60 @@ df_VI_v01a <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX
   arrange(desc(mean_imp))
 
 df_VI_v01a |> gt()
+
+
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX'))
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_8wClass3ile_')
+
+df_VI_v02a <- df |> 
+  mutate(var_imp = map(ticker, get_var_imp)) |> 
+  unnest(cols = c(var_imp)) |> 
+  group_by(Variable) |> 
+  summarise(mean_rank = mean(rank_order), 
+            mean_imp = mean(Importance, na.rm=TRUE), 
+            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+  arrange(desc(mean_imp))
+
+df_VI_v02a |> gt()
+```
+
+## With SHAP value 
+
+```{r}
+
+```
+
+
+# Analysing metrics on Validation set
+
+```{r}
+#| label: metrics
+
+yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_8wClass3ile_')
+model_name <- 'model_v01a'
+
+df_v01a <- df |> 
+  mutate(metrics = map2(ticker, model_name, get_metrics)) |> 
+  unnest(cols = c(metrics)) |> mutate(model = model_name)
+
+#df_v01a |> gt()
+
+yop <- glue(the_path, '/models/model_metrics/xgboost_v02a_8wClass3ile_')
+model_name <- 'model_v02a'
+df_v02a <- df |> 
+  mutate(metrics = map2(ticker, model_name, get_metrics)) |> 
+  unnest(cols = c(metrics)) |> mutate(model = model_name)
+
+#df_v02a |> gt()
+```
+
+## Combining metrics on model V01a and V02a 
+
+```{r}
+df <- df_v01a |> add_row(df_v02a) |> 
+  arrange(ticker, name)
+
+df |> gt()
 ```
 
 
@@ -76,7 +146,7 @@ library(parsnip)
 library(yardstick)
 
 model_fit <- read_rds(glue(the_path, '/models/model_raw/', model_name, ticker, '.rda'))
-df <- model01a(ticker, num_days) |> filter(date > '2023-06-01')
+df <- model01a(ticker, num_days) |> filter(date > '2023-06-30')
 
 df_test_class <- predict(model_fit, new_data = df)
 df_test_prob <- predict(model_fit, new_data = df, type = 'prob')

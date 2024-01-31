@@ -1,0 +1,162 @@
+---
+title: "Analysis of Models VXe"
+format: 
+  html: 
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    theme: darkly
+    fontsize: 1.1em
+    grid: 
+      sidebar-width: 0px
+      body-width: 2000px
+      margin-width: 0px
+---
+
+We are analysis all variables here, checking predictions certainties, checking future predictions, checking metrics, etc. 
+
+We are summarizing our finding here with the 2 models. 
+
+```{r}
+#| label: setup
+#| warning: false
+#| message: false
+
+source('../functions/model_v01e.R')
+source('../functions/model_v02e.R')
+
+library(readr)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(glue)
+library(gt)
+
+the_path <- here::here()
+
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX'))
+
+get_var_imp <- function(ticker) {
+  df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
+    arrange(desc(Importance)) |> 
+    mutate(rank_order = row_number())
+  return(df)
+}
+
+get_metrics_reg <- function(ticker, model_name) {
+  df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
+    slice_head(n=3)
+  df2 <- tibble(name = model_name, 'RMSE' = mean(df$mean))
+  return(df2)
+}
+```
+
+
+# Analyzing Variable Importance 
+
+## Standard with xgboost and tidymodel 
+```{r}
+#| label: varimp
+
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'YUM'))
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01e_8wRegPerc_')
+
+df_VI_v01e <- df |> 
+  mutate(var_imp = map(ticker, get_var_imp)) |> 
+  unnest(cols = c(var_imp)) |> 
+  group_by(Variable) |> 
+  summarise(mean_rank = mean(rank_order), 
+            mean_imp = mean(Importance, na.rm=TRUE), 
+            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+  arrange(desc(mean_imp))
+
+df_VI_v01e |> gt()
+
+
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02e_8wRegPerc_')
+
+df_VI_v02e <- df |> 
+  mutate(var_imp = map(ticker, get_var_imp)) |> 
+  unnest(cols = c(var_imp)) |> 
+  group_by(Variable) |> 
+  summarise(mean_rank = mean(rank_order), 
+            mean_imp = mean(Importance, na.rm=TRUE), 
+            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+  arrange(desc(mean_imp))
+
+df_VI_v02e |> gt()
+```
+
+## With SHAP value 
+
+```{r}
+
+```
+
+
+# Analysing metrics on Validation set
+
+```{r}
+#| label: metrics
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'YUM'))
+yop <- glue(the_path, '/models/model_metrics/xgboost_v01e_8wRegPerc_')
+model_name <- 'model_v01e'
+
+df_v01e <- df |> 
+  mutate(metrics = map2(ticker, model_name, get_metrics_reg)) |> 
+  unnest(cols = c(metrics)) |> mutate(model = model_name)
+
+#df_v01a |> gt()
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
+yop <- glue(the_path, '/models/model_metrics/xgboost_v02e_8wRegPerc_')
+model_name <- 'model_v02e'
+df_v02e <- df |> 
+  mutate(metrics = map2(ticker, model_name, get_metrics_reg)) |> 
+  unnest(cols = c(metrics)) |> mutate(model = model_name)
+
+#df_v02a |> gt()
+```
+
+## Combining metrics on model V01a and V02a 
+
+```{r}
+df <- df_v01e |> add_row(df_v02e) |> 
+  arrange(ticker, name)
+
+df |> gt()
+```
+
+
+# Making prediction 
+
+```{r}
+#| label: makingPrediction
+#| warning: false
+#| message: false
+#| eval: false
+
+ticker <- 'AXP'
+num_days <- 41
+
+model_name <- 'xgboost_v1a_8wClass3ile_'
+
+library(parsnip)
+library(yardstick)
+
+model_fit <- read_rds(glue(the_path, '/models/model_raw/', model_name, ticker, '.rda'))
+df <- model01a(ticker, num_days) |> filter(date > '2023-06-30')
+
+df_test_class <- predict(model_fit, new_data = df)
+df_test_prob <- predict(model_fit, new_data = df, type = 'prob')
+
+yo <- bind_cols(df |> select(date, forw_ret, ord_class), df_test_class, df_test_prob)
+
+library(broom)
+library(tidyr)
+conf_mat(yo, truth = ord_class, estimate = .pred_class)
+summary(conf_mat(yo, truth = ord_class, estimate = .pred_class))
+
+f_meas(yo, truth = ord_class, estimate = .pred_class)
+```
+

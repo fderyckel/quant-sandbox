@@ -62,6 +62,7 @@ model01a <- function(ticker, num_days){
            roll_sd_volu200_251days = sd_roll_1Y(volum200_perc), 
            forw_ret = log(lead(close, n = num_days) / close), 
            ord_class = as.factor(ntile(forw_ret, 3))) |> 
+    
     select(date, close, forw_ret, 
            roll_sd_ret1d_63days, roll_sd_ret5d_3M, roll_sd_ret5d_7M, 
            above_sd_ret1d_3M, above_sd_ret5d_3M, above_sd_ret5d_7M, above_sd_ret21d_1Y,

@@ -1,0 +1,94 @@
+---
+title: "sandbox01 - variables importance"
+format: html
+---
+
+# attempting to see which factors are important when trading for 29 days and 37 days
+
+I am trying to see which variables do matter when going in market. 
+
+1st way to go about: have fifth of data (last 2 fifth are for short, top2 fights are for long, middle is nothing) same kind of marking as before.   
+
+
+Let's load a fitted model 
+
+```{r}
+#| warning: false
+#| message: false
+
+library(readr)
+library(dplyr)
+library(parsnip)
+library(workflows)
+
+model_xgboost <- read_rds('../models/model_raw/xgboost_v01a_8wClass3ile_YUM.rda')
+
+# also load the function to build the df
+source('../models/functions/model_v01a.R')
+```
+
+
+```{r}
+#| label: using-vip
+#| warning: false
+#| message: false
+
+library(vip)
+
+yo <- xgboost_model |> extract_fit_parsnip()
+xgboost_model |> extract_parameter_dials()
+```
+
+
+```{r}
+library(yardstick)
+library(tune)
+
+xgboost_model |> #collect_metrics()
+  collect_predictions()
+```
+
+
+# Shapviz 
+
+```{r}
+#| label: shapviz
+#| warning: false
+#| message: false
+
+library(tidyr)
+library(shapviz)
+
+df <- model01a('YUM', num_days = 41) |> 
+  drop_na()
+
+df_small <- df[sample(nrow(df), 1500), ]
+df_small_prep <- 
+```
+
+```{r}
+library(DALEX)
+library(DALEXtra)
+df <- model01a('YUM', num_days = 41) |> drop_na() |> select(-close, -forw_ret)
+
+df_train <- df |> filter(date < '2023-06-01')
+explain_xgboost <- explain_tidymodels(model = model_xgboost, 
+                           data = df_train, y = df_train$ord_class)
+explain_xgboost
+
+library(shapviz)
+library(recipes)
+df_train_small <- df_train[sample(nrow(df_train), 1500), ]
+recipe_base <- recipe(ord_class ~ ., data = df_train) |> 
+  update_role(date, new_role = 'ID') 
+
+df_train_baked <- bake(prep(recipe_base), has_role('predictor'), 
+                       new_data = df_train_small, composition = 'matrix')
+
+shap <- shapviz(extract_fit_engine(model_xgboost), 
+                X_pred = df_train_baked, X = df_train_baked)
+
+sv_importance(shap, kind = "both", show_numbers = TRUE)
+sv_dependence(shap, "ma_cross_l", color_var = "auto")
+```
+

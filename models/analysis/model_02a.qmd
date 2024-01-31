@@ -1,0 +1,93 @@
+---
+title: "Analysis of Model V02a"
+format: 
+  html: 
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    theme: darkly
+    fontsize: 1.1em
+    grid: 
+      sidebar-width: 0px
+      body-width: 2000px
+      margin-width: 0px
+---
+
+We are analysis all variables here, checking predictions certainties, checking future predictions, checking metrics, etc. 
+
+```{r}
+#| label: setup
+#| warning: false
+#| message: false
+
+source('../functions/model_v02a.R')
+
+library(readr)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(glue)
+library(gt)
+
+the_path <- here::here()
+
+get_var_imp <- function(ticker) {
+  df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
+    arrange(desc(Importance)) |> 
+    mutate(rank_order = row_number())
+  return(df)
+}
+```
+
+# Analyzing Variable Importance 
+
+```{r}
+#| label: varimp
+
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_8wClass3ile_')
+
+df_VI_v01a <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX')) |> 
+  mutate(var_imp = map(ticker, get_var_imp)) |> 
+  unnest(cols = c(var_imp)) |> 
+  group_by(Variable) |> 
+  summarise(mean_rank = mean(rank_order), 
+            mean_imp = mean(Importance, na.rm=TRUE), 
+            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+  arrange(desc(mean_imp))
+
+df_VI_v01a |> gt()
+```
+
+
+# Making prediction 
+
+```{r}
+#| label: makingPrediction
+#| warning: false
+#| message: false
+#| eval: false
+
+ticker <- 'AXP'
+num_days <- 41
+
+model_name <- 'xgboost_v2a_8wClass3ile_'
+
+library(parsnip)
+library(yardstick)
+
+model_fit <- read_rds(glue(the_path, '/models/model_raw/', model_name, ticker, '.rda'))
+df <- model01a(ticker, num_days) |> filter(date > '2023-06-30')
+
+df_test_class <- predict(model_fit, new_data = df)
+df_test_prob <- predict(model_fit, new_data = df, type = 'prob')
+
+yo <- bind_cols(df |> select(date, forw_ret, ord_class), df_test_class, df_test_prob)
+
+library(broom)
+library(tidyr)
+conf_mat(yo, truth = ord_class, estimate = .pred_class)
+summary(conf_mat(yo, truth = ord_class, estimate = .pred_class))
+
+f_meas(yo, truth = ord_class, estimate = .pred_class)
+```
+

@@ -1,0 +1,71 @@
+---
+title: "Analysis of Model V01a"
+format: 
+  html: 
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    theme: darkly
+    fontsize: 1.1em
+    grid: 
+      sidebar-width: 0px
+      body-width: 2000px
+      margin-width: 0px
+---
+
+We are analysis all variables here, checking predictions certainties, checking future predictions, checking metrics, etc. 
+
+```{r}
+#| label: setup
+#| warning: false
+#| message: false
+
+library(readr)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(recipes)
+library(parsnip)
+library(glue)
+
+source('../functions/model_v01a.R')
+source('../functions/model_v02a.R')
+source('../functions/model_v01e.R')
+source('../functions/model_v02e.R')
+
+the_path <- here::here()
+
+ticker <- 'YUM'
+num_days <- '41d'
+
+df_v01 <- model01a(ticker, parse_number(num_days)) |> 
+  filter(date > '2023-06-30') 
+df_v02 <- model02a(ticker, parse_number(num_days)) |> 
+  filter(date > '2023-06-30') 
+model_v01a <- read_rds(glue(the_path, '/models/model_raw/xgboost_', 'v01a_', num_days, '_', ticker, '.rda'))
+model_v02a <- read_rds(glue(the_path, '/models/model_raw/xgboost_', 'v02a_', num_days, '_', ticker, '.rda'))
+model_v02e <- read_rds(glue(the_path, '/models/model_raw/xgboost_', 'v02e_', num_days, '_', ticker, '.rda'))
+
+
+
+v01a <- augment(model_v01a, df_v01) |> 
+  select(date, close, forw_ret, ord_class, class_v01a = .pred_class, 
+         .pred_1, .pred_2, .pred_3) |> 
+  rename(v01a_pred1 = .pred_1, v01a_pred2 = .pred_2, v01a_pred3 = .pred_3)
+v02a <- augment(model_v02a, df_v02) |> 
+  select(date, ord_class, class_v02a = .pred_class, .pred_1, .pred_2, .pred_3) |> 
+  rename(v02a_pred1 = .pred_1, v02a_pred2 = .pred_2, v02a_pred3 = .pred_3)
+v02e <- augment(model_v02e, df_v02) |> 
+  select(date, ord_class, pred_v02e = .pred) 
+
+library(yardstick)
+yo <- conf_mat(v01a, truth = ord_class, estimate = class_v01a)
+summary(yo)
+
+yo <- conf_mat(v02a, truth = ord_class, estimate = class_v02a)
+
+
+df_pred <- left_join(v01a, v02a) |> 
+  left_join(v02e)
+```
+
