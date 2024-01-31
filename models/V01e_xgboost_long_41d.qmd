@@ -43,11 +43,11 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'CVX'
-num_days <- 41
+ticker <- 'SBUX'
+num_days <- '29d'
 
 model_type = '8wRegPerc'
-yop <- glue('xgboost_v01e_', model_type, "_", ticker)
+yop <- glue('xgboost_v01e_', num_days, "_", ticker)
 ```
 
 ## Buidling df 
@@ -112,7 +112,7 @@ df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |>
          corr_sma50_sma200_1Y = corr_roll_1Y(sma50, sma200), 
          roll_sd_volu200_31days = sd_roll_31d(volum200_perc), 
          roll_sd_volu200_251days = sd_roll_1Y(volum200_perc), 
-         forw_ret = log(lead(close, n = num_days) / close), 
+         forw_ret = log(lead(close, n = parse_number(num_days)) / close), 
          ord_class = ntile(forw_ret, 100))
 
 df2 <- df |> 
@@ -181,12 +181,12 @@ model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune
   set_engine("xgboost") |>  
   set_mode("regression") 
 
-stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)), 
+stopping_grid <-grid_latin_hypercube(trees(range = c(600, 950)), 
                                      loss_reduction(range = c(-10, 1.5)), 
                                      mtry(range = c(13L, 17L)), 
                                      learn_rate(range = c(-4, -2)), 
                                      min_n(range = c(17L, 31L)),   
-                                     tree_depth(range = c(5L, 11L)), 
+                                     tree_depth(range = c(7L, 11L)), 
                                      size = 25)
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
