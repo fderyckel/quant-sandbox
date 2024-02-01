@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Analysis of Model V01a</title>
+<title>Analysis of Models E</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -57,16 +57,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="model_01a_files/libs/clipboard/clipboard.min.js"></script>
-<script src="model_01a_files/libs/quarto-html/quarto.js"></script>
-<script src="model_01a_files/libs/quarto-html/popper.min.js"></script>
-<script src="model_01a_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="model_01a_files/libs/quarto-html/anchor.min.js"></script>
-<link href="model_01a_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="model_01a_files/libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="model_01a_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="model_01a_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="model_01a_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="dark">
+<script src="model_e_files/libs/clipboard/clipboard.min.js"></script>
+<script src="model_e_files/libs/quarto-html/quarto.js"></script>
+<script src="model_e_files/libs/quarto-html/popper.min.js"></script>
+<script src="model_e_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="model_e_files/libs/quarto-html/anchor.min.js"></script>
+<link href="model_e_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="model_e_files/libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="model_e_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="model_e_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="model_e_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="dark">
 
 
 </head>
@@ -84,9 +84,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#standard-with-xgboost-and-tidymodel" id="toc-standard-with-xgboost-and-tidymodel" class="nav-link" data-scroll-target="#standard-with-xgboost-and-tidymodel">Standard with xgboost and tidymodel</a></li>
   <li><a href="#with-shap-value" id="toc-with-shap-value" class="nav-link" data-scroll-target="#with-shap-value">With SHAP value</a></li>
   </ul></li>
-  <li><a href="#analysing-metrics-on-validation-set" id="toc-analysing-metrics-on-validation-set" class="nav-link" data-scroll-target="#analysing-metrics-on-validation-set">Analysing metrics on Validation set</a>
+  <li><a href="#analysing-metrics" id="toc-analysing-metrics" class="nav-link" data-scroll-target="#analysing-metrics">Analysing metrics</a>
   <ul class="collapse">
-  <li><a href="#combining-metrics-on-model-v01a-and-v02a" id="toc-combining-metrics-on-model-v01a-and-v02a" class="nav-link" data-scroll-target="#combining-metrics-on-model-v01a-and-v02a">Combining metrics on model V01a and V02a</a></li>
+  <li><a href="#on-the-validation-sets" id="toc-on-the-validation-sets" class="nav-link" data-scroll-target="#on-the-validation-sets">on the validation sets</a></li>
   </ul></li>
   <li><a href="#making-prediction" id="toc-making-prediction" class="nav-link" data-scroll-target="#making-prediction">Making prediction</a></li>
   </ul>
@@ -98,7 +98,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Analysis of Model V01a</h1>
+<h1 class="title">Analysis of Models E</h1>
 </div>
 
 
@@ -114,9 +114,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 <p>We are analysis all variables here, checking predictions certainties, checking future predictions, checking metrics, etc.</p>
+<p>We are summarizing our finding here with the 2 models.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">'../functions/model_v01a.R'</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">'../functions/model_v02a.R'</span>)</span>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">'../functions/model_v01e.R'</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">'../functions/model_v02e.R'</span>)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
@@ -127,7 +128,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>the_path <span class="ot">&lt;-</span> here<span class="sc">::</span><span class="fu">here</span>()</span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">ticker =</span> <span class="fu">c</span>(<span class="st">'AAPL'</span>, <span class="st">'AMD'</span>, <span class="st">'AXP'</span>, <span class="st">'CVX'</span>, <span class="st">'FDX'</span>, <span class="st">'HAL'</span>, <span class="st">'SBUX'</span>))</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">ticker =</span> <span class="fu">c</span>(<span class="st">'AAPL'</span>, <span class="st">'AMD'</span>, <span class="st">'AXP'</span>, <span class="st">'CVX'</span>, <span class="st">'FDX'</span>, <span class="st">'HAL'</span>, <span class="st">'SBUX'</span>, <span class="st">'YUM'</span>))</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>get_var_imp <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker) {</span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">glue</span>(yop, ticker, <span class="st">'.csv'</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span> </span>
@@ -136,52 +137,42 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(df)</span>
 <span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>get_metrics <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker, model_name) {</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>get_metrics_reg <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker, model_name) {</span>
 <span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">glue</span>(yop, ticker, <span class="st">'.csv'</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span> </span>
 <span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">slice_head</span>(<span class="at">n=</span><span class="dv">3</span>)</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  df2 <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">name =</span> model_name, <span class="st">'Precision'</span> <span class="ot">=</span> <span class="fu">mean</span>(df<span class="sc">$</span>mean_preci), </span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>                <span class="st">'SoftPreci'</span> <span class="ot">=</span> <span class="fu">mean</span>(df<span class="sc">$</span>mean_soft_preci), </span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>                <span class="st">'Accuracy'</span> <span class="ot">=</span> <span class="fu">mean</span>(df<span class="sc">$</span>mean_soft_acc), </span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>                <span class="st">'Recall'</span> <span class="ot">=</span> <span class="fu">mean</span>(df<span class="sc">$</span>mean_recall))</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(df2)</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  df2 <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">name =</span> model_name, <span class="st">'RMSE'</span> <span class="ot">=</span> <span class="fu">mean</span>(df<span class="sc">$</span>mean))</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(df2)</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="analyzing-variable-importance" class="level1">
 <h1>Analyzing Variable Importance</h1>
 <section id="standard-with-xgboost-and-tidymodel" class="level2">
 <h2 class="anchored" data-anchor-id="standard-with-xgboost-and-tidymodel">Standard with xgboost and tidymodel</h2>
+<section id="days-1-12-months-forward" class="level3">
+<h3 class="anchored" data-anchor-id="days-1-12-months-forward">29 days (1 1/2 months forward)</h3>
+</section>
+<section id="days-2-months-forward" class="level3">
+<h3 class="anchored" data-anchor-id="days-2-months-forward">41 days (2 months forward)</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>yop <span class="ot">&lt;-</span> <span class="fu">glue</span>(the_path, <span class="st">'/models/model_vars_imp/xgboost_v01a_8wClass3ile_'</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>df_VI_v01a <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> </span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">var_imp =</span> <span class="fu">map</span>(ticker, get_var_imp)) <span class="sc">|&gt;</span> </span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="fu">c</span>(var_imp)) <span class="sc">|&gt;</span> </span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Variable) <span class="sc">|&gt;</span> </span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_rank =</span> <span class="fu">mean</span>(rank_order), </span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">mean_imp =</span> <span class="fu">mean</span>(Importance, <span class="at">na.rm=</span><span class="cn">TRUE</span>), </span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>            <span class="at">sd_imp =</span> <span class="fu">sd</span>(Importance, <span class="at">na.rm=</span><span class="cn">TRUE</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(mean_imp))</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>df_VI_v01a <span class="sc">|&gt;</span> <span class="fu">gt</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 
-<div id="dqcdtyrptb" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#dqcdtyrptb table {
+<div id="ecaoeupdji" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ecaoeupdji table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#dqcdtyrptb thead, #dqcdtyrptb tbody, #dqcdtyrptb tfoot, #dqcdtyrptb tr, #dqcdtyrptb td, #dqcdtyrptb th {
+#ecaoeupdji thead, #ecaoeupdji tbody, #ecaoeupdji tfoot, #ecaoeupdji tr, #ecaoeupdji td, #ecaoeupdji th {
   border-style: none;
 }
 
-#dqcdtyrptb p {
+#ecaoeupdji p {
   margin: 0;
   padding: 0;
 }
 
-#dqcdtyrptb .gt_table {
+#ecaoeupdji .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -207,12 +198,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-left-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_caption {
+#ecaoeupdji .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#dqcdtyrptb .gt_title {
+#ecaoeupdji .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -224,7 +215,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-width: 0;
 }
 
-#dqcdtyrptb .gt_subtitle {
+#ecaoeupdji .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -236,7 +227,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-width: 0;
 }
 
-#dqcdtyrptb .gt_heading {
+#ecaoeupdji .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -248,13 +239,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_bottom_border {
+#ecaoeupdji .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_col_headings {
+#ecaoeupdji .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -269,7 +260,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_col_heading {
+#ecaoeupdji .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -289,7 +280,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#dqcdtyrptb .gt_column_spanner_outer {
+#ecaoeupdji .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -301,15 +292,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 4px;
 }
 
-#dqcdtyrptb .gt_column_spanner_outer:first-child {
+#ecaoeupdji .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#dqcdtyrptb .gt_column_spanner_outer:last-child {
+#ecaoeupdji .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#dqcdtyrptb .gt_column_spanner {
+#ecaoeupdji .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -321,11 +312,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   width: 100%;
 }
 
-#dqcdtyrptb .gt_spanner_row {
+#ecaoeupdji .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#dqcdtyrptb .gt_group_heading {
+#ecaoeupdji .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -351,7 +342,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   text-align: left;
 }
 
-#dqcdtyrptb .gt_empty_group_heading {
+#ecaoeupdji .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -366,15 +357,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: middle;
 }
 
-#dqcdtyrptb .gt_from_md > :first-child {
+#ecaoeupdji .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#dqcdtyrptb .gt_from_md > :last-child {
+#ecaoeupdji .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#dqcdtyrptb .gt_row {
+#ecaoeupdji .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -393,7 +384,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#dqcdtyrptb .gt_stub {
+#ecaoeupdji .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -406,7 +397,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#dqcdtyrptb .gt_stub_row_group {
+#ecaoeupdji .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -420,15 +411,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: top;
 }
 
-#dqcdtyrptb .gt_row_group_first td {
+#ecaoeupdji .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#dqcdtyrptb .gt_row_group_first th {
+#ecaoeupdji .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#dqcdtyrptb .gt_summary_row {
+#ecaoeupdji .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -438,16 +429,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#dqcdtyrptb .gt_first_summary_row {
+#ecaoeupdji .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_first_summary_row.thick {
+#ecaoeupdji .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#dqcdtyrptb .gt_last_summary_row {
+#ecaoeupdji .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -457,7 +448,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_grand_summary_row {
+#ecaoeupdji .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -467,7 +458,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#dqcdtyrptb .gt_first_grand_summary_row {
+#ecaoeupdji .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -477,7 +468,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_last_grand_summary_row_top {
+#ecaoeupdji .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -487,11 +478,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_striped {
+#ecaoeupdji .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#dqcdtyrptb .gt_table_body {
+#ecaoeupdji .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -500,7 +491,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_footnotes {
+#ecaoeupdji .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -514,7 +505,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_footnote {
+#ecaoeupdji .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -523,7 +514,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#dqcdtyrptb .gt_sourcenotes {
+#ecaoeupdji .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -537,7 +528,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#dqcdtyrptb .gt_sourcenote {
+#ecaoeupdji .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -545,63 +536,63 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#dqcdtyrptb .gt_left {
+#ecaoeupdji .gt_left {
   text-align: left;
 }
 
-#dqcdtyrptb .gt_center {
+#ecaoeupdji .gt_center {
   text-align: center;
 }
 
-#dqcdtyrptb .gt_right {
+#ecaoeupdji .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#dqcdtyrptb .gt_font_normal {
+#ecaoeupdji .gt_font_normal {
   font-weight: normal;
 }
 
-#dqcdtyrptb .gt_font_bold {
+#ecaoeupdji .gt_font_bold {
   font-weight: bold;
 }
 
-#dqcdtyrptb .gt_font_italic {
+#ecaoeupdji .gt_font_italic {
   font-style: italic;
 }
 
-#dqcdtyrptb .gt_super {
+#ecaoeupdji .gt_super {
   font-size: 65%;
 }
 
-#dqcdtyrptb .gt_footnote_marks {
+#ecaoeupdji .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#dqcdtyrptb .gt_asterisk {
+#ecaoeupdji .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#dqcdtyrptb .gt_indent_1 {
+#ecaoeupdji .gt_indent_1 {
   text-indent: 5px;
 }
 
-#dqcdtyrptb .gt_indent_2 {
+#ecaoeupdji .gt_indent_2 {
   text-indent: 10px;
 }
 
-#dqcdtyrptb .gt_indent_3 {
+#ecaoeupdji .gt_indent_3 {
   text-indent: 15px;
 }
 
-#dqcdtyrptb .gt_indent_4 {
+#ecaoeupdji .gt_indent_4 {
   text-indent: 20px;
 }
 
-#dqcdtyrptb .gt_indent_5 {
+#ecaoeupdji .gt_indent_5 {
   text-indent: 25px;
 }
 </style>
@@ -613,115 +604,120 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="mean_rank">mean_rank</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="mean_imp">mean_imp</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="sd_imp">sd_imp</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="model">model</th>
     </tr>
   </thead>
   <tbody class="gt_table_body">
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret21d_1Y</td>
-<td headers="mean_rank" class="gt_row gt_right">1.571429</td>
-<td headers="mean_imp" class="gt_row gt_right">0.133911213</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0258923836</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">1.750</td>
+<td headers="mean_imp" class="gt_row gt_right">0.1477812031</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0413272186</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_251days</td>
-<td headers="mean_rank" class="gt_row gt_right">2.714286</td>
-<td headers="mean_imp" class="gt_row gt_right">0.118038691</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0305032730</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">2.875</td>
+<td headers="mean_imp" class="gt_row gt_right">0.1127725497</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0191825333</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret5d_7M</td>
-<td headers="mean_rank" class="gt_row gt_right">3.714286</td>
-<td headers="mean_imp" class="gt_row gt_right">0.099829907</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0146771195</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">3.875</td>
+<td headers="mean_imp" class="gt_row gt_right">0.1038964795</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0235750382</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">corr_sma50_sma200_1Y</td>
-<td headers="mean_rank" class="gt_row gt_right">4.000000</td>
-<td headers="mean_imp" class="gt_row gt_right">0.092760521</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0153286355</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">corr_ema20_sma50_1Y</td>
-<td headers="mean_rank" class="gt_row gt_right">6.000000</td>
-<td headers="mean_imp" class="gt_row gt_right">0.078914919</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0260621100</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">ma_cross_l</td>
-<td headers="mean_rank" class="gt_row gt_right">6.142857</td>
-<td headers="mean_imp" class="gt_row gt_right">0.077215598</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0228454046</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">4.250</td>
+<td headers="mean_imp" class="gt_row gt_right">0.1014777547</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0349931373</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">corr_sma50_sma200_199d</td>
-<td headers="mean_rank" class="gt_row gt_right">6.000000</td>
-<td headers="mean_imp" class="gt_row gt_right">0.076740485</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0182671462</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">5.375</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0816307790</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0190853319</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">corr_ema20_sma50_1Y</td>
+<td headers="mean_rank" class="gt_row gt_right">6.375</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0779408363</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0234513900</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">ma_cross_l</td>
+<td headers="mean_rank" class="gt_row gt_right">6.000</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0770668167</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0183411608</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">corr_ema20_sma50_199d</td>
-<td headers="mean_rank" class="gt_row gt_right">7.142857</td>
-<td headers="mean_imp" class="gt_row gt_right">0.072761957</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0132735638</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_intraday_3M</td>
-<td headers="mean_rank" class="gt_row gt_right">10.142857</td>
-<td headers="mean_imp" class="gt_row gt_right">0.053831815</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0111038778</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">7.250</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0697360536</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0207317822</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret1d_63days</td>
-<td headers="mean_rank" class="gt_row gt_right">9.857143</td>
-<td headers="mean_imp" class="gt_row gt_right">0.053519674</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0078869635</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">8.875</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0541205276</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0138280849</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret5d_3M</td>
-<td headers="mean_rank" class="gt_row gt_right">10.142857</td>
-<td headers="mean_imp" class="gt_row gt_right">0.049550584</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0115856806</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_31days</td>
-<td headers="mean_rank" class="gt_row gt_right">11.285714</td>
-<td headers="mean_imp" class="gt_row gt_right">0.047288535</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0084750469</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">10.375</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0462072578</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0136056262</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_intraday_3M</td>
+<td headers="mean_rank" class="gt_row gt_right">10.750</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0440227974</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0126441377</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">above_sd_ret21d_1Y</td>
-<td headers="mean_rank" class="gt_row gt_right">12.285714</td>
-<td headers="mean_imp" class="gt_row gt_right">0.035100089</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0142237595</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">11.500</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0392205872</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0153694216</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_31days</td>
+<td headers="mean_rank" class="gt_row gt_right">11.750</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0359519425</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0095202280</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">above_sd_ret5d_7M</td>
-<td headers="mean_rank" class="gt_row gt_right">14.000000</td>
-<td headers="mean_imp" class="gt_row gt_right">0.004413524</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0028868818</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">14.000</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0050037114</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0025890909</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">above_sd_ret5d_3M</td>
-<td headers="mean_rank" class="gt_row gt_right">15.333333</td>
-<td headers="mean_imp" class="gt_row gt_right">0.003794319</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0024303307</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">15.125</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0020568995</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0010823099</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">above_sd_intraday_1Y</td>
-<td headers="mean_rank" class="gt_row gt_right">15.666667</td>
-<td headers="mean_imp" class="gt_row gt_right">0.002602877</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0016437900</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">16.000</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0008359847</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0009181172</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">above_sd_ret1d_3M</td>
-<td headers="mean_rank" class="gt_row gt_right">17.000000</td>
-<td headers="mean_imp" class="gt_row gt_right">0.000745706</td>
-<td headers="sd_imp" class="gt_row gt_right">0.0006860629</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">16.875</td>
+<td headers="mean_imp" class="gt_row gt_right">0.0002778193</td>
+<td headers="sd_imp" class="gt_row gt_right">0.0004088697</td>
+<td headers="model" class="gt_row gt_left">v01e</td></tr>
   </tbody>
   
   
 </table>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">ticker =</span> <span class="fu">c</span>(<span class="st">'AAPL'</span>, <span class="st">'AMD'</span>, <span class="st">'AXP'</span>, <span class="st">'CVX'</span>, <span class="st">'FDX'</span>, <span class="st">'HAL'</span>, <span class="st">'SBUX'</span>))</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>yop <span class="ot">&lt;-</span> <span class="fu">glue</span>(the_path, <span class="st">'/models/model_vars_imp/xgboost_v02a_8wClass3ile_'</span>)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>df_VI_v02a <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> </span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">var_imp =</span> <span class="fu">map</span>(ticker, get_var_imp)) <span class="sc">|&gt;</span> </span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="fu">c</span>(var_imp)) <span class="sc">|&gt;</span> </span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Variable) <span class="sc">|&gt;</span> </span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_rank =</span> <span class="fu">mean</span>(rank_order), </span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>            <span class="at">mean_imp =</span> <span class="fu">mean</span>(Importance, <span class="at">na.rm=</span><span class="cn">TRUE</span>), </span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>            <span class="at">sd_imp =</span> <span class="fu">sd</span>(Importance, <span class="at">na.rm=</span><span class="cn">TRUE</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(mean_imp))</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>df_VI_v02a <span class="sc">|&gt;</span> <span class="fu">gt</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 
-<div id="qwgzdaoxud" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#qwgzdaoxud table {
+<div id="ekkiybdvjs" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ekkiybdvjs table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#qwgzdaoxud thead, #qwgzdaoxud tbody, #qwgzdaoxud tfoot, #qwgzdaoxud tr, #qwgzdaoxud td, #qwgzdaoxud th {
+#ekkiybdvjs thead, #ekkiybdvjs tbody, #ekkiybdvjs tfoot, #ekkiybdvjs tr, #ekkiybdvjs td, #ekkiybdvjs th {
   border-style: none;
 }
 
-#qwgzdaoxud p {
+#ekkiybdvjs p {
   margin: 0;
   padding: 0;
 }
 
-#qwgzdaoxud .gt_table {
+#ekkiybdvjs .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -747,12 +743,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-left-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_caption {
+#ekkiybdvjs .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#qwgzdaoxud .gt_title {
+#ekkiybdvjs .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -764,7 +760,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-width: 0;
 }
 
-#qwgzdaoxud .gt_subtitle {
+#ekkiybdvjs .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -776,7 +772,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-width: 0;
 }
 
-#qwgzdaoxud .gt_heading {
+#ekkiybdvjs .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -788,13 +784,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_bottom_border {
+#ekkiybdvjs .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_col_headings {
+#ekkiybdvjs .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -809,7 +805,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_col_heading {
+#ekkiybdvjs .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -829,7 +825,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#qwgzdaoxud .gt_column_spanner_outer {
+#ekkiybdvjs .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -841,15 +837,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 4px;
 }
 
-#qwgzdaoxud .gt_column_spanner_outer:first-child {
+#ekkiybdvjs .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#qwgzdaoxud .gt_column_spanner_outer:last-child {
+#ekkiybdvjs .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#qwgzdaoxud .gt_column_spanner {
+#ekkiybdvjs .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -861,11 +857,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   width: 100%;
 }
 
-#qwgzdaoxud .gt_spanner_row {
+#ekkiybdvjs .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#qwgzdaoxud .gt_group_heading {
+#ekkiybdvjs .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -891,7 +887,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   text-align: left;
 }
 
-#qwgzdaoxud .gt_empty_group_heading {
+#ekkiybdvjs .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -906,15 +902,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: middle;
 }
 
-#qwgzdaoxud .gt_from_md > :first-child {
+#ekkiybdvjs .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#qwgzdaoxud .gt_from_md > :last-child {
+#ekkiybdvjs .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#qwgzdaoxud .gt_row {
+#ekkiybdvjs .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -933,7 +929,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#qwgzdaoxud .gt_stub {
+#ekkiybdvjs .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -946,7 +942,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#qwgzdaoxud .gt_stub_row_group {
+#ekkiybdvjs .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -960,15 +956,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: top;
 }
 
-#qwgzdaoxud .gt_row_group_first td {
+#ekkiybdvjs .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#qwgzdaoxud .gt_row_group_first th {
+#ekkiybdvjs .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#qwgzdaoxud .gt_summary_row {
+#ekkiybdvjs .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -978,16 +974,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#qwgzdaoxud .gt_first_summary_row {
+#ekkiybdvjs .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_first_summary_row.thick {
+#ekkiybdvjs .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#qwgzdaoxud .gt_last_summary_row {
+#ekkiybdvjs .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -997,7 +993,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_grand_summary_row {
+#ekkiybdvjs .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1007,7 +1003,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#qwgzdaoxud .gt_first_grand_summary_row {
+#ekkiybdvjs .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1017,7 +1013,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_last_grand_summary_row_top {
+#ekkiybdvjs .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1027,11 +1023,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_striped {
+#ekkiybdvjs .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#qwgzdaoxud .gt_table_body {
+#ekkiybdvjs .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1040,7 +1036,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_footnotes {
+#ekkiybdvjs .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1054,7 +1050,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_footnote {
+#ekkiybdvjs .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1063,7 +1059,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#qwgzdaoxud .gt_sourcenotes {
+#ekkiybdvjs .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1077,7 +1073,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#qwgzdaoxud .gt_sourcenote {
+#ekkiybdvjs .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1085,63 +1081,63 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#qwgzdaoxud .gt_left {
+#ekkiybdvjs .gt_left {
   text-align: left;
 }
 
-#qwgzdaoxud .gt_center {
+#ekkiybdvjs .gt_center {
   text-align: center;
 }
 
-#qwgzdaoxud .gt_right {
+#ekkiybdvjs .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#qwgzdaoxud .gt_font_normal {
+#ekkiybdvjs .gt_font_normal {
   font-weight: normal;
 }
 
-#qwgzdaoxud .gt_font_bold {
+#ekkiybdvjs .gt_font_bold {
   font-weight: bold;
 }
 
-#qwgzdaoxud .gt_font_italic {
+#ekkiybdvjs .gt_font_italic {
   font-style: italic;
 }
 
-#qwgzdaoxud .gt_super {
+#ekkiybdvjs .gt_super {
   font-size: 65%;
 }
 
-#qwgzdaoxud .gt_footnote_marks {
+#ekkiybdvjs .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#qwgzdaoxud .gt_asterisk {
+#ekkiybdvjs .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#qwgzdaoxud .gt_indent_1 {
+#ekkiybdvjs .gt_indent_1 {
   text-indent: 5px;
 }
 
-#qwgzdaoxud .gt_indent_2 {
+#ekkiybdvjs .gt_indent_2 {
   text-indent: 10px;
 }
 
-#qwgzdaoxud .gt_indent_3 {
+#ekkiybdvjs .gt_indent_3 {
   text-indent: 15px;
 }
 
-#qwgzdaoxud .gt_indent_4 {
+#ekkiybdvjs .gt_indent_4 {
   text-indent: 20px;
 }
 
-#qwgzdaoxud .gt_indent_5 {
+#ekkiybdvjs .gt_indent_5 {
   text-indent: 25px;
 }
 </style>
@@ -1153,113 +1149,140 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="mean_rank">mean_rank</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="mean_imp">mean_imp</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="sd_imp">sd_imp</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="model">model</th>
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret1d_147d</td>
-<td headers="mean_rank" class="gt_row gt_right">6.285714</td>
-<td headers="mean_imp" class="gt_row gt_right">0.059487425</td>
-<td headers="sd_imp" class="gt_row gt_right">0.019672598</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret21d_251d_lag19</td>
-<td headers="mean_rank" class="gt_row gt_right">5.714286</td>
-<td headers="mean_imp" class="gt_row gt_right">0.054668799</td>
-<td headers="sd_imp" class="gt_row gt_right">0.010035068</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_intraday_251d</td>
-<td headers="mean_rank" class="gt_row gt_right">7.571429</td>
-<td headers="mean_imp" class="gt_row gt_right">0.053620262</td>
-<td headers="sd_imp" class="gt_row gt_right">0.017333735</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">corr_rollSdRet5d3M_rollSdRet5d7M_229d</td>
-<td headers="mean_rank" class="gt_row gt_right">6.857143</td>
-<td headers="mean_imp" class="gt_row gt_right">0.052326160</td>
-<td headers="sd_imp" class="gt_row gt_right">0.012648474</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">4.250</td>
+<td headers="mean_imp" class="gt_row gt_right">0.068824871</td>
+<td headers="sd_imp" class="gt_row gt_right">0.019201164</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">above_sd_sma199_251d</td>
-<td headers="mean_rank" class="gt_row gt_right">7.285714</td>
-<td headers="mean_imp" class="gt_row gt_right">0.051334100</td>
-<td headers="sd_imp" class="gt_row gt_right">0.014020160</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">5.250</td>
+<td headers="mean_imp" class="gt_row gt_right">0.060213375</td>
+<td headers="sd_imp" class="gt_row gt_right">0.018372610</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">corr_rollSdRet5d3M_rollSdRet5d7M_229d</td>
+<td headers="mean_rank" class="gt_row gt_right">7.875</td>
+<td headers="mean_imp" class="gt_row gt_right">0.054665464</td>
+<td headers="sd_imp" class="gt_row gt_right">0.023701687</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret21d_251d_lag19</td>
+<td headers="mean_rank" class="gt_row gt_right">7.250</td>
+<td headers="mean_imp" class="gt_row gt_right">0.054548893</td>
+<td headers="sd_imp" class="gt_row gt_right">0.020152459</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">corr_sma50_sma200_199d</td>
-<td headers="mean_rank" class="gt_row gt_right">7.142857</td>
-<td headers="mean_imp" class="gt_row gt_right">0.050826871</td>
-<td headers="sd_imp" class="gt_row gt_right">0.010905882</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">7.125</td>
+<td headers="mean_imp" class="gt_row gt_right">0.052795811</td>
+<td headers="sd_imp" class="gt_row gt_right">0.014531934</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret21d_251d</td>
-<td headers="mean_rank" class="gt_row gt_right">9.428571</td>
-<td headers="mean_imp" class="gt_row gt_right">0.049311825</td>
-<td headers="sd_imp" class="gt_row gt_right">0.019580447</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">corr_sma50_sma200_101d</td>
-<td headers="mean_rank" class="gt_row gt_right">8.000000</td>
-<td headers="mean_imp" class="gt_row gt_right">0.047971688</td>
-<td headers="sd_imp" class="gt_row gt_right">0.010685898</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_251d_lag17</td>
-<td headers="mean_rank" class="gt_row gt_right">9.000000</td>
-<td headers="mean_imp" class="gt_row gt_right">0.046680144</td>
-<td headers="sd_imp" class="gt_row gt_right">0.017448019</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">9.375</td>
+<td headers="mean_imp" class="gt_row gt_right">0.049677054</td>
+<td headers="sd_imp" class="gt_row gt_right">0.021081699</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">corr_ema20_sma50_251d</td>
-<td headers="mean_rank" class="gt_row gt_right">8.857143</td>
-<td headers="mean_imp" class="gt_row gt_right">0.046651774</td>
-<td headers="sd_imp" class="gt_row gt_right">0.013617008</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">8.625</td>
+<td headers="mean_imp" class="gt_row gt_right">0.047440003</td>
+<td headers="sd_imp" class="gt_row gt_right">0.014575757</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret1d_147d</td>
+<td headers="mean_rank" class="gt_row gt_right">10.125</td>
+<td headers="mean_imp" class="gt_row gt_right">0.044633584</td>
+<td headers="sd_imp" class="gt_row gt_right">0.012098286</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_251d_lag17</td>
+<td headers="mean_rank" class="gt_row gt_right">11.125</td>
+<td headers="mean_imp" class="gt_row gt_right">0.042529312</td>
+<td headers="sd_imp" class="gt_row gt_right">0.017269316</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">corr_ema20_sma50_199d</td>
-<td headers="mean_rank" class="gt_row gt_right">10.142857</td>
-<td headers="mean_imp" class="gt_row gt_right">0.043400934</td>
-<td headers="sd_imp" class="gt_row gt_right">0.014854074</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">10.375</td>
+<td headers="mean_imp" class="gt_row gt_right">0.041437315</td>
+<td headers="sd_imp" class="gt_row gt_right">0.009412233</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret21d_251d_lag7</td>
-<td headers="mean_rank" class="gt_row gt_right">12.285714</td>
-<td headers="mean_imp" class="gt_row gt_right">0.042523341</td>
-<td headers="sd_imp" class="gt_row gt_right">0.013981760</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">ma_cross_l</td>
-<td headers="mean_rank" class="gt_row gt_right">12.285714</td>
-<td headers="mean_imp" class="gt_row gt_right">0.039063532</td>
-<td headers="sd_imp" class="gt_row gt_right">0.010907135</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">12.500</td>
+<td headers="mean_imp" class="gt_row gt_right">0.039442155</td>
+<td headers="sd_imp" class="gt_row gt_right">0.012840512</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_mean_ret5d_147d</td>
-<td headers="mean_rank" class="gt_row gt_right">14.428571</td>
-<td headers="mean_imp" class="gt_row gt_right">0.038235915</td>
-<td headers="sd_imp" class="gt_row gt_right">0.018620335</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_251d</td>
-<td headers="mean_rank" class="gt_row gt_right">12.571429</td>
-<td headers="mean_imp" class="gt_row gt_right">0.037662196</td>
-<td headers="sd_imp" class="gt_row gt_right">0.004173977</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret5d_147d</td>
-<td headers="mean_rank" class="gt_row gt_right">15.571429</td>
-<td headers="mean_imp" class="gt_row gt_right">0.033473104</td>
-<td headers="sd_imp" class="gt_row gt_right">0.005973353</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_251d_lag5</td>
-<td headers="mean_rank" class="gt_row gt_right">15.571429</td>
-<td headers="mean_imp" class="gt_row gt_right">0.032873593</td>
-<td headers="sd_imp" class="gt_row gt_right">0.009165273</td></tr>
-    <tr><td headers="Variable" class="gt_row gt_left">roll_mean_ret5d_61d</td>
-<td headers="mean_rank" class="gt_row gt_right">16.714286</td>
-<td headers="mean_imp" class="gt_row gt_right">0.031022205</td>
-<td headers="sd_imp" class="gt_row gt_right">0.009985176</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">13.250</td>
+<td headers="mean_imp" class="gt_row gt_right">0.039414376</td>
+<td headers="sd_imp" class="gt_row gt_right">0.013870217</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">corr_sma50_sma200_101d</td>
+<td headers="mean_rank" class="gt_row gt_right">12.375</td>
+<td headers="mean_imp" class="gt_row gt_right">0.038268201</td>
+<td headers="sd_imp" class="gt_row gt_right">0.011958241</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_mean_ret1d_61d</td>
-<td headers="mean_rank" class="gt_row gt_right">17.285714</td>
-<td headers="mean_imp" class="gt_row gt_right">0.029583501</td>
-<td headers="sd_imp" class="gt_row gt_right">0.006001081</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">14.875</td>
+<td headers="mean_imp" class="gt_row gt_right">0.036512127</td>
+<td headers="sd_imp" class="gt_row gt_right">0.017601860</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">ma_cross_l</td>
+<td headers="mean_rank" class="gt_row gt_right">13.375</td>
+<td headers="mean_imp" class="gt_row gt_right">0.036035344</td>
+<td headers="sd_imp" class="gt_row gt_right">0.013982436</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_251d</td>
+<td headers="mean_rank" class="gt_row gt_right">14.125</td>
+<td headers="mean_imp" class="gt_row gt_right">0.035937690</td>
+<td headers="sd_imp" class="gt_row gt_right">0.010883436</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_251d_lag5</td>
+<td headers="mean_rank" class="gt_row gt_right">14.125</td>
+<td headers="mean_imp" class="gt_row gt_right">0.033736619</td>
+<td headers="sd_imp" class="gt_row gt_right">0.007522226</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_mean_ret5d_61d</td>
+<td headers="mean_rank" class="gt_row gt_right">15.875</td>
+<td headers="mean_imp" class="gt_row gt_right">0.033031398</td>
+<td headers="sd_imp" class="gt_row gt_right">0.014275767</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_intraday_61d</td>
-<td headers="mean_rank" class="gt_row gt_right">18.571429</td>
-<td headers="mean_imp" class="gt_row gt_right">0.028825514</td>
-<td headers="sd_imp" class="gt_row gt_right">0.006705813</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">14.250</td>
+<td headers="mean_imp" class="gt_row gt_right">0.032905314</td>
+<td headers="sd_imp" class="gt_row gt_right">0.008591776</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret1d_61d</td>
-<td headers="mean_rank" class="gt_row gt_right">19.857143</td>
-<td headers="mean_imp" class="gt_row gt_right">0.027769726</td>
-<td headers="sd_imp" class="gt_row gt_right">0.007632235</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">15.625</td>
+<td headers="mean_imp" class="gt_row gt_right">0.031920221</td>
+<td headers="sd_imp" class="gt_row gt_right">0.011536933</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
+    <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret5d_147d</td>
+<td headers="mean_rank" class="gt_row gt_right">18.250</td>
+<td headers="mean_imp" class="gt_row gt_right">0.027865494</td>
+<td headers="sd_imp" class="gt_row gt_right">0.008698783</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret5d_147d_lag11</td>
-<td headers="mean_rank" class="gt_row gt_right">19.428571</td>
-<td headers="mean_imp" class="gt_row gt_right">0.027502066</td>
-<td headers="sd_imp" class="gt_row gt_right">0.008968713</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">18.625</td>
+<td headers="mean_imp" class="gt_row gt_right">0.027347916</td>
+<td headers="sd_imp" class="gt_row gt_right">0.007420361</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_ret5d_147d_lag5</td>
-<td headers="mean_rank" class="gt_row gt_right">20.000000</td>
-<td headers="mean_imp" class="gt_row gt_right">0.025345339</td>
-<td headers="sd_imp" class="gt_row gt_right">0.009319211</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">20.500</td>
+<td headers="mean_imp" class="gt_row gt_right">0.024317542</td>
+<td headers="sd_imp" class="gt_row gt_right">0.008062619</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">roll_sd_volu200_31d</td>
-<td headers="mean_rank" class="gt_row gt_right">19.857143</td>
-<td headers="mean_imp" class="gt_row gt_right">0.024303540</td>
-<td headers="sd_imp" class="gt_row gt_right">0.010711620</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">22.000</td>
+<td headers="mean_imp" class="gt_row gt_right">0.020080745</td>
+<td headers="sd_imp" class="gt_row gt_right">0.007231317</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">atr17_open</td>
-<td headers="mean_rank" class="gt_row gt_right">24.428571</td>
-<td headers="mean_imp" class="gt_row gt_right">0.015868602</td>
-<td headers="sd_imp" class="gt_row gt_right">0.004974358</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">23.875</td>
+<td headers="mean_imp" class="gt_row gt_right">0.016856806</td>
+<td headers="sd_imp" class="gt_row gt_right">0.003626382</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
     <tr><td headers="Variable" class="gt_row gt_left">atr11_open</td>
-<td headers="mean_rank" class="gt_row gt_right">25.857143</td>
-<td headers="mean_imp" class="gt_row gt_right">0.009667845</td>
-<td headers="sd_imp" class="gt_row gt_right">0.001542963</td></tr>
+<td headers="mean_rank" class="gt_row gt_right">26.000</td>
+<td headers="mean_imp" class="gt_row gt_right">0.009562372</td>
+<td headers="sd_imp" class="gt_row gt_right">0.002802797</td>
+<td headers="model" class="gt_row gt_left">v02e</td></tr>
   </tbody>
   
   
@@ -1267,57 +1290,41 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+</section>
 </section>
 <section id="with-shap-value" class="level2">
 <h2 class="anchored" data-anchor-id="with-shap-value">With SHAP value</h2>
 </section>
 </section>
-<section id="analysing-metrics-on-validation-set" class="level1">
-<h1>Analysing metrics on Validation set</h1>
+<section id="analysing-metrics" class="level1">
+<h1>Analysing metrics</h1>
+<section id="on-the-validation-sets" class="level2">
+<h2 class="anchored" data-anchor-id="on-the-validation-sets">on the validation sets</h2>
+<section id="days-1-12-months-forward-1" class="level3">
+<h3 class="anchored" data-anchor-id="days-1-12-months-forward-1">29 days (1 1/2 months forward)</h3>
+</section>
+<section id="days-2-months-forward-1" class="level3">
+<h3 class="anchored" data-anchor-id="days-2-months-forward-1">41 days (2 months forward)</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>yop <span class="ot">&lt;-</span> <span class="fu">glue</span>(the_path, <span class="st">'/models/model_metrics/xgboost_v01a_8wClass3ile_'</span>)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>model_name <span class="ot">&lt;-</span> <span class="st">'model_v01a'</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>df_v01a <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> </span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">metrics =</span> <span class="fu">map2</span>(ticker, model_name, get_metrics)) <span class="sc">|&gt;</span> </span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="fu">c</span>(metrics)) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> model_name)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co">#df_v01a |&gt; gt()</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>yop <span class="ot">&lt;-</span> <span class="fu">glue</span>(the_path, <span class="st">'/models/model_metrics/xgboost_v02a_8wClass3ile_'</span>)</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>model_name <span class="ot">&lt;-</span> <span class="st">'model_v02a'</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>df_v02a <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> </span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">metrics =</span> <span class="fu">map2</span>(ticker, model_name, get_metrics)) <span class="sc">|&gt;</span> </span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="fu">c</span>(metrics)) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">model =</span> model_name)</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="co">#df_v02a |&gt; gt()</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<section id="combining-metrics-on-model-v01a-and-v02a" class="level2">
-<h2 class="anchored" data-anchor-id="combining-metrics-on-model-v01a-and-v02a">Combining metrics on model V01a and V02a</h2>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df_v01a <span class="sc">|&gt;</span> <span class="fu">add_row</span>(df_v02a) <span class="sc">|&gt;</span> </span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(ticker, name)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>df <span class="sc">|&gt;</span> <span class="fu">gt</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 
-<div id="fdgviesxtg" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#fdgviesxtg table {
+<div id="hbszloikhq" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#hbszloikhq table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#fdgviesxtg thead, #fdgviesxtg tbody, #fdgviesxtg tfoot, #fdgviesxtg tr, #fdgviesxtg td, #fdgviesxtg th {
+#hbszloikhq thead, #hbszloikhq tbody, #hbszloikhq tfoot, #hbszloikhq tr, #hbszloikhq td, #hbszloikhq th {
   border-style: none;
 }
 
-#fdgviesxtg p {
+#hbszloikhq p {
   margin: 0;
   padding: 0;
 }
 
-#fdgviesxtg .gt_table {
+#hbszloikhq .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -1343,12 +1350,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-left-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_caption {
+#hbszloikhq .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#fdgviesxtg .gt_title {
+#hbszloikhq .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -1360,7 +1367,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-width: 0;
 }
 
-#fdgviesxtg .gt_subtitle {
+#hbszloikhq .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -1372,7 +1379,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-width: 0;
 }
 
-#fdgviesxtg .gt_heading {
+#hbszloikhq .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -1384,13 +1391,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_bottom_border {
+#hbszloikhq .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_col_headings {
+#hbszloikhq .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1405,7 +1412,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_col_heading {
+#hbszloikhq .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1425,7 +1432,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#fdgviesxtg .gt_column_spanner_outer {
+#hbszloikhq .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1437,15 +1444,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 4px;
 }
 
-#fdgviesxtg .gt_column_spanner_outer:first-child {
+#hbszloikhq .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#fdgviesxtg .gt_column_spanner_outer:last-child {
+#hbszloikhq .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#fdgviesxtg .gt_column_spanner {
+#hbszloikhq .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1457,11 +1464,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   width: 100%;
 }
 
-#fdgviesxtg .gt_spanner_row {
+#hbszloikhq .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#fdgviesxtg .gt_group_heading {
+#hbszloikhq .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1487,7 +1494,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   text-align: left;
 }
 
-#fdgviesxtg .gt_empty_group_heading {
+#hbszloikhq .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1502,15 +1509,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: middle;
 }
 
-#fdgviesxtg .gt_from_md > :first-child {
+#hbszloikhq .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#fdgviesxtg .gt_from_md > :last-child {
+#hbszloikhq .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#fdgviesxtg .gt_row {
+#hbszloikhq .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1529,7 +1536,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#fdgviesxtg .gt_stub {
+#hbszloikhq .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1542,7 +1549,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#fdgviesxtg .gt_stub_row_group {
+#hbszloikhq .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1556,15 +1563,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: top;
 }
 
-#fdgviesxtg .gt_row_group_first td {
+#hbszloikhq .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#fdgviesxtg .gt_row_group_first th {
+#hbszloikhq .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#fdgviesxtg .gt_summary_row {
+#hbszloikhq .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1574,16 +1581,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#fdgviesxtg .gt_first_summary_row {
+#hbszloikhq .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_first_summary_row.thick {
+#hbszloikhq .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#fdgviesxtg .gt_last_summary_row {
+#hbszloikhq .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1593,7 +1600,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_grand_summary_row {
+#hbszloikhq .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1603,7 +1610,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#fdgviesxtg .gt_first_grand_summary_row {
+#hbszloikhq .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1613,7 +1620,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_last_grand_summary_row_top {
+#hbszloikhq .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1623,11 +1630,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_striped {
+#hbszloikhq .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#fdgviesxtg .gt_table_body {
+#hbszloikhq .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1636,7 +1643,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_footnotes {
+#hbszloikhq .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1650,7 +1657,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_footnote {
+#hbszloikhq .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1659,7 +1666,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#fdgviesxtg .gt_sourcenotes {
+#hbszloikhq .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1673,7 +1680,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#fdgviesxtg .gt_sourcenote {
+#hbszloikhq .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1681,63 +1688,63 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#fdgviesxtg .gt_left {
+#hbszloikhq .gt_left {
   text-align: left;
 }
 
-#fdgviesxtg .gt_center {
+#hbszloikhq .gt_center {
   text-align: center;
 }
 
-#fdgviesxtg .gt_right {
+#hbszloikhq .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#fdgviesxtg .gt_font_normal {
+#hbszloikhq .gt_font_normal {
   font-weight: normal;
 }
 
-#fdgviesxtg .gt_font_bold {
+#hbszloikhq .gt_font_bold {
   font-weight: bold;
 }
 
-#fdgviesxtg .gt_font_italic {
+#hbszloikhq .gt_font_italic {
   font-style: italic;
 }
 
-#fdgviesxtg .gt_super {
+#hbszloikhq .gt_super {
   font-size: 65%;
 }
 
-#fdgviesxtg .gt_footnote_marks {
+#hbszloikhq .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#fdgviesxtg .gt_asterisk {
+#hbszloikhq .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#fdgviesxtg .gt_indent_1 {
+#hbszloikhq .gt_indent_1 {
   text-indent: 5px;
 }
 
-#fdgviesxtg .gt_indent_2 {
+#hbszloikhq .gt_indent_2 {
   text-indent: 10px;
 }
 
-#fdgviesxtg .gt_indent_3 {
+#hbszloikhq .gt_indent_3 {
   text-indent: 15px;
 }
 
-#fdgviesxtg .gt_indent_4 {
+#hbszloikhq .gt_indent_4 {
   text-indent: 20px;
 }
 
-#fdgviesxtg .gt_indent_5 {
+#hbszloikhq .gt_indent_5 {
   text-indent: 25px;
 }
 </style>
@@ -1747,112 +1754,75 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <tr class="gt_col_headings">
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="ticker">ticker</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="name">name</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Precision">Precision</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="SoftPreci">SoftPreci</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Accuracy">Accuracy</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Recall">Recall</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="RMSE">RMSE</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="model">model</th>
     </tr>
   </thead>
   <tbody class="gt_table_body">
     <tr><td headers="ticker" class="gt_row gt_left">AAPL</td>
-<td headers="name" class="gt_row gt_left">model_v01a</td>
-<td headers="Precision" class="gt_row gt_right">0.3629999</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.5370373</td>
-<td headers="Accuracy" class="gt_row gt_right">0.6615873</td>
-<td headers="Recall" class="gt_row gt_right">0.2700565</td>
-<td headers="model" class="gt_row gt_left">model_v01a</td></tr>
+<td headers="name" class="gt_row gt_left">v01e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">26.07413</td>
+<td headers="model" class="gt_row gt_left">v01e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">AAPL</td>
-<td headers="name" class="gt_row gt_left">model_v02a</td>
-<td headers="Precision" class="gt_row gt_right">0.2868709</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.5031045</td>
-<td headers="Accuracy" class="gt_row gt_right">0.6177778</td>
-<td headers="Recall" class="gt_row gt_right">0.2429379</td>
-<td headers="model" class="gt_row gt_left">model_v02a</td></tr>
+<td headers="name" class="gt_row gt_left">v02e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">25.49537</td>
+<td headers="model" class="gt_row gt_left">v02e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">AMD</td>
-<td headers="name" class="gt_row gt_left">model_v01a</td>
-<td headers="Precision" class="gt_row gt_right">0.3362868</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.5424560</td>
-<td headers="Accuracy" class="gt_row gt_right">0.5301587</td>
-<td headers="Recall" class="gt_row gt_right">0.4039548</td>
-<td headers="model" class="gt_row gt_left">model_v01a</td></tr>
+<td headers="name" class="gt_row gt_left">v01e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">26.58632</td>
+<td headers="model" class="gt_row gt_left">v01e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">AMD</td>
-<td headers="name" class="gt_row gt_left">model_v02a</td>
-<td headers="Precision" class="gt_row gt_right">0.2738501</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.5459821</td>
-<td headers="Accuracy" class="gt_row gt_right">0.4768254</td>
-<td headers="Recall" class="gt_row gt_right">0.3342750</td>
-<td headers="model" class="gt_row gt_left">model_v02a</td></tr>
+<td headers="name" class="gt_row gt_left">v02e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">24.24092</td>
+<td headers="model" class="gt_row gt_left">v02e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">AXP</td>
-<td headers="name" class="gt_row gt_left">model_v01a</td>
-<td headers="Precision" class="gt_row gt_right">0.3546187</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.4833344</td>
-<td headers="Accuracy" class="gt_row gt_right">0.5596825</td>
-<td headers="Recall" class="gt_row gt_right">0.2948029</td>
-<td headers="model" class="gt_row gt_left">model_v01a</td></tr>
+<td headers="name" class="gt_row gt_left">v01e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">27.96418</td>
+<td headers="model" class="gt_row gt_left">v01e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">AXP</td>
-<td headers="name" class="gt_row gt_left">model_v02a</td>
-<td headers="Precision" class="gt_row gt_right">0.3861134</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.5070822</td>
-<td headers="Accuracy" class="gt_row gt_right">0.5701587</td>
-<td headers="Recall" class="gt_row gt_right">0.3620072</td>
-<td headers="model" class="gt_row gt_left">model_v02a</td></tr>
+<td headers="name" class="gt_row gt_left">v02e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">25.53465</td>
+<td headers="model" class="gt_row gt_left">v02e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">CVX</td>
-<td headers="name" class="gt_row gt_left">model_v01a</td>
-<td headers="Precision" class="gt_row gt_right">0.2830246</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.4221618</td>
-<td headers="Accuracy" class="gt_row gt_right">0.5320635</td>
-<td headers="Recall" class="gt_row gt_right">0.3908795</td>
-<td headers="model" class="gt_row gt_left">model_v01a</td></tr>
+<td headers="name" class="gt_row gt_left">v01e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">28.55172</td>
+<td headers="model" class="gt_row gt_left">v01e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">CVX</td>
-<td headers="name" class="gt_row gt_left">model_v02a</td>
-<td headers="Precision" class="gt_row gt_right">0.3398628</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.4827659</td>
-<td headers="Accuracy" class="gt_row gt_right">0.5755556</td>
-<td headers="Recall" class="gt_row gt_right">0.4788274</td>
-<td headers="model" class="gt_row gt_left">model_v02a</td></tr>
+<td headers="name" class="gt_row gt_left">v02e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">27.41222</td>
+<td headers="model" class="gt_row gt_left">v02e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">FDX</td>
-<td headers="name" class="gt_row gt_left">model_v01a</td>
-<td headers="Precision" class="gt_row gt_right">0.4145375</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.5402196</td>
-<td headers="Accuracy" class="gt_row gt_right">0.5860317</td>
-<td headers="Recall" class="gt_row gt_right">0.3491228</td>
-<td headers="model" class="gt_row gt_left">model_v01a</td></tr>
+<td headers="name" class="gt_row gt_left">v01e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">29.34212</td>
+<td headers="model" class="gt_row gt_left">v01e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">FDX</td>
-<td headers="name" class="gt_row gt_left">model_v02a</td>
-<td headers="Precision" class="gt_row gt_right">0.4918841</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.5782051</td>
-<td headers="Accuracy" class="gt_row gt_right">0.6339683</td>
-<td headers="Recall" class="gt_row gt_right">0.3508772</td>
-<td headers="model" class="gt_row gt_left">model_v02a</td></tr>
+<td headers="name" class="gt_row gt_left">v02e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">28.46005</td>
+<td headers="model" class="gt_row gt_left">v02e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">HAL</td>
-<td headers="name" class="gt_row gt_left">model_v01a</td>
-<td headers="Precision" class="gt_row gt_right">0.4050534</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.5416643</td>
-<td headers="Accuracy" class="gt_row gt_right">0.5857143</td>
-<td headers="Recall" class="gt_row gt_right">0.4649860</td>
-<td headers="model" class="gt_row gt_left">model_v01a</td></tr>
+<td headers="name" class="gt_row gt_left">v01e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">31.45679</td>
+<td headers="model" class="gt_row gt_left">v01e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">HAL</td>
-<td headers="name" class="gt_row gt_left">model_v02a</td>
-<td headers="Precision" class="gt_row gt_right">0.2306022</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.3760270</td>
-<td headers="Accuracy" class="gt_row gt_right">0.4523810</td>
-<td headers="Recall" class="gt_row gt_right">0.2614379</td>
-<td headers="model" class="gt_row gt_left">model_v02a</td></tr>
+<td headers="name" class="gt_row gt_left">v02e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">30.41579</td>
+<td headers="model" class="gt_row gt_left">v02e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">SBUX</td>
-<td headers="name" class="gt_row gt_left">model_v01a</td>
-<td headers="Precision" class="gt_row gt_right">0.4127266</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.6409973</td>
-<td headers="Accuracy" class="gt_row gt_right">0.6876190</td>
-<td headers="Recall" class="gt_row gt_right">0.4774115</td>
-<td headers="model" class="gt_row gt_left">model_v01a</td></tr>
+<td headers="name" class="gt_row gt_left">v01e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">23.88034</td>
+<td headers="model" class="gt_row gt_left">v01e_41d</td></tr>
     <tr><td headers="ticker" class="gt_row gt_left">SBUX</td>
-<td headers="name" class="gt_row gt_left">model_v02a</td>
-<td headers="Precision" class="gt_row gt_right">0.4261368</td>
-<td headers="SoftPreci" class="gt_row gt_right">0.6406593</td>
-<td headers="Accuracy" class="gt_row gt_right">0.6901587</td>
-<td headers="Recall" class="gt_row gt_right">0.5531136</td>
-<td headers="model" class="gt_row gt_left">model_v02a</td></tr>
+<td headers="name" class="gt_row gt_left">v02e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">23.05333</td>
+<td headers="model" class="gt_row gt_left">v02e_41d</td></tr>
+    <tr><td headers="ticker" class="gt_row gt_left">YUM</td>
+<td headers="name" class="gt_row gt_left">v01e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">26.83992</td>
+<td headers="model" class="gt_row gt_left">v01e_41d</td></tr>
+    <tr><td headers="ticker" class="gt_row gt_left">YUM</td>
+<td headers="name" class="gt_row gt_left">v02e_41d</td>
+<td headers="RMSE" class="gt_row gt_right">26.68344</td>
+<td headers="model" class="gt_row gt_left">v02e_41d</td></tr>
   </tbody>
   
   
@@ -1862,31 +1832,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </section>
 </section>
+</section>
 <section id="making-prediction" class="level1">
 <h1>Making prediction</h1>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ticker <span class="ot">&lt;-</span> <span class="st">'AXP'</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>num_days <span class="ot">&lt;-</span> <span class="dv">41</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>model_name <span class="ot">&lt;-</span> <span class="st">'xgboost_v1a_8wClass3ile_'</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(parsnip)</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(yardstick)</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>model_fit <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="fu">glue</span>(the_path, <span class="st">'/models/model_raw/'</span>, model_name, ticker, <span class="st">'.rda'</span>))</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">model01a</span>(ticker, num_days) <span class="sc">|&gt;</span> <span class="fu">filter</span>(date <span class="sc">&gt;</span> <span class="st">'2023-06-30'</span>)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>df_test_class <span class="ot">&lt;-</span> <span class="fu">predict</span>(model_fit, <span class="at">new_data =</span> df)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>df_test_prob <span class="ot">&lt;-</span> <span class="fu">predict</span>(model_fit, <span class="at">new_data =</span> df, <span class="at">type =</span> <span class="st">'prob'</span>)</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>yo <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(df <span class="sc">|&gt;</span> <span class="fu">select</span>(date, forw_ret, ord_class), df_test_class, df_test_prob)</span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="fu">conf_mat</span>(yo, <span class="at">truth =</span> ord_class, <span class="at">estimate =</span> .pred_class)</span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">conf_mat</span>(yo, <span class="at">truth =</span> ord_class, <span class="at">estimate =</span> .pred_class))</span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="fu">f_meas</span>(yo, <span class="at">truth =</span> ord_class, <span class="at">estimate =</span> .pred_class)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>ticker <span class="ot">&lt;-</span> <span class="st">'AXP'</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>num_days <span class="ot">&lt;-</span> <span class="dv">41</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>model_name <span class="ot">&lt;-</span> <span class="st">'xgboost_v1a_8wClass3ile_'</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(parsnip)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(yardstick)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>model_fit <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="fu">glue</span>(the_path, <span class="st">'/models/model_raw/'</span>, model_name, ticker, <span class="st">'.rda'</span>))</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">model01a</span>(ticker, num_days) <span class="sc">|&gt;</span> <span class="fu">filter</span>(date <span class="sc">&gt;</span> <span class="st">'2023-06-30'</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>df_test_class <span class="ot">&lt;-</span> <span class="fu">predict</span>(model_fit, <span class="at">new_data =</span> df)</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>df_test_prob <span class="ot">&lt;-</span> <span class="fu">predict</span>(model_fit, <span class="at">new_data =</span> df, <span class="at">type =</span> <span class="st">'prob'</span>)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>yo <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(df <span class="sc">|&gt;</span> <span class="fu">select</span>(date, forw_ret, ord_class), df_test_class, df_test_prob)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="fu">conf_mat</span>(yo, <span class="at">truth =</span> ord_class, <span class="at">estimate =</span> .pred_class)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">conf_mat</span>(yo, <span class="at">truth =</span> ord_class, <span class="at">estimate =</span> .pred_class))</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="fu">f_meas</span>(yo, <span class="at">truth =</span> ord_class, <span class="at">estimate =</span> .pred_class)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 

@@ -1,5 +1,5 @@
 ---
-title: "Analysis of Model V01a"
+title: "Analysis of Models E"
 format: 
   html: 
     toc: true
@@ -15,13 +15,15 @@ format:
 
 We are analysis all variables here, checking predictions certainties, checking future predictions, checking metrics, etc. 
 
+We are summarizing our finding here with the 2 models. 
+
 ```{r}
 #| label: setup
 #| warning: false
 #| message: false
 
-source('../functions/model_v01a.R')
-source('../functions/model_v02a.R')
+source('../functions/model_v01e.R')
+source('../functions/model_v02e.R')
 
 library(readr)
 library(dplyr)
@@ -32,7 +34,7 @@ library(gt)
 
 the_path <- here::here()
 
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX'))
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
 
 get_var_imp <- function(ticker) {
   df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
@@ -41,52 +43,53 @@ get_var_imp <- function(ticker) {
   return(df)
 }
 
-get_metrics <- function(ticker, model_name) {
+get_metrics_reg <- function(ticker, model_name) {
   df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
     slice_head(n=3)
-  df2 <- tibble(name = model_name, 'Precision' = mean(df$mean_preci), 
-                'SoftPreci' = mean(df$mean_soft_preci), 
-                'Accuracy' = mean(df$mean_soft_acc), 
-                'Recall' = mean(df$mean_recall))
+  df2 <- tibble(name = model_name, 'RMSE' = mean(df$mean))
   return(df2)
 }
-
 ```
 
 
 # Analyzing Variable Importance 
 
 ## Standard with xgboost and tidymodel 
+
+### 29 days (1 1/2 months forward) 
+
+### 41 days (2 months forward) 
+
 ```{r}
-#| label: varimp
+#| label: varimp-41d
+#| echo: false
 
-yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01a_8wClass3ile_')
+num_days = '41d'
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01e_', num_days, '_')
 
-df_VI_v01a <- df |> 
+df_VI_v01e <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
   summarise(mean_rank = mean(rank_order), 
             mean_imp = mean(Importance, na.rm=TRUE), 
             sd_imp = sd(Importance, na.rm=TRUE)) |> 
-  arrange(desc(mean_imp))
+  arrange(desc(mean_imp)) |> mutate(model = 'v01e')
 
-df_VI_v01a |> gt()
+df_VI_v01e |> gt()
 
 
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX'))
-yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_8wClass3ile_')
-
-df_VI_v02a <- df |> 
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02e_', num_days, '_')
+df_VI_v02e <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
   summarise(mean_rank = mean(rank_order), 
             mean_imp = mean(Importance, na.rm=TRUE), 
             sd_imp = sd(Importance, na.rm=TRUE)) |> 
-  arrange(desc(mean_imp))
+  arrange(desc(mean_imp)) |> mutate(model = 'v02e')
 
-df_VI_v02a |> gt()
+df_VI_v02e |> gt()
 ```
 
 ## With SHAP value 
@@ -96,33 +99,37 @@ df_VI_v02a |> gt()
 ```
 
 
-# Analysing metrics on Validation set
+# Analysing metrics 
+
+## on the validation sets 
+
+### 29 days (1 1/2 months forward) 
+
+
+### 41 days (2 months forward) 
 
 ```{r}
-#| label: metrics
+#| label: metrics-41d
+#| echo: false
 
-yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_8wClass3ile_')
-model_name <- 'model_v01a'
+num_days = '41d'
 
-df_v01a <- df |> 
-  mutate(metrics = map2(ticker, model_name, get_metrics)) |> 
+yop <- glue(the_path, '/models/model_metrics/xgboost_v01e_', num_days, '_')
+model_name <- 'v01e_41d'
+df_v01e <- df |> 
+  mutate(metrics = map2(ticker, model_name, get_metrics_reg)) |> 
   unnest(cols = c(metrics)) |> mutate(model = model_name)
+#df_v01e |> gt()
 
-#df_v01a |> gt()
-
-yop <- glue(the_path, '/models/model_metrics/xgboost_v02a_8wClass3ile_')
-model_name <- 'model_v02a'
-df_v02a <- df |> 
-  mutate(metrics = map2(ticker, model_name, get_metrics)) |> 
+yop <- glue(the_path, '/models/model_metrics/xgboost_v02e_', num_days, '_')
+model_name <- 'v02e_41d'
+df_v02e <- df |> 
+  mutate(metrics = map2(ticker, model_name, get_metrics_reg)) |> 
   unnest(cols = c(metrics)) |> mutate(model = model_name)
 
 #df_v02a |> gt()
-```
 
-## Combining metrics on model V01a and V02a 
-
-```{r}
-df <- df_v01a |> add_row(df_v02a) |> 
+df <- df_v01e |> add_row(df_v02e) |> 
   arrange(ticker, name)
 
 df |> gt()
