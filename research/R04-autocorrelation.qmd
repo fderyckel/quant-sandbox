@@ -6,7 +6,7 @@ format: html
 editor: visual
 ---
 
-The idea of this document is to research effect of auto-correlation beyond the daily returns.  So what I am looking for is to what extend does past return could predict future return (3W, 5W and 7W).  
+The idea of this document is to research effect of auto-correlation beyond the daily returns. So what I am looking for is to what extend does past return could predict future return (3W, 5W and 7W).
 
 ```{r}
 #| label: setup
@@ -21,7 +21,6 @@ library(tidyr)        # drop_na()
 library(broom)
 
 ```
-
 
 ```{r}
 #| label: create-df
@@ -82,8 +81,7 @@ yo2 <- yo |>
   mutate(cor = map(data, ~ tidy(cor.test(.x$past_ret, .x$fut_ret))))
 ```
 
-
-Next we could instead bin the returns into 3 equal bins of returns (low, average, high) and then do the correlation for each of these bins.  
+Next we could instead bin the returns into 3 equal bins of returns (low, average, high) and then do the correlation for each of these bins.
 
 REproducible example
 
@@ -93,4 +91,3 @@ df <- tibble(x = rep(1:10, 9),
              fruit2 = c(rep('apple', 30), rep('banana', 30), rep('orange', 30))) |> 
   mutate(var1 = paste0(fruit, x), var2 = paste0('bin_', fruit2, x))
 ```
-

@@ -211,13 +211,13 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 
 # My positions 
 tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'GROY', 'FCX', 'OXY', 'HAL', 
-            'CGC', 'CHTR', 
+            'CGC', 'CHTR', 'CAT', 'GS', 'AON', 
             'CBOE', 'C', 'NEE',  'EL', 'YUM', 'ABBV', 'RVTY') 
 etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP',  'UUP', 'SPY',  'SPY', 'SPY', 
-            'SPY', 'SPY', 
+            'SPY', 'SPY', 'SPY', 'SPY', 'SPY',
             'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY')
 etf2 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP',  'XME', 'XME', 'XLE', 'SPY', 
-            'XLV', 'XLC', 
+            'XLV', 'XLC', 'XLI', 'XLF', 'XLF', 
             'XLF', 'XLF', 'XLU', 'XLP', 'XLY', 'XLV', 'XLV')
 
 stock_tickers <- unique(c(tickers, 'UUP', 'EEM')) 

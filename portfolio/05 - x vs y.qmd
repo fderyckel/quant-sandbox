@@ -1,0 +1,150 @@
+---
+title: "Plotting X vs Y and see divergence"
+date-format: full
+format: 
+  html: 
+    toc: true
+    number_section: true
+    fig-width: 12
+    fig-height: 8
+---
+
+```{r}
+#| label: setup
+#| warning: false
+#| message: false
+#| echo: false
+
+library(dplyr)
+library(readr)
+library(purrr)
+library(lubridate)
+library(tidyr)
+
+the_path <- here::here()
+
+# functions to download prices using the fmpr api
+get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) { 
+  base_url <- "https://financialmodelingprep.com/api/v3/"
+  endpoint <- 'historical-price-full/'
+  headers = c(`Upgrade-Insecure-Requests` = '1')
+  params = list(`datatype` = 'json', `from` = from, `to` = to, 
+                `apikey` = "085072758657f1c6e9f7d0acb8014d5b")
+  res <- httr::GET(url = glue(base_url, endpoint, ticker), 
+                   httr::add_headers(.headers = headers), query = params)
+  return_json <- httr::content(res, as = "text")
+  d <- jsonlite::fromJSON(return_json)
+  d <- tibble::as_tibble(d$historical)
+  write_csv(d, glue({the_path}, "/data_stock_fmpr/", {ticker}, ".csv"))
+}
+
+# functions to read the .csv data of a ticker and order the date
+conform_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(date, adjusted=adjClose) |>  
+      arrange(date)
+    return(df)
+}
+```
+
+
+# TLT vs QQQ 
+
+```{r}
+## create candlestick chart with ETF1 (market) and etf2 (sector)
+create_rel_chart <- function(ticker1, ticker2, 
+                             start_date = today()-365, end_date = today()) {
+  
+  df_ticker <- conform_data(ticker, interval = "Daily", provider = "fmpr") %>% 
+    select(index, adjusted) %>% 
+    mutate(adjusted_tic = as.numeric(adjusted)) 
+  df_etf1 <- conform_data(etf1, interval = "Daily", provider = "fmpr") %>% 
+    select(index, adjusted) %>% mutate(adjusted_etf1 = as.numeric(adjusted)) 
+  df_etf2 <- conform_data(etf2, interval = "Daily", provider = "fmpr") %>% 
+    select(index, adjusted) %>% mutate(adjusted_etf2 = as.numeric(adjusted)) 
+  yo0 <- left_join(df_etf1, df_etf2, by = "index") %>% na.omit() %>% 
+    mutate(adjusted_ms = adjusted_etf2 / adjusted_etf1, 
+           ms_ema139 = TTR::EMA(adjusted_ms, n = 139), 
+           ms_sma373 = TTR::SMA(adjusted_ms, n = 307)) %>% 
+    select(index, adjusted_ms, ms_ema139, ms_sma373)
+  yo1 <- left_join(df_ticker, df_etf1, by = "index") %>% na.omit() %>% 
+    mutate(adjusted_tic_mark = adjusted_tic / adjusted_etf1, 
+           tic_mark_ema139 = TTR::EMA(adjusted_tic_mark, n = 139), 
+           tic_mark_sma373 = TTR::SMA(adjusted_tic_mark, n = 307)) %>% 
+    select(index, adjusted_tic_mark, tic_mark_ema139, tic_mark_sma373)
+  yo2 <- left_join(df_ticker, df_etf2, by = "index") %>% na.omit() %>% 
+    mutate(adjusted_tic_sect = adjusted_tic / adjusted_etf2, 
+           tic_sect_ema139 = TTR::EMA(adjusted_tic_sect, n = 139), 
+           tic_sect_sma373 = TTR::SMA(adjusted_tic_sect, n = 307)) %>% 
+    select(index, adjusted_tic_sect, tic_sect_ema139, tic_sect_sma373)
+  
+  df2 <- left_join(yo0, yo1) %>% left_join(., yo2) %>% 
+    filter(index >= start_date & index <= end_date)
+  
+  # The main chart with the moving averages
+  p1 <- ggplot(df2, aes(x=index, y = adjusted_ms)) + 
+    geom_line(color = "Gray 70") + 
+    geom_line(aes(y = ms_ema139), colour = "Turquoise 1", linewidth = 0.3) + 
+    geom_line(aes(y = ms_sma373), colour = "darkorchid1", linewidth = 0.3) + 
+    # because I need to remember which chart is it (to which stock it belongs)
+    annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_ms[10], label = paste0(etf2, "/", etf1), color = "white") + 
+    scale_x_bd(business.dates=df2$index, max.major.breaks = 20, labels=date_format("%b '%y"), expand = c(0,0.5)) + 
+    scale_y_continuous(sec.axis = sec_axis(~.*1)) + 
+    theme(axis.title.x = element_blank(), 
+          axis.text.x = element_blank(), 
+          axis.text.y = element_text(angle = 90), 
+          plot.margin = margin(0.2, 0.2, 0.1, 0.4, "cm"), # This is to shrink the padding at the 4 side of the graph
+          panel.background = element_rect(fill = "black"), 
+          plot.background = element_rect(fill = "Gray 65"), 
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.15), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.15),
+          panel.grid.minor.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.15),
+          panel.grid.minor.x = element_blank())
+  
+  p2 <- ggplot(df2, aes(x = index, y = adjusted_tic_mark)) + 
+    geom_line( colour = "Gray 80") + 
+    geom_line(aes(y = tic_mark_ema139), colour = "Turquoise 1", linewidth = 0.3) + 
+    geom_line(aes(y = tic_mark_sma373), colour = "darkorchid1", linewidth = 0.3) + 
+    annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_tic_mark[10], label = paste0(ticker, "/", etf1), color = "white") + 
+    scale_x_bd(business.dates=df2$index, max.major.breaks = 20, labels=date_format("%b '%y"), expand = c(0,0.5)) + 
+    scale_y_continuous(sec.axis = sec_axis(~.)) + 
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.y = element_text(angle = 90), 
+          axis.text.x = element_blank(), 
+          plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
+          panel.background = element_rect(fill = "black"), 
+          plot.background = element_rect(fill = "Gray 65"), 
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
+          panel.grid.minor = element_blank())
+  
+  p3 <- ggplot(df2, aes(x = index, y = adjusted_tic_sect)) + 
+    geom_line(colour = "Gray 80") + 
+    geom_line(aes(y = tic_sect_ema139), colour = "Turquoise 1", linewidth = 0.3) + 
+    geom_line(aes(y = tic_sect_sma373), colour = "darkorchid1", linewidth = 0.3) + 
+    annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_tic_sect[10], label = paste0(ticker, "/", etf2), color = "white") + 
+    scale_x_bd(business.dates=df2$index, max.major.breaks = 20, labels=date_format("%b '%y"), expand = c(0,0.5)) + 
+    scale_y_continuous(sec.axis = sec_axis(~.)) + 
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
+          axis.text.y = element_text(angle = 90), 
+          axis.text.x = element_text(angle = 30, vjust = 0.4), 
+          plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
+          panel.background = element_rect(fill = "black"), 
+          plot.background = element_rect(fill = "Gray 65"), 
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
+          panel.grid.minor = element_blank())
+  
+  
+  yo <- grid.arrange(p1, p2, p3,  ncol = 1, heights = c(1, 1, 1))
+  yo
+  #p1
+}
+
+
+
+```
+

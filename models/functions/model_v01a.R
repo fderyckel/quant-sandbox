@@ -60,7 +60,7 @@ model01a <- function(ticker, num_days){
            corr_sma50_sma200_1Y = corr_roll_1Y(sma50, sma200), 
            roll_sd_volu200_31days = sd_roll_31d(volum200_perc), 
            roll_sd_volu200_251days = sd_roll_1Y(volum200_perc), 
-           forw_ret = log(lead(close, n = num_days) / close), 
+           forw_ret = log(lead(close, n = parse_number(num_days)) / close), 
            ord_class = as.factor(ntile(forw_ret, 3))) |> 
     
     select(date, close, forw_ret, 

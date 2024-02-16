@@ -1,0 +1,151 @@
+---
+title: "Python trials"
+format: html
+---
+
+Setting up Python with rstudio is a bitch!!!! here is what I have done. 
+
+```{r}
+library(reticulate)
+virtualenv_list()
+#virtualenv_create('quant', version = '3.12')
+use_virtualenv('quant')
+
+#py_config()
+#py_discover_config()
+
+#py_install('matplotlib')
+```
+
+# Basic Linear algebra with python 
+
+## back to basics with the iris
+
+```{python}
+#| eval: false
+
+from sklearn.datasets import load_iris
+
+import pandas as pd
+
+data = load_iris()
+
+
+```
+
+
+# Time-series 
+
+## make white noise
+
+```{python}
+import pandas as pd
+import numpy as np
+
+x = np.random.normal(loc = 0, scale = 1, size = 1000)
+```
+
+
+
+# Solving ODE with python 
+
+Ordinary Differential Equation can be solved numerically using the idea of difference equations (recursive equations).
+
+## Difference equations 
+
+Bring the idea of recursivity.  Recursively found value of compounding interest rate problem (for instance with yearly interest)
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+x0 = 100      # initial amount
+r = 0.05      # interest rate 
+N=20          # amount of year for coumpounding 
+x = np.zeros(N+1)
+
+x[0] = x0
+for i in range(1,N+1): 
+  x[i] = x[i-1] + r * x[i-1]
+  #print(np.round(x[i], 2))
+
+plt.plot(x, 'ro')
+plt.xlabel('Time (in years)')
+plt.ylabel('Amount')
+plt.show()
+
+x
+```
+
+Or a slightly fancier version with a different compounding time. 
+
+```{python}
+import numpy as np
+import datetime
+import matplotlib.pyplot as plt
+
+date1 = datetime.datetime(2024, 1, 1)
+date2 = datetime.datetime(2044, 1, 1)
+x0 = 100
+r = 0.05
+cpy = 360     # amount of time principal is coumpounded in a year
+
+diff = date2 - date1
+index_set = range(diff.days + 1)
+x = np.zeros(len(index_set))
+
+x[0] = x0
+for i in index_set[1: ]: 
+  x[i] = x[i-1] + r/cpy*x[i-1]
+
+plt.clf()
+plt.plot(index_set, x)
+plt.xlabel('Time (in days)')
+plt.ylabel('Amount')
+plt.show()
+
+x
+```
+
+We can adjust to imagine for a change of interest rate at a given time.  Now, instead of daily compounding, we have monthly compounding. And instead of having 5% throughout, we are first having 3.5% for the first 5 years, then 5%. 
+
+```{python}
+import numpy as np
+import datetime
+import matplotlib.pyplot as plt
+
+date1 = datetime.datetime(2024, 1, 1)
+date2 = datetime.datetime(2029, 1, 1)
+date3 = datetime.datetime(2044, 1, 1)
+x0 = 100
+cpy = 360    # amount of time principal is coumpounded in a year
+
+diff = date3 - date1
+diff1 = date2 - date1
+diff2 = date3 - date2
+index_set = range(diff.days + 1)
+r = np.zeros(len(index_set))
+x = np.zeros(len(index_set))
+
+r[:diff1.days] = 0.035
+r[diff1.days:] = 0.05
+
+x[0] = x0
+for i in index_set[1: ]: 
+  x[i] = x[i-1] + r[i-1]/cpy*x[i-1]
+
+plt.clf()
+plt.plot(index_set, x)
+plt.xlabel('Time (in days)')
+plt.ylabel('Amount')
+plt.show()
+
+x
+```
+
+# System of difference equations 
+
+Using the above idea of compound interest.  We can add another variable like inflation based consumption $c_n$.  Our equation is now $$a_n = a_{n-1} + a_{n-1} * r_{n-1} - c_{n-1}$$.  
+
+Let's start by assuming that interest rate is constant.  But $c_n$ increase at a rate of $I_n$ (our inflation rate)
+

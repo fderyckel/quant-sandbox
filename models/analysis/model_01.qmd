@@ -1,5 +1,5 @@
 ---
-title: "Analysis of Model A"
+title: "Analysis of Model V01"
 format: 
   html: 
     toc: true
@@ -21,7 +21,7 @@ We are analysis all variables here, checking predictions certainties, checking f
 #| message: false
 
 source('../functions/model_v01a.R')
-source('../functions/model_v02a.R')
+source('../functions/model_v01e.R')
 
 library(readr)
 library(dplyr)
@@ -51,8 +51,13 @@ get_metrics_class <- function(ticker, model_name) {
   return(df2)
 }
 
+get_metrics_reg <- function(ticker, model_name) {
+  df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
+    slice_head(n=3)
+  df2 <- tibble(name = model_name, 'RMSE' = mean(df$mean))
+  return(df2)
+}
 ```
-
 
 # Analyzing Variable Importance 
 
@@ -80,8 +85,8 @@ df_VI_v01a <- df |>
 df_VI_v01a |> gt()
 
 
-yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_', num_days, '_')
-df_VI_v02a <- df |> 
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01e_', num_days, '_')
+df_VI_v01e <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -90,7 +95,10 @@ df_VI_v02a <- df |>
             sd_imp = sd(Importance, na.rm=TRUE)) |> 
   arrange(desc(mean_imp))
 
-df_VI_v02a |> gt()
+df_VI_v01e |> gt()
+
+df_VI <- df_VI_v01a |> add_row(df_VI_v01e ) |> 
+  arrange(mean_rank)
 ```
 
 
@@ -115,60 +123,22 @@ df_VI_v01a <- df |>
 df_VI_v01a |> gt()
 
 
-yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_', num_days, '_')
-df_VI_v02a <- df |> 
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01e_', num_days, '_')
+
+df_VI_v01e <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
   summarise(mean_rank = mean(rank_order), 
             mean_imp = mean(Importance, na.rm=TRUE), 
             sd_imp = sd(Importance, na.rm=TRUE)) |> 
-  arrange(desc(mean_imp)) |> mutate(model = 'v02a')
+  arrange(desc(mean_imp)) |> mutate(model = 'v01e')
 
-df_VI_v02a |> gt()
-```
+df_VI_v01e |> gt()
 
-## With SHAP value 
-
-```{r}
-
-```
-
-
-# Analysing metrics 
-
-## On the validation sets 
-
-### 29 days (1 1/2 months forward) 
-
-
-### 41 days (2 months forward) 
-
-```{r}
-#| label: metrics-41d
-#| echo: false
-
-num_days = '41d'
-yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_', num_days, '_')
-model_name <- 'v01a_41d'
-
-df_v01a <- df |> 
-  mutate(metrics = map2(ticker, model_name, get_metrics_class)) |> 
-  unnest(cols = c(metrics)) |> mutate(model = model_name)
-#df_v01a |> gt()
-
-num_days = '41d'
-yop <- glue(the_path, '/models/model_metrics/xgboost_v02a_', num_days, '_')
-model_name <- 'v02a_41d'
-df_v02a <- df |> 
-  mutate(metrics = map2(ticker, model_name, get_metrics_class)) |> 
-  unnest(cols = c(metrics)) |> mutate(model = model_name)
-#df_v02a |> gt()
-
-df <- df_v01a |> add_row(df_v02a) |> 
-  arrange(ticker, name)
-
-df |> gt()
+df_VI <- df_VI_v01a |> add_row(df_VI_v01e ) |> 
+  arrange(mean_rank)
+df_VI |> gt()
 ```
 
 
@@ -178,29 +148,40 @@ df |> gt()
 #| label: makingPrediction
 #| warning: false
 #| message: false
-#| eval: false
-
-ticker <- 'AXP'
-num_days <- 41
-
-model_name <- 'xgboost_v1a_8wClass3ile_'
-
-library(parsnip)
-library(yardstick)
-
-model_fit <- read_rds(glue(the_path, '/models/model_raw/', model_name, ticker, '.rda'))
-df <- model01a(ticker, num_days) |> filter(date > '2023-06-30')
-
-df_test_class <- predict(model_fit, new_data = df)
-df_test_prob <- predict(model_fit, new_data = df, type = 'prob')
-
-yo <- bind_cols(df |> select(date, forw_ret, ord_class), df_test_class, df_test_prob)
+#| eval: true
 
 library(broom)
 library(tidyr)
-conf_mat(yo, truth = ord_class, estimate = .pred_class)
-summary(conf_mat(yo, truth = ord_class, estimate = .pred_class))
+library(parsnip)
+library(yardstick)
 
-f_meas(yo, truth = ord_class, estimate = .pred_class)
+ticker <- 'HAL'
+num_days <- '41d'
+
+yop <- glue(the_path, '/models/model_raw/xgboost_v01a_', num_days, '_')
+model_v01a <- read_rds(glue(yop, ticker, '.rda'))
+df_v01a <- augment(model_v01a, 
+                   model01a(ticker, num_days) |> filter(date > '2023-06-30')) |> 
+  select(date, close, forw_ret, ord_class, v01a_class = .pred_class, 
+         v01a_class1 = .pred_1, v01a_class2 = .pred_2, v01a_class3 = .pred_3)
+
+yop <- glue(the_path, '/models/model_raw/xgboost_v01e_', num_days, '_')
+model_v01e <- read_rds(glue(yop, ticker, '.rda'))
+df_v01e <- augment(model_v01e, 
+                   model01e(ticker, num_days) |> filter(date > '2023-06-30')) |> 
+  select(date, close, forw_ret, v01e_class = ord_class, 
+         v01e_pred = .pred)
+
+yo <- left_join(df_v01a, df_v01e) |> arrange(date) 
+
+yo |> drop_na() |> slice_tail(n = 10) |> gt()
+
+yo |> slice_tail(n = 10) |> gt()
+
+
+conf_mat(yo |> drop_na(), truth = ord_class, estimate = v01a_class)
+summary(conf_mat(yo |> drop_na(), truth = ord_class, estimate = v01a_class)) |> gt()
+
+#f_meas(yo, truth = ord_class, estimate = .pred_class)
 ```
 

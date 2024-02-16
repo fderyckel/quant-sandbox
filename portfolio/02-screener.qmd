@@ -1,7 +1,6 @@
 ---
 title: "02-screeners"
 format: html
-editor: visual
 ---
 
 # Setting up
