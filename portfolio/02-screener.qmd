@@ -22,18 +22,23 @@ library(tidyr)
 
 the_path <- here::here()
 
+xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
+        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA')
 xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
         'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
         'EQT', 'OVV') 
 xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP', 'SCHW', 
-        'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 
-        'CBOE', 'CME', 'ICE') 
+        'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 'TRV', 
+        'CBOE', 'CME', 'ICE', 'KRE') 
+xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
+        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 'TER',  
+        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
 xlp = c('PG', 'UL',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 
         'DEO', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'MKC', 'DLTR', 
         'HRL', 'CHD', 'CLX', 'COTY', 'ELF', 'SJM', 'K', 'CAG') 
 xlu = c('NEE', 'SO', 'DUK', 'SRE', 'AEP', 'D', 'PCG', 'CEG', 'EXC', 'XEL', 'ED', 
         'PEG', 'EIX', 'WEC', 'AWK', 'DTE', 'ES', 'ETR', 'PPL', 'AEE', 'FE') 
-xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'PFE', 'RVTY', 'TMO', 'AMGN', 'DHR', 
+xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'ABT', 'PFE', 'RVTY', 'TMO', 'AMGN', 'DHR', 
         'ISRG', 'ELV', 'MDT', 'VRTX', 'BMY', 'CVS', 'SYK', 'GILD', 'REGN', 'ZTS', 
         'CI', 'BSX', 'BDX', 'MCK', 'HUM', 'COR') 
 xly = c('AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'LOW', 'BKNG', 'PAG', 'SBUX', 'TJX', 'CMG', 

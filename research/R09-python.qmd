@@ -46,6 +46,21 @@ x = np.random.normal(loc = 0, scale = 1, size = 1000)
 ```
 
 
+# Solving equations with python 
+
+# Polynomial equations 
+
+```{python}
+from scipy.optimize import fsolve
+
+def f(t): 
+  return -9.81/2*t**2 + 43.30127018922193*t + 2 
+
+root = fsolve(f, [-100, 100])
+root
+f(1.62929859)
+```
+
 
 # Solving ODE with python 
 

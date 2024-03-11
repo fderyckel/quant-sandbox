@@ -1,0 +1,141 @@
+---
+title: "Finding idiosyncratic trading opportunities in precious metals"
+date-format: full
+format: 
+  html: 
+    toc: true
+    number_section: true
+    fig-width: 12
+    fig-height: 8
+    number-sections: true
+    html-math-method: katex
+    embed-resources: true
+---
+
+# What is this about?  
+Gathering all research that can provide an edge in trading a precious metals.  
+When I look at forward returns, I will continue to use my thirdile bucket system.  But I will make it rolling to the last 3 years only.   
+
+
+```{r}
+#| label: setup
+#| warning: false
+#| message: false
+#| echo: false
+#| include: false
+
+library(dplyr)
+library(readr)
+library(purrr)
+library(lubridate)
+library(tidyr)
+library(glue)
+library(ggplot2)
+library(bdscale)
+library(scales)
+library(gridExtra)
+
+the_path <- here::here()
+source('../functions/chart_plotting_v1.R')
+
+# functions to read the .csv data of a ticker and order the date
+conform_data_loc <- function(ticker) {
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      arrange(date) |> 
+      select(date, adjusted = adjClose)
+    return(df)
+}
+
+```
+
+
+# RGLD and GLD - Stansberry 2024-03-07
+
+I have seen that post on Stansberry of the association between RGLD and GLD.  One (RGLD) is an amplifier of the price of gold (GLD).  I want to first redo / recheck the research, then see how I can apply it. 
+
+Here is the chart I am taking about ![the chart](files/GLD-RGLD.png) 
+
+## First let's try to visualize it 
+
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig.align: "center"
+#| results: false
+
+ticker1 <- 'GLD'
+ticker2 <- 'RGLD'
+
+# create my 2 normal chart for reference 
+yo <- tibble(ticker = ticker2) |>  
+    mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
+           ext_df = map(raw_df, create_plot_fin_df))
+create_candlestick_chart(yo$ext_df[[1]], yo$ticker2)
+create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker2)
+
+create_df_returns <- function(df) {
+  df <- df |> arrange(date) |> filter(date > today() - (365*3)) |> 
+    mutate(forw_ret = log(lead(adjusted, n = parse_number('41d')) / adjusted), 
+           ord_class = as.factor(ntile(forw_ret, n = 3))) |> 
+    filter(date > (today() - 366)) |> 
+    mutate(ret1d = log(adjusted / lag(adjusted, n = 1)), 
+           cumul_ret1d = cumsum(replace(ret1d, is.na(ret1d), 0))) |> 
+    select(date, adjusted, cumul_ret1d, ord_class)      
+  return(df)
+}
+
+## 
+df1 <- conform_data_loc('GLD') |>  create_df_returns() |> select(-adjusted, -ord_class)
+df2 <- conform_data_loc('RGLD') |>  create_df_returns()
+df <- left_join(df1, df2, by = 'date')
+
+ggplot(df, aes(x = date, y = cumul_ret1d.y)) + 
+  geom_line(col = 'blue') + 
+  geom_point(aes(color = ord_class)) + 
+  scale_color_manual(values = c('1' = 'red', '2' = 'blue', '3' = 'green')) + 
+  geom_line(aes(y = cumul_ret1d.x), color = 'gold') + 
+  theme(legend.position = "none") 
+
+
+```
+
+There was a disconnect happening in January 2023 where RGLD did not manage to climb further and pass over the GLD (it should have made up for its lost and more) and then correlation-ish totally crumbled after January.  
+
+## Correlation analysis 
+
+We can see the long term correlation. We'll use rolling correlation a short term (21d), medium term (5 months) and long-term (11 months). 
+
+```{r}
+#| label: checking-correlation
+#| eval: true
+
+library(timetk)
+corr_roll_21d <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 21)
+corr_roll_5M <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 107)
+corr_roll_1Y <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 251)
+
+df1 <- conform_data_loc('GLD') 
+df2 <- conform_data_loc('RGLD') 
+df <- left_join(df1, df2, by = 'date') |> 
+  mutate(roll_cor_prices_21d = corr_roll_21d(adjusted.x, adjusted.y), 
+         roll_cor_prices_5M = corr_roll_5M(adjusted.x, adjusted.y),
+         roll_cor_prices_1Y = corr_roll_1Y(adjusted.x, adjusted.y)) |> 
+  filter(date > today() - (365*3)) |> 
+  mutate(forw_ret = log(lead(adjusted.y, n = parse_number('41d')) / adjusted.y), 
+         ord_class = as.factor(ntile(forw_ret, n = 3))) |> 
+  filter(date > (today() - 548)) # focus on last 18 months
+
+ggplot(df, aes(x = date, y = roll_cor_prices_21d)) + 
+  geom_line(col = 'orange') + 
+  geom_point(aes(color = ord_class)) + 
+  scale_color_manual(values = c('1' = 'red', '2' = 'blue', '3' = 'green')) + 
+  geom_line(aes(y = roll_cor_prices_5M), col = 'pink') + 
+  geom_line(aes(y = roll_cor_prices_1Y), col = 'red')
+```
+
+
+Big mess and I cannot see anything.... let's keep thinking about it. 
+DWT went to say... go ahead, trade! (aggressive trading... you have to keep trading to make money! and go against your guts)

@@ -33,3 +33,67 @@ get_seas_monthly <- function(ticker) {
 }
 
 ```
+
+Create a graph by year start at 0 (and showing percentage increase)
+Starting at January first ...
+
+```{r}
+#| warning: false
+#| message: false
+
+library(readr)
+library(dplyr)
+library(purrr)
+library(glue)
+library(lubridate)
+
+the_path <- here::here()
+
+ticker = 'GDXJ'
+
+get_yearly_ret <- function(ticker){ 
+  df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
+    arrange(date) |> 
+    select(date, adjusted = adjClose) |> 
+    mutate(days_since_start = yday(date), 
+           week_col = isoweek(date), 
+           month_col = month(date, label = TRUE), 
+           year_col = year(date), 
+           fut_ret_41d = log(lead(adjusted, n = 41) / adjusted)) |> 
+    group_by(year_col) |> 
+    mutate(first_price_of_year = first(adjusted), 
+           returns_so_far = (adjusted - first_price_of_year) / first_price_of_year) |> 
+    ungroup() |> 
+    mutate(year_col = as.factor(year_col), 
+           month_col = as.factor(month_col))
+}
+
+yo <- get_yearly_ret('GDXJ')
+
+
+library(ggplot2)
+ggplot(yo |> filter(year_col == 2020 |  year_col == 2021),  
+       aes(x = days_since_start, y = returns_so_far, color = year_col)) + 
+  geom_line()
+
+
+yoo <- yo |> 
+  group_by(week_col, year_col) |> 
+  summarize(week_col = week_col, 
+            fut_ret_41d = first(fut_ret_41d)) |> 
+  unique() |> 
+  group_by(week_col) |> 
+  mutate(mean_fut_ret_41d = mean(fut_ret_41d, na.rm = TRUE)) |> 
+  select(-year_col, -fut_ret_41d) |> 
+  unique()
+
+ggplot(yoo, aes(x = week_col, y = mean_fut_ret_41d)) + 
+  geom_line()
+```
+
+
+Starting at today
+```{r}
+
+```
+

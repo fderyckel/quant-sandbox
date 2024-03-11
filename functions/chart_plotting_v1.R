@@ -9,7 +9,39 @@ library(bdscale)          # to remove the weekends using the scale_x_bd
 library(ggplot2)
 library(tidyr)
 library(lubridate)
+library(httr)
 
+
+get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) { 
+  base_url <- "https://financialmodelingprep.com/api/v3/"
+  endpoint <- 'historical-price-full/'
+  headers = c(`Upgrade-Insecure-Requests` = '1')
+  params = list(`datatype` = 'json', `from` = from, `to` = to, 
+                `apikey` = "085072758657f1c6e9f7d0acb8014d5b")
+  res <- httr::GET(url = glue(base_url, endpoint, ticker), 
+                   httr::add_headers(.headers = headers), query = params)
+  return_json <- httr::content(res, as = "text")
+  d <- jsonlite::fromJSON(return_json)
+  d <- tibble::as_tibble(d$historical)
+  write_csv(d, glue({the_path}, "/data_stock_fmpr/", {ticker}, ".csv"))
+}
+
+conform_data <- function(ticker, interval, provider){
+  if (interval == "Daily" & provider == "Yahoo"){
+    df <- read_csv(paste0(the_path, "/data_stock_ya/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      na.omit()
+  } else if (interval == "Daily" & provider == "Tiingo"){
+    df <- read_csv(paste0(the_path, "/data_stock_ti/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      na.omit() %>% 
+      rename(index = date, open = adjOpen, high = adjHigh, low = adjLow, close = adjClose, 
+             adjusted = adjClose, volume = adjVolume)    
+  } else if (interval == "Daily" & provider == "fmpr"){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) %>% 
+      rename(index = date, adjusted = adjClose)    
+  }
+  df <- df %>% arrange(index)
+  return(df)
+}
 
 ### !!!! Change this ... don't avoid the problem ... do we have 0 or NA in the df???
 create_plot_fin_df <- function(df) { 
@@ -47,10 +79,10 @@ create_plot_fin_df <- function(df) {
            ppo_line = ((ema12_calc - ema26_calc) / ema26_calc) * 100, 
            ppo_line_st = ((ema5_calc - ema13_calc) / ema13_calc) * 100,
            ppo_signal = TTR::EMA(ppo_line, n = 9), 
-           ppo_signal_st = TTR::EMA(ppo_line_st, n = 7))
+           ppo_signal_st = TTR::EMA(ppo_line_st, n = 7)) |> 
+    filter(index > today() - 1095)   # equivalent to 3 years
   return(df)
 }
-
 
 
 ############################################################################################
@@ -101,12 +133,19 @@ GeomLinerangeBC <- ggproto("GeomLinerangeBC", GeomLinerange, default_aes = aes(s
 
 #####################################################
 ## Create standard Candlestick chart with PPO and RSI
-create_candlestick_chart <- function(df, tickerss, start_date = today()-365, end_date = today()){
-  df2 <- df %>% filter(index >= start_date & index <= end_date)
+create_candlestick_chart <- function(df, tickerss, num_days = '41d', 
+                                     start_date = today()-365, end_date = today()) {
+  df2 <- df |> 
+    mutate(forw_ret = log(lead(adjusted, n = parse_number(num_days)) / adjusted), 
+           ord_class = as.factor(ntile(forw_ret, n = 3))) |> 
+    filter(index >= start_date & index <= end_date)
   
   # The main chart with the moving averages
   p1 <- ggplot(df2, aes(x=index, y = close)) + 
-    geom_candlestick(aes(open = open, high = high, low = low, close = close)) + 
+    #geom_candlestick(aes(open = open, high = high, low = low, close = close)) + 
+    geom_line( colour = "Gray 80") + 
+    geom_point(aes(color = ord_class)) + 
+    scale_color_manual(values = c('1' = 'red', '2' = 'blue', '3' = 'green')) + 
     geom_line(aes(y = ema9), colour = "red", linewidth = 0.2) + 
     geom_line(aes(y = sma200), colour = "darkorchid1", linewidth = 0.3) + 
     # because I need to remember which chart is it (to which stock it belongs)
@@ -114,7 +153,8 @@ create_candlestick_chart <- function(df, tickerss, start_date = today()-365, end
     geom_line(aes(y = sma50), colour = "Turquoise 1", linewidth = 0.3) + 
     scale_x_bd(business.dates=df2$index, max.major.breaks = 20, labels=date_format("%b '%y"), expand = c(0,0.3)) + 
     scale_y_continuous(sec.axis = sec_axis(~.*1)) + 
-    theme(axis.title.x = element_blank(), 
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(), 
           axis.text.x = element_blank(), 
           axis.text.y = element_text(angle = 90), 
           plot.margin = margin(0.2, 0.2, 0.1, 0.4, "cm"),       # This is to shrink the padding at the 4 side of the graph

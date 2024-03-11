@@ -5,6 +5,8 @@ date: "3-12-2023"
 output: html
 ---
 
+There has been a error / misunderstanding in there.  I thought I was putting my color dots (long/neutral/short) with a recency bias... but actually it was using all the available data points.  I'm not sure what is best to be honest.  Using all data points to make my 3 buckets of returns or to just stick to, let's say,  the last 3 years. ??? 
+
 ```{r}
 #| label: setup
 #| warning: false
@@ -16,9 +18,7 @@ library(knitr)
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 the_path <- here::here()
 
-source('../functions/summary_reports_v3.R')
 source('../functions/chart_plotting_v1.R')
-source('../functions/fmpr_functions.R')
 ```
 
 # Download data and charts - US sectors 
@@ -91,6 +91,7 @@ for (i in 1:length(stock_tickers)) {
     print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
+
 
 df <- tibble(ticker = xle, etf1 = etf1, etf2 = etf2) 
 pdf(paste0(the_path, "/charts/charts_stocks_XLE.pdf"), width=13, height=8, onefile = TRUE)
@@ -172,14 +173,19 @@ dev.off()
 
 ```{r}
 xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
-        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 
-        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW') 
+        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 'TER',  
+        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
 etf1 =    rep('QQQ', length(xlk))
 etf2 =    rep('XLK', length(xlk))
 
 stock_tickers <- c(xlk, 'XLK')
 
-
+for (i in 1:length(stock_tickers)) { 
+  tryCatch({ 
+    get_fmpr_prices(stock_tickers[i])
+    print(glue("just downloaded data for ", stock_tickers[i], " and saved it."))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
 
 df <- tibble(ticker = xlk, etf1 = etf1, etf2 = etf2) 
 pdf(paste0(the_path, "/charts/charts_stocks_XLK.pdf"), width=13, height=8, onefile = TRUE)
@@ -305,10 +311,10 @@ dev.off()
 ```{r}
 #| label: xlv
 
-# these 6 stocks make up for more than 40% of the XLV index. 
-xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'ABT', 'PFE', 'RVTY', 'TMO', 'AMGN', 'DHR', 
-        'ISRG', 'ELV', 'MDT', 'VRTX', 'BMY', 'CVS', 'SYK', 'GILD', 'REGN', 'ZTS', 
-        'CI', 'BSX', 'BDX', 'MCK', 'HUM', 'COR') 
+xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'ABT', 'PFE', 'RVTY', 'TMO', 'DHR', 
+        'ISRG', 'ELV', 'MDT', 'BMY', 'CVS', 'SYK', 'ZTS', 
+        'CI', 'BSX', 'BDX', 'MCK', 'HUM', 'COR', 
+        'VRTX', 'REGN', 'AMGN', 'GILD', 'IQV', 'BIIB', 'MRNA', 'MTD', 'ILMN', 'ALNY') 
 etf1 =    rep('SPY', length(xlv))
 etf2 =    rep('XLV', length(xlv))
 
@@ -397,7 +403,7 @@ dev.off()
 ```{r}
 # XME
 xme = c('AA', 'X', 'MP', 'CLF', 'ATI', 'AMR', 'FCX', 'NUE', 'CRS', 'NEM', 'RS', 
-        'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'NEM', 'AEM', 'UEC', 'ALB', 'PAAS', 
+        'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'AEM', 'UEC', 'ALB', 'PAAS', 
         'FMC', 'MOS', 'SQM', 'PBR', 'RIO', 'VALE', 'TECK', 'SCCO', 'BHP') 
 etf1 =    rep('SPY', length(xme))
 etf2 =    rep('XME', length(xme))
@@ -539,16 +545,17 @@ xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP
         'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 'TRV', 
         'CBOE', 'CME', 'ICE', 'KRE') 
 xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
-        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 
-        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW') 
+        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 'TER',  
+        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
 xlp = c('PG', 'UL',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 
         'DEO', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'MKC', 'DLTR', 
         'HRL', 'CHD', 'CLX', 'COTY', 'ELF', 'SJM', 'K', 'CAG') 
 xlu = c('NEE', 'SO', 'DUK', 'SRE', 'AEP', 'D', 'PCG', 'CEG', 'EXC', 'XEL', 'ED', 
         'PEG', 'EIX', 'WEC', 'AWK', 'DTE', 'ES', 'ETR', 'PPL', 'AEE', 'FE') 
-xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'ABT', 'PFE', 'RVTY', 'TMO', 'AMGN', 'DHR', 
-        'ISRG', 'ELV', 'MDT', 'VRTX', 'BMY', 'CVS', 'SYK', 'GILD', 'REGN', 'ZTS', 
-        'CI', 'BSX', 'BDX', 'MCK', 'HUM', 'COR') 
+xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'ABT', 'PFE', 'RVTY', 'TMO', 'DHR', 
+        'ISRG', 'ELV', 'MDT', 'BMY', 'CVS', 'SYK', 'ZTS', 
+        'CI', 'BSX', 'BDX', 'MCK', 'HUM', 'COR', 
+        'VRTX', 'REGN', 'AMGN', 'GILD', 'IQV', 'BIIB', 'MRNA', 'MTD', 'ILMN', 'ALNY')  
 xly = c('AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'LOW', 'BKNG', 'PAG', 'SBUX', 'TJX', 'CMG', 
         'ABNB', 'LULU', 'ORLY', 'MAR', 'GM', 'F', 'HLT', 'AZO', 'ROST', 'DHI', 'YUM', 
         'RCL', 'TSCO', 'PHM', 'EXPE', 'DRI', 'GRMN') 
@@ -562,7 +569,7 @@ conform_data <- function(ticker){
       select(date, adjusted=adjClose) |>  
       arrange(date)
     return(df)
-}
+} 
 
 sd_roll_21d = slidify(.f = sd, .period = 21, .align = 'right')
 sd_roll_211d = slidify(.f = sd, .period = 211, .align = 'right')

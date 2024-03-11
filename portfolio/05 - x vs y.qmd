@@ -9,6 +9,8 @@ format:
     fig-height: 8
 ---
 
+What is this about?  
+
 ```{r}
 #| label: setup
 #| warning: false
@@ -20,6 +22,7 @@ library(readr)
 library(purrr)
 library(lubridate)
 library(tidyr)
+library(glue)
 
 the_path <- here::here()
 
@@ -42,7 +45,7 @@ get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) {
 conform_data <- function(ticker){
     df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
                    show_col_types = FALSE) |>  
-      select(date, adjusted=adjClose) |>  
+      select(date, adjusted = adjClose) |>  
       arrange(date)
     return(df)
 }
@@ -52,49 +55,79 @@ conform_data <- function(ticker){
 # TLT vs QQQ 
 
 ```{r}
-## create candlestick chart with ETF1 (market) and etf2 (sector)
-create_rel_chart <- function(ticker1, ticker2, 
+#| echo: false
+#| warning: false
+#| message: false
+
+
+library(ggplot2)
+library(bdscale)
+library(scales)
+library(gridExtra)
+
+ticker <- 'AMZN'
+etf1 <- 'TLT'
+etf2 <- 'QQQ'
+num_days = '41d'
+
+## create a chart with 2 plots: an equity asset with thirdile, an etf1 vs etf2
+create_rel_chart <- function(ticker, etf1, etf2, 
                              start_date = today()-365, end_date = today()) {
   
-  df_ticker <- conform_data(ticker, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted) %>% 
-    mutate(adjusted_tic = as.numeric(adjusted)) 
-  df_etf1 <- conform_data(etf1, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted) %>% mutate(adjusted_etf1 = as.numeric(adjusted)) 
-  df_etf2 <- conform_data(etf2, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted) %>% mutate(adjusted_etf2 = as.numeric(adjusted)) 
-  yo0 <- left_join(df_etf1, df_etf2, by = "index") %>% na.omit() %>% 
-    mutate(adjusted_ms = adjusted_etf2 / adjusted_etf1, 
-           ms_ema139 = TTR::EMA(adjusted_ms, n = 139), 
-           ms_sma373 = TTR::SMA(adjusted_ms, n = 307)) %>% 
-    select(index, adjusted_ms, ms_ema139, ms_sma373)
-  yo1 <- left_join(df_ticker, df_etf1, by = "index") %>% na.omit() %>% 
-    mutate(adjusted_tic_mark = adjusted_tic / adjusted_etf1, 
-           tic_mark_ema139 = TTR::EMA(adjusted_tic_mark, n = 139), 
-           tic_mark_sma373 = TTR::SMA(adjusted_tic_mark, n = 307)) %>% 
-    select(index, adjusted_tic_mark, tic_mark_ema139, tic_mark_sma373)
-  yo2 <- left_join(df_ticker, df_etf2, by = "index") %>% na.omit() %>% 
-    mutate(adjusted_tic_sect = adjusted_tic / adjusted_etf2, 
-           tic_sect_ema139 = TTR::EMA(adjusted_tic_sect, n = 139), 
-           tic_sect_sma373 = TTR::SMA(adjusted_tic_sect, n = 307)) %>% 
-    select(index, adjusted_tic_sect, tic_sect_ema139, tic_sect_sma373)
+  df <- conform_data(ticker) |> select(date, adjusted) |> 
+    mutate(forw_ret = log(lead(adjusted, n = parse_number(num_days)) / adjusted), 
+           forw_price = lead(adjusted, n = parse_number(num_days)), 
+           forw_date = lead(date, n = parse_number(num_days)), 
+           ord_class = as.factor(ntile(forw_ret, n = 3))) |> 
+    rename(!!ticker := adjusted) 
+  print(df |> filter(ord_class == 2) |> select(date, forw_ret) |> slice_min(forw_ret))
+  print(df |> filter(ord_class == 2) |> select(date, forw_ret) |> slice_max(forw_ret))
   
-  df2 <- left_join(yo0, yo1) %>% left_join(., yo2) %>% 
-    filter(index >= start_date & index <= end_date)
+  df1 <- conform_data(etf1) |> select(date, adjusted) |> 
+    rename(!!etf1 := adjusted)
+  df2 <- conform_data(etf2) |> select(date, adjusted) |> 
+    rename(!!etf2 := adjusted)
+  df_vs <- left_join(df1, df2, by = 'date') |> 
+    mutate(etf1_vs_etf2 = !!as.name(etf1) / !!as.name(etf2), 
+           st_ma = TTR::EMA(etf1_vs_etf2, n = 139), 
+           lt_ma = TTR::SMA(etf1_vs_etf2, n = 373)) |> 
+    #mutate(etf1_vs_etf2 = get(etf1) / get(etf2)) |> 
+    left_join(df, by = 'date') |> 
+    filter(date >= today() - 500)
   
-  # The main chart with the moving averages
-  p1 <- ggplot(df2, aes(x=index, y = adjusted_ms)) + 
-    geom_line(color = "Gray 70") + 
-    geom_line(aes(y = ms_ema139), colour = "Turquoise 1", linewidth = 0.3) + 
-    geom_line(aes(y = ms_sma373), colour = "darkorchid1", linewidth = 0.3) + 
-    # because I need to remember which chart is it (to which stock it belongs)
-    annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_ms[10], label = paste0(etf2, "/", etf1), color = "white") + 
-    scale_x_bd(business.dates=df2$index, max.major.breaks = 20, labels=date_format("%b '%y"), expand = c(0,0.5)) + 
-    scale_y_continuous(sec.axis = sec_axis(~.*1)) + 
-    theme(axis.title.x = element_blank(), 
-          axis.text.x = element_blank(), 
+    p1 <- ggplot(df_vs, aes(x = date, y = !!as.name(ticker))) + 
+    geom_line( colour = "Gray 80") + 
+    geom_point(aes(color = ord_class)) + 
+    scale_fill_manual(breaks = c('1', '2', '3'), values = c('red', 'blue', 'green')) + 
+    scale_x_bd(business.dates=df_vs$date, max.major.breaks = 20, 
+               labels=date_format("%b '%y"), expand = c(0,0.5)) + 
+    scale_y_continuous(sec.axis = sec_axis(~.)) + 
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(),
           axis.text.y = element_text(angle = 90), 
-          plot.margin = margin(0.2, 0.2, 0.1, 0.4, "cm"), # This is to shrink the padding at the 4 side of the graph
+          axis.text.x = element_blank(), 
+          plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
+          panel.background = element_rect(fill = "black"), 
+          plot.background = element_rect(fill = "Gray 65"), 
+          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
+          panel.grid.minor = element_blank())
+  
+  p2 <- ggplot(df_vs, aes(x=date, y = etf1_vs_etf2)) + 
+    geom_line( colour = "Gray 80") + 
+    geom_point(aes(color = ord_class)) + 
+    geom_line(aes(y = st_ma), colour = "Turquoise 1", linewidth = 0.3) + 
+    geom_line(aes(y = lt_ma), colour = "darkorchid1", linewidth = 0.3) + 
+    # because I need to remember which chart is it (to which stock it belongs)
+    #annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_ms[10], label = paste0(etf2, "/", etf1), color = "white") + 
+    scale_x_bd(business.dates=df_vs$date, max.major.breaks = 20, 
+               labels=label_date("%b '%y"), expand = c(0,0.5)) + 
+    scale_y_continuous(sec.axis = sec_axis(~.*1)) + 
+    theme(legend.position = "none", 
+          axis.title.x = element_blank(), 
+          axis.text.x = element_text(angle = 30, vjust = 0.4),
+          axis.text.y = element_text(angle = 90), 
+          plot.margin = margin(0.2, 0.2, 0.1, 0.4, "cm"), 
           panel.background = element_rect(fill = "black"), 
           plot.background = element_rect(fill = "Gray 65"), 
           panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.15), 
@@ -102,49 +135,11 @@ create_rel_chart <- function(ticker1, ticker2,
           panel.grid.minor.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.15),
           panel.grid.minor.x = element_blank())
   
-  p2 <- ggplot(df2, aes(x = index, y = adjusted_tic_mark)) + 
-    geom_line( colour = "Gray 80") + 
-    geom_line(aes(y = tic_mark_ema139), colour = "Turquoise 1", linewidth = 0.3) + 
-    geom_line(aes(y = tic_mark_sma373), colour = "darkorchid1", linewidth = 0.3) + 
-    annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_tic_mark[10], label = paste0(ticker, "/", etf1), color = "white") + 
-    scale_x_bd(business.dates=df2$index, max.major.breaks = 20, labels=date_format("%b '%y"), expand = c(0,0.5)) + 
-    scale_y_continuous(sec.axis = sec_axis(~.)) + 
-    theme(legend.position = "none", 
-          axis.title.x = element_blank(),
-          axis.text.y = element_text(angle = 90), 
-          axis.text.x = element_blank(), 
-          plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
-          panel.background = element_rect(fill = "black"), 
-          plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
-          panel.grid.minor = element_blank())
-  
-  p3 <- ggplot(df2, aes(x = index, y = adjusted_tic_sect)) + 
-    geom_line(colour = "Gray 80") + 
-    geom_line(aes(y = tic_sect_ema139), colour = "Turquoise 1", linewidth = 0.3) + 
-    geom_line(aes(y = tic_sect_sma373), colour = "darkorchid1", linewidth = 0.3) + 
-    annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_tic_sect[10], label = paste0(ticker, "/", etf2), color = "white") + 
-    scale_x_bd(business.dates=df2$index, max.major.breaks = 20, labels=date_format("%b '%y"), expand = c(0,0.5)) + 
-    scale_y_continuous(sec.axis = sec_axis(~.)) + 
-    theme(legend.position = "none", 
-          axis.title.x = element_blank(),
-          axis.text.y = element_text(angle = 90), 
-          axis.text.x = element_text(angle = 30, vjust = 0.4), 
-          plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
-          panel.background = element_rect(fill = "black"), 
-          plot.background = element_rect(fill = "Gray 65"), 
-          panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
-          panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1),
-          panel.grid.minor = element_blank())
-  
-  
-  yo <- grid.arrange(p1, p2, p3,  ncol = 1, heights = c(1, 1, 1))
+  yo <- grid.arrange(p1, p2,  ncol = 1, heights = c(1, 1))
   yo
-  #p1
 }
 
 
-
+create_rel_chart(ticker = 'ABNB', etf1 = 'TLT', etf2 = 'QQQ')
 ```
 
