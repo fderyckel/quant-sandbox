@@ -1,0 +1,74 @@
+---
+title: "01 - Using Catboost"
+format: 
+  html: 
+      embed-resources: true
+      toc: true
+      number_section: true
+---
+
+Setting up Python with rstudio is a bitch!!!! here is what I have done. 
+
+```{r}
+library(reticulate)
+virtualenv_list()
+#virtualenv_create('quant', version = '3.12')
+use_virtualenv('quant')
+
+#py_config()
+#py_discover_config()
+
+#py_install('matplotlib')
+```
+
+# Loading data 
+
+```{python}
+import pandas as pd
+train_df = pd.read_csv('../data_others/santander/train.csv', nrows = 60000)
+test_df = pd.read_csv('../data_others/santander/test.csv', nrows = 20000)
+combined_df = pd.concat([train_df, test_df])
+combined_df.describe()
+combined_df.info()
+
+# checking for na. 
+combined_df.columns[combined_df.isnull().any()]
+```
+
+```{python}
+combined_df.columns.values.tolist()]).items()
+[combined_df[col].dtype for col in combined_df.columns.values.tolist()]
+combined_df.columns.values.tolist()
+combined_df.columns
+combined_df.columns.values
+```
+
+```{python}
+#We don’t want to use our ID column to make our predictions and therefore store it into the index.
+combined_df.head()
+for element in [train_df, test_df]: 
+  element.set_index('ID_code', inplace = True)
+  
+#We now separate the target variable from our training set and create a new dataframe for our target variable.
+x_train_df = train_df.drop('target', axis = 1)
+y_train_df = train_df['target']
+  
+# scaling for outliers using robustscaler to reduce outliers effect
+# In R, use the extrasteps package 
+from sklearn.preprocessing import RobustScaler
+scaler = RobustScaler()
+
+# scale the x_train_set
+x_train_scaled = scaler.fit_transform(x_train_df.values)
+x_train_df_scaled = pd.DataFrame(x_train_scaled, index = x_train_df.index, columns = x_train_df.columns)
+
+#scale_the x_test_set
+x_test_scaled = scaler.fit_transform(test_df.values)
+x_test_df_scaled = pd.DataFrame(x_test_scaled, index = test_df.index, columns = test_df.columns)
+
+# splitting training set for validation and testing 
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x_train_df_scaled, y_train_df, test_size = 0.2, random_state = 20)
+
+```
+

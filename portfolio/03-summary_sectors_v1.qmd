@@ -78,7 +78,7 @@ dev.off()
 # not working because too new:  
 # these 6 stocks make up for more than 40% of the XLV index. 
 xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
-        'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
+        'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
         'EQT', 'OVV', 'FCG') 
 etf1 =    c(rep('SPY', length(xle)))
 etf2 =    c(rep('XLE', length(xle)))
@@ -475,11 +475,12 @@ dev.off()
 ```{r}
 #| label: indicses
 
-etf_tickers <- c("XLF", "XLI", "XLY", "XLV", "XME", "XLB", "XBI", "IYT", "HACK", 
-                 "VOX", "ITB", "FXG",  'VCR', 'XLC', 'IYW', 'VGT', 
-                 "SMH", "IPAY", "SPY", "RSP", "QQQ", "XLE", "VDE", "XOP", 'GLD', 
-                 'GDX', "GDXJ", "VAW", 'PBW', "EEM", 'DIA', 
-                 "KWEB", "HYG", "TLT", "DBB", "DBA", "IWD", "IWF")
+etf_tickers <- c( "SPY", "RSP", 'DIA', "QQQ", "TLT", "HYG",  
+                  'GLD', 'GDX', "GDXJ", "XLE", "VDE", "XOP", 
+                  "DBB", "XME", "VAW", "XLB", "DBA", 
+                  "XLF", "XLI", "XLY", "XLV", "XBI", "IYT", 'XLC', 'XLP', "FXG", 
+                  'XLK', "HACK", "SMH", "IPAY", 
+                  "ITB", 'PBW', "IWD", "IWF")
 
 for (i in 1:length(etf_tickers)) { 
   tryCatch({ 

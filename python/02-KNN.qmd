@@ -1,0 +1,49 @@
+---
+title: "01 - Using Catboost"
+format: 
+  html: 
+      embed-resources: true
+      toc: true
+      number_section: true
+---
+
+Setting up Python with rstudio is a bitch!!!! here is what I have done. 
+
+```{r}
+library(reticulate)
+virtualenv_list()
+#virtualenv_create('quant', version = '3.12')
+use_virtualenv('quant')
+
+#py_config()
+#py_discover_config()
+
+#py_install('matplotlib')
+```
+
+# Loading data 
+
+```{python}
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv('../data_stock_fmpr/YUM.csv', index_col = 0, parse_dates = True)
+
+df.head()
+df.shape
+df.describe()
+
+#checking missing values
+df.isnull().sum()     # no missing values. 
+
+
+```
+
+```{python}
+import matplotlib.pyplot as plt
+plt.plot(df['adjClose'])
+plt.show()
+
+
+```
+

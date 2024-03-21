@@ -8,7 +8,8 @@ format:
     toc: true
     number_section: true
     fig-width: 12
-    fig-height: 8
+    fig-height: 8 
+    embed-resources: true
 ---
 
 ```{r}
@@ -227,6 +228,7 @@ stock_tickers <- unique(c(tickers, 'UUP', 'EEM'))
 
 for (i in 1:length(stock_tickers)) { 
   tryCatch({ 
+    #print(stock_tickers[i])
     get_fmpr_prices(stock_tickers[i])
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }

@@ -22,19 +22,22 @@ the_path <- here::here()
 
 # load up the data in a clean way 
 conform_data <- function(ticker) {
-    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |> 
       rename(index = date, adjusted = adjClose) |> 
       arrange(index) |> 
-      select(index, adjusted, close) |> 
+      select(index, close, high, low) |> 
       mutate(close_greater_than_4earlier = if_else(close > lag(close, 4), 1, 0), 
-             close_less_than_4earlier = if_else(close < lag(close, 4), 1, 0)) |> 
-      drop_na()
+             close_less_than_4earlier = if_else(close < lag(close, 4), 1, 0), 
+             close_greater_than_high_2earlier = if_else(close > lag(high, n=2), 1, 0)) |> 
+      drop_na() |> filter(index > (today() - 1000))
   return(df)
 }
 
-# TD BUY SETUP
-### TD Bearish Price Flip - occurs when the market records a close greater than the close four bars earlier, immediately followed by a close less than the close four bars earlier. 
-bearish_td_price_flip <- function(df) { 
+### TD Bearish Price Flip occurs when 
+# * the market records a close greater than the close four bars earlier, 
+# * immediately followed by a close less than the close four bars earlier. 
+bearish_price_flip <- function(df) { 
   yo <- df |> 
     mutate(bearish_price_flip = if_else(
       close < lag(close, 4) & lag(close_greater_than_4earlier) == 1, 
@@ -42,8 +45,9 @@ bearish_td_price_flip <- function(df) {
   return(yo)
 }
 
-### After a bearish price flip, there must be nine consecutive closes, each one less than the corresponding close four bars earlier. 
-td_buy_setup <- function(df) {
+### TD Buy Setup - After a bearish price flip, 
+# * there must be nine consecutive closes, each one less than the corresponding close four bars earlier. 
+buy_setup <- function(df) {
   yo <- df |> 
     group_by(grp_buy_setup = cumsum(close_less_than_4earlier == 0 | bearish_price_flip == 1)) |> 
     mutate(TD_buy_setup = if_else(cumsum(bearish_price_flip)>0, cumsum(close_less_than_4earlier), 0)) |> 
@@ -53,10 +57,14 @@ td_buy_setup <- function(df) {
 
 ### Once a TD Buy Setup successfully reaches nine, the first phase of TD Sequential is complete, and a TD Buy Countdown can begin.
 
-# TD Sell setup 
-###  before a TD Sell Countdown can begin, we need to see a bullish TD Price Flip
+#####################################################################
+#####################################################################
+# TD Sequential Sell - Phase 1
+###  before a TD Sell Countdown can begin, we need to see a bullish: TD Price Flip + TD Sell Setup
+
+# TD Bullish Price Flip
 ### A Bullish TD Price Flip occurs when the market records a close less than the close four bars before, immediately followed by a close greater than the close four bars earlier.
-bullish_td_price_flip <- function(df) { 
+bullish_price_flip <- function(df) { 
   yo <- df |> 
     mutate(bullish_price_flip = if_else(
       close > lag(close, 4) & lag(close_less_than_4earlier) == 1, 
@@ -64,14 +72,30 @@ bullish_td_price_flip <- function(df) {
   return(yo)
 }
 
+# TD Sell Setup
 ### Once the bullish TD Price Flip occurs, a TD Sell Setup, consisting of nine consecutive closes, each one greater than the corresponding close four bars earlier, can begin
-td_sell_setup <- function(df) {
+sell_setup <- function(df) {
   yo <- df |> 
     group_by(grp_sell_setup = cumsum(close_greater_than_4earlier == 0 | bullish_price_flip == 1)) |> 
     mutate(TD_sell_setup = if_else(cumsum(bullish_price_flip)>0, cumsum(close_greater_than_4earlier), 0)) |> 
     ungroup()
   return(yo)
 }
+
+
+sell_countdown <- function(df) { 
+  yo <- df |> 
+    group_by(grp_sell_countdown = cumsum(TD_sell_setup == 9 | TD_buy_setup == 9)) |> 
+    mutate(TD_sell_countdown = cumsum(close_greater_than_high_2earlier)) |> 
+    ungroup()
+  return(yo)
+}
+
+df <- conform_data('META') |> bullish_price_flip() |> bearish_price_flip() |> na.omit() |> 
+  sell_setup() |> buy_setup() |> sell_countdown() |> 
+  select(index, close, close_greater_than_high_2earlier, TD_buy_setup, TD_sell_setup, grp_sell_countdown, 
+         TD_sell_countdown)
+
 
 ## Check for TDST (TD Setup Trend). 
 ## On the sell setup, when it brakes the high of #1 of the previous full buy setup. 
@@ -84,39 +108,53 @@ demark_setup <- function(ticker) {
     bearish_td_price_flip() |> bullish_td_price_flip() |> drop_na() |> 
     td_buy_setup() |> td_sell_setup() |> 
     select(index, close, TD_buy_setup, TD_sell_setup) |> 
-    filter(index > (today() - 7)) |> 
+    filter(index > (today() - 21)) |> 
     arrange(desc(index))
+  return(yo)
+}
+
+TD_sell_countdown <- function(ticker) {
+  yo <- conform_data(ticker) |> bullish_price_flip() |> bearish_price_flip() |> 
+    na.omit() |> sell_setup() |> buy_setup() |> sell_countdown() |> 
+    select(index, close, close_greater_than_high_2earlier, TD_buy_setup, TD_sell_setup, 
+           grp_sell_countdown, TD_sell_countdown)
   return(yo)
 }
 ```
 
+```{r}
+
+df2 <- conform_data('SQ') |> bullish_price_flip() |> bearish_price_flip() |> na.omit() |> 
+  sell_setup() |> buy_setup() |> sell_countdown() |> 
+  select(index, close, close_greater_than_high_2earlier, TD_buy_setup, TD_sell_setup, grp_sell_countdown, 
+         TD_sell_countdown)
+
+df2 <- conform_data('GOOG') |> bullish_td_price_flip() |> 
+  bearish_td_price_flip() |> na.omit() |> 
+  td_sell_setup() |> td_buy_setup() |> 
+  select(index, close, 
+         bullish_price_flip, bearish_price_flip, TD_sell_setup, TD_buy_setup)
+
+df <- conform_data('ABNB') |> bullish_td_price_flip() |> 
+  na.omit() |> td_sell_setup()
+  td_buy_setup()
+```
+
+
 Our universe to understand. 
 
+Make a list of going short (with )
+
 ```{r}
-etf_tickers <- c("XLF", "XLI", "XLY", "XLV", "XME", "XLB", "XBI", "IYT", "HACK", 
-                 "VOX", "ITB", "FXG", 'VCR', 'XLC', 'IYW', 'VGT', 
-                 "SMH", "IPAY", "SPY", "RSP", "QQQ", "XLE", "VDE", "XOP", 
-                 "GDXJ", "VAW", 'PBW', "EEM", 'DIA', 'GDX', 
-                 "KWEB", "HYG", "TLT", "DBB", "DBA", "IWD", "IWF")
+xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
+        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 'TER',  
+        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
 
-stock_tickers <- c("AMD", "TSM", "BAH", "PYPL", "JPM", "AXP", 
-                   "TFII", "FDX", "CAT", "HAL", "CVX", "PSX", 
-                   "BBWI", "SBUX", "MNST", "DIS", "PARA", 
-                   "GILD", "PKI", "CGC", 
-                   "PAAS", "AA", "VALE", "STLD", "MOS", 
-                   "ATKR", "RYN", 'NVDA')
-
-tickers <- c("ABNB", "GOOG", 'META', "AAPL", "NFLX", 
-             'SQ', 'PYPL', 'TSLA', 'TWLO', 
-             'AMZN', 'CGC', 'BMY', 'LLY', 'BA')
-
-st <- c('EWQ', 'EWP', 'EWG', 'EPOL', 'EEM', 'EWZ', 'EWW', 'EWJ', 'EWY', 'EWS', 'EWM', 
-        'THD', 'EIDO', 'EPHE', 'EWA', 'EZA', 'EWC')
-
-df <- tibble(tickers = c(etf_tickers, stock_tickers, tickers, st)) |> 
+df <- tibble(tickers = c(xlk)) |> 
   distinct() |> arrange(tickers) |> 
-  mutate(demark_indicator = map(tickers, demark_setup, .progress = T)) |>
-  unnest(cols = c(demark_indicator))
+  mutate(demark_indicator = map(tickers, TD_sell_countdown, .progress = T)) |>
+  unnest(cols = c(demark_indicator)) |> 
+  arrange(desc(index), desc(TD_sell_countdown))
 ```
 
 

@@ -7,7 +7,6 @@ format:
     number_section: true
     fig-width: 12
     fig-height: 8
-    number-sections: true
     html-math-method: katex
     embed-resources: true
 ---

@@ -1,6 +1,10 @@
 ---
 title: "Python trials"
-format: html
+format: 
+  html: 
+      embed-resources: true
+      toc: true
+      number_section: true
 ---
 
 Setting up Python with rstudio is a bitch!!!! here is what I have done. 
