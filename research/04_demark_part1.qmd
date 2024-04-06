@@ -13,10 +13,9 @@ DeMark sequential has 2 stages.  The TD Setup and TD Countdown.
 
 library(dplyr)      # rename(), arrange(), select(), if_else(), distinct()
 library(readr)      # read_csv()
-library(stringr)    # str_remove()
-library(tidyr)      # drop_na()
 library(lubridate)  # today()
 library(purrr)      # map()
+library(tidyr)      # drop_na
 
 the_path <- here::here()
 
@@ -29,7 +28,8 @@ conform_data <- function(ticker) {
       select(index, close, high, low) |> 
       mutate(close_greater_than_4earlier = if_else(close > lag(close, 4), 1, 0), 
              close_less_than_4earlier = if_else(close < lag(close, 4), 1, 0), 
-             close_greater_than_high_2earlier = if_else(close > lag(high, n=2), 1, 0)) |> 
+             close_greater_than_high_2earlier = if_else(close > lag(high, n=2), 1, 0), 
+             close_less_than_low_2earlier = if_else(close < lag(low, n=2), 1, 0)) |> 
       drop_na() |> filter(index > (today() - 1000))
   return(df)
 }
@@ -76,25 +76,34 @@ bullish_price_flip <- function(df) {
 ### Once the bullish TD Price Flip occurs, a TD Sell Setup, consisting of nine consecutive closes, each one greater than the corresponding close four bars earlier, can begin
 sell_setup <- function(df) {
   yo <- df |> 
-    group_by(grp_sell_setup = cumsum(close_greater_than_4earlier == 0 | bullish_price_flip == 1)) |> 
+    group_by(grp_sell_setup = cumsum(close_greater_than_4earlier == 0 | bullish_price_flip == 1)) |>  
     mutate(TD_sell_setup = if_else(cumsum(bullish_price_flip)>0, cumsum(close_greater_than_4earlier), 0)) |> 
+    #mutate(low_within_sell_setup = slice_min(low, n=1, order_by = low)) |> 
+    ungroup() 
+  return(yo)
+}
+
+## WITH THE COUNTDOWN --- ISSUE to fIX
+## buy countdown only start if buy setup is at 9.  It should not start if sell setup is at 9!!!
+buy_countdown <- function(df) { 
+  yo <- df |> 
+    group_by(grp_buy_countdown = cumsum(TD_buy_setup == 9) )|> 
+    mutate(TD_buy_countdown = if_else(cumany(TD_sell_setup == 9), 0, 
+                                             cumsum(close_less_than_low_2earlier))) |> 
     ungroup()
   return(yo)
 }
 
-
+## WITH THE COUNTDOWN --- ISSUE to fIX
+## sell countdown only start if sell setup is at 9.  It should not start if buy setup is at 9!!!
 sell_countdown <- function(df) { 
   yo <- df |> 
-    group_by(grp_sell_countdown = cumsum(TD_sell_setup == 9 | TD_buy_setup == 9)) |> 
-    mutate(TD_sell_countdown = cumsum(close_greater_than_high_2earlier)) |> 
+    group_by(grp_sell_countdown = cumsum(TD_sell_setup == 9)) |> 
+    mutate(TD_sell_countdown = if_else(cumany(TD_buy_setup == 9), 0, 
+                                       cumsum(close_greater_than_high_2earlier))) |> 
     ungroup()
   return(yo)
 }
-
-df <- conform_data('META') |> bullish_price_flip() |> bearish_price_flip() |> na.omit() |> 
-  sell_setup() |> buy_setup() |> sell_countdown() |> 
-  select(index, close, close_greater_than_high_2earlier, TD_buy_setup, TD_sell_setup, grp_sell_countdown, 
-         TD_sell_countdown)
 
 
 ## Check for TDST (TD Setup Trend). 
@@ -103,41 +112,28 @@ df <- conform_data('META') |> bullish_price_flip() |> bearish_price_flip() |> na
 ## if it brakes, then we go on a TD Countdown13. 
 
 # Putting everything back into one function 
-demark_setup <- function(ticker) {
-  yo <- conform_data(ticker) |> 
-    bearish_td_price_flip() |> bullish_td_price_flip() |> drop_na() |> 
-    td_buy_setup() |> td_sell_setup() |> 
-    select(index, close, TD_buy_setup, TD_sell_setup) |> 
+demark_signals<- function(ticker) {
+  yo <- conform_data(ticker) |> bullish_price_flip() |> bearish_price_flip() |> 
+    na.omit() |> 
+    sell_setup() |> buy_setup() |> sell_countdown() |> buy_countdown() |> 
+    select(index, close, high, buPF = bullish_price_flip,  sell_setup = TD_sell_setup, 
+           sell_ctdown = TD_sell_countdown, 
+           bePF = bearish_price_flip, buy_setup = TD_buy_setup, 
+           buy_ctdown = TD_buy_countdown) |> 
     filter(index > (today() - 21)) |> 
     arrange(desc(index))
   return(yo)
 }
 
-TD_sell_countdown <- function(ticker) {
-  yo <- conform_data(ticker) |> bullish_price_flip() |> bearish_price_flip() |> 
-    na.omit() |> sell_setup() |> buy_setup() |> sell_countdown() |> 
-    select(index, close, close_greater_than_high_2earlier, TD_buy_setup, TD_sell_setup, 
-           grp_sell_countdown, TD_sell_countdown)
-  return(yo)
-}
 ```
 
 ```{r}
-
-df2 <- conform_data('SQ') |> bullish_price_flip() |> bearish_price_flip() |> na.omit() |> 
-  sell_setup() |> buy_setup() |> sell_countdown() |> 
-  select(index, close, close_greater_than_high_2earlier, TD_buy_setup, TD_sell_setup, grp_sell_countdown, 
-         TD_sell_countdown)
-
-df2 <- conform_data('GOOG') |> bullish_td_price_flip() |> 
-  bearish_td_price_flip() |> na.omit() |> 
-  td_sell_setup() |> td_buy_setup() |> 
-  select(index, close, 
-         bullish_price_flip, bearish_price_flip, TD_sell_setup, TD_buy_setup)
-
-df <- conform_data('ABNB') |> bullish_td_price_flip() |> 
-  na.omit() |> td_sell_setup()
-  td_buy_setup()
+df2 <- conform_data('KMB') |> bullish_price_flip() |> bearish_price_flip() |> na.omit() |> 
+  sell_setup() |> buy_setup() |> sell_countdown() |> buy_countdown() |> 
+  select(index, close, high, buPF = bullish_price_flip,  sell_setup = TD_sell_setup, 
+         sell_ctdown = TD_sell_countdown, 
+         bePF = bearish_price_flip, buy_setup = TD_buy_setup, 
+         buy_ctdown = TD_buy_countdown)
 ```
 
 
@@ -146,15 +142,30 @@ Our universe to understand.
 Make a list of going short (with )
 
 ```{r}
+xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
+        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA')
+xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
+        'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
+        'EQT', 'OVV', 'FCG') 
+xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP', 'SCHW', 
+        'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 'TRV', 
+        'CBOE', 'CME', 'ICE', 'KRE') 
+xme = c('AA', 'X', 'MP', 'CLF', 'ATI', 'AMR', 'FCX', 'NUE', 'CRS', 'NEM', 'RS', 
+        'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'AEM', 'UEC', 'ALB', 'PAAS', 
+        'FMC', 'MOS', 'SQM', 'PBR', 'RIO', 'VALE', 'TECK', 'SCCO', 'BHP') 
 xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
-        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 'TER',  
+        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 
+        'TER',  
         'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
 
-df <- tibble(tickers = c(xlk)) |> 
+df_sell <- tibble(tickers = c(xlc, xle, xlf, xme, xlk)) |> 
   distinct() |> arrange(tickers) |> 
-  mutate(demark_indicator = map(tickers, TD_sell_countdown, .progress = T)) |>
+  mutate(demark_indicator = map(tickers, demark_signals, .progress = T)) |>
   unnest(cols = c(demark_indicator)) |> 
-  arrange(desc(index), desc(TD_sell_countdown))
+  arrange(desc(index), desc(sell_ctdown)) #|> filter(index > (today()-1))
+
+df_buy <- df_sell |> 
+  arrange(desc(index), desc(buy_setup))
 ```
 
 

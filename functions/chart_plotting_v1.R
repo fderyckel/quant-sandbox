@@ -39,7 +39,7 @@ conform_data <- function(ticker, interval, provider){
     df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) %>% 
       rename(index = date, adjusted = adjClose)    
   }
-  df <- df %>% arrange(index)
+  df <- df |> arrange(index)
   return(df)
 }
 
@@ -290,39 +290,42 @@ create_vol_candlestick_chart <- function(df, tickerss, start_date = today()-365,
 ## create candlestick chart with ETF1 (market) and etf2 (sector)
 create_rel_candlestick_chart <- function(ticker, etf1, etf2, 
                                          tickerss, start_date = today()-365, end_date = today()) {
-  df_ticker <- conform_data(ticker, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted) %>% 
+  df_ticker <- conform_data(ticker, interval = "Daily", provider = "fmpr") |>  
+    select(index, adjusted) |> arrange(index) |> 
     mutate(adjusted_tic = as.numeric(adjusted)) 
-  df_etf1 <- conform_data(etf1, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted) %>% mutate(adjusted_etf1 = as.numeric(adjusted)) 
-  df_etf2 <- conform_data(etf2, interval = "Daily", provider = "fmpr") %>% 
-    select(index, adjusted) %>% mutate(adjusted_etf2 = as.numeric(adjusted)) 
-  yo0 <- left_join(df_etf1, df_etf2, by = "index") %>% na.omit() %>% 
-    mutate(adjusted_ms = adjusted_etf2 / adjusted_etf1, 
-           ms_ema139 = TTR::EMA(adjusted_ms, n = 139), 
-           ms_sma373 = TTR::SMA(adjusted_ms, n = 307)) %>% 
-    select(index, adjusted_ms, ms_ema139, ms_sma373)
-  yo1 <- left_join(df_ticker, df_etf1, by = "index") %>% na.omit() %>% 
+  df_etf1 <- conform_data(etf1, interval = "Daily", provider = "fmpr") |> 
+    select(index, adjusted) |> arrange(index) |> 
+    mutate(adjusted_etf1 = as.numeric(adjusted)) 
+  df_etf2 <- conform_data(etf2, interval = "Daily", provider = "fmpr") |>  
+    select(index, adjusted) |> arrange(index) |>  
+    mutate(adjusted_etf2 = as.numeric(adjusted)) 
+  yo0 <- left_join(df_etf1, df_etf2, by = "index") |> na.omit() |> 
+    mutate(adjusted_sm = adjusted_etf2 / adjusted_etf1, 
+           ms_ema139 = TTR::EMA(adjusted_sm, n = 139), 
+           ms_sma373 = TTR::SMA(adjusted_sm, n = 307)) |>  
+    select(index, adjusted_sm, ms_ema139, ms_sma373)
+  yo1 <- left_join(df_ticker, df_etf1, by = "index") |> na.omit() |> 
     mutate(adjusted_tic_mark = adjusted_tic / adjusted_etf1, 
            tic_mark_ema139 = TTR::EMA(adjusted_tic_mark, n = 139), 
-           tic_mark_sma373 = TTR::SMA(adjusted_tic_mark, n = 307)) %>% 
+           tic_mark_sma373 = TTR::SMA(adjusted_tic_mark, n = 307)) |> 
     select(index, adjusted_tic_mark, tic_mark_ema139, tic_mark_sma373)
-  yo2 <- left_join(df_ticker, df_etf2, by = "index") %>% na.omit() %>% 
+  yo2 <- left_join(df_ticker, df_etf2, by = "index") |> na.omit() |> 
     mutate(adjusted_tic_sect = adjusted_tic / adjusted_etf2, 
            tic_sect_ema139 = TTR::EMA(adjusted_tic_sect, n = 139), 
-           tic_sect_sma373 = TTR::SMA(adjusted_tic_sect, n = 307)) %>% 
+           tic_sect_sma373 = TTR::SMA(adjusted_tic_sect, n = 307)) |> 
     select(index, adjusted_tic_sect, tic_sect_ema139, tic_sect_sma373)
   
-  df2 <- left_join(yo0, yo1) %>% left_join(., yo2) %>% 
+  df2 <- left_join(yo0, yo1, by = join_by(index)) |> 
+    left_join(yo2, by = join_by(index)) |>  
     filter(index >= start_date & index <= end_date)
   
   # The main chart with the moving averages
-  p1 <- ggplot(df2, aes(x=index, y = adjusted_ms)) + 
+  p1 <- ggplot(df2, aes(x=index, y = adjusted_sm)) + 
     geom_line(color = "Gray 70") + 
     geom_line(aes(y = ms_ema139), colour = "Turquoise 1", linewidth = 0.3) + 
     geom_line(aes(y = ms_sma373), colour = "darkorchid1", linewidth = 0.3) + 
     # because I need to remember which chart is it (to which stock it belongs)
-    annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_ms[10], label = paste0(etf2, "/", etf1), color = "white") + 
+    annotate("text", x = df2$index[20], y = 1.1 * df2$adjusted_sm[10], label = paste0(etf2, "/", etf1), color = "white") + 
     scale_x_bd(business.dates=df2$index, max.major.breaks = 20, labels=date_format("%b '%y"), expand = c(0,0.5)) + 
     scale_y_continuous(sec.axis = sec_axis(~.*1)) + 
     theme(axis.title.x = element_blank(), 
