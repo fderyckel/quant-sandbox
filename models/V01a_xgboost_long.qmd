@@ -42,7 +42,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'AMD'
+ticker <- 'AAPL'
 num_days <- '29d'
 
 model_type = '8wClass3ile'
@@ -179,12 +179,12 @@ model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune
   set_engine("xgboost") |>  
   set_mode("classification") 
 
-stopping_grid <-grid_latin_hypercube(trees(range = c(400, 800)), 
+stopping_grid <-grid_latin_hypercube(trees(range = c(500, 950)), 
                                      loss_reduction(range = c(-10, 1.5)), 
-                                     mtry(range = c(12L, 17L)), 
+                                     mtry(range = c(13L, 17L)), 
                                      learn_rate(range = c(-4, -2)), 
                                      min_n(range = c(17L, 31L)),   
-                                     tree_depth(range = c(5L, 11L)), 
+                                     tree_depth(range = c(7L, 13L)), 
                                      size = 25)
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  

@@ -58,11 +58,10 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'SBUX'
-num_days <- 41
+ticker <- 'AMD'
+num_days <- '29d'
 
-model_type = '8wClass3ile'
-yop <- glue('xgboost_v02a_', model_type, "_", ticker)
+yop <- glue('xgboost_v02a_', num_days, "_", ticker)
 ```
 
 ## Buidling df 
@@ -140,7 +139,7 @@ df <- df |>
          roll_sd_volu200_251d_lag5 = lag(roll_sd_volu200_251d, n = 5), 
          roll_sd_volu200_251d_lag17 = lag(roll_sd_volu200_251d, n = 17), 
          
-         forw_ret = log(lead(close, n = num_days) / close), 
+         forw_ret = log(lead(close, n = parse_number(num_days)) / close), 
          ord_class = as.factor(ntile(forw_ret, 3)))
 
 df2 <- df |> 

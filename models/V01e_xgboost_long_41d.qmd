@@ -1,5 +1,5 @@
 ---
-title: "Xgboost Modeling Long 41 days. Regression with percentile returns. V01e"
+title: "Xgboost Modeling - Regression with percentile returns. V01e"
 format: 
   html: 
     toc: true
@@ -43,7 +43,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'SBUX'
+ticker <- 'AXP'
 num_days <- '29d'
 
 model_type = '8wRegPerc'
@@ -185,8 +185,8 @@ stopping_grid <-grid_latin_hypercube(trees(range = c(600, 950)),
                                      loss_reduction(range = c(-10, 1.5)), 
                                      mtry(range = c(13L, 17L)), 
                                      learn_rate(range = c(-4, -2)), 
-                                     min_n(range = c(17L, 31L)),   
-                                     tree_depth(range = c(7L, 11L)), 
+                                     min_n(range = c(17L, 29L)),   
+                                     tree_depth(range = c(7L, 13L)), 
                                      size = 25)
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
