@@ -153,10 +153,10 @@ xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP
 xme = c('AA', 'X', 'MP', 'CLF', 'ATI', 'AMR', 'FCX', 'NUE', 'CRS', 'NEM', 'RS', 
         'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'AEM', 'UEC', 'ALB', 'PAAS', 
         'FMC', 'MOS', 'SQM', 'PBR', 'RIO', 'VALE', 'TECK', 'SCCO', 'BHP') 
-xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
-        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 
-        'TER',  
-        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
+xlk = c('MSFT', 'AAPL', 'NVDA', 'AVGO', 'CRM', 'ADBE', 'AMD', 'ACN', 'CSCO', 'INTC',  
+        'INTU', 'ORCL', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'PANW', 'PLTR', 
+        'ABNB', 'GOOG', 'META', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
+        'BABA', 'TSM',  'TER') 
 
 df_sell <- tibble(tickers = c(xlc, xle, xlf, xme, xlk)) |> 
   distinct() |> arrange(tickers) |> 

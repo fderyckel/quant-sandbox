@@ -30,7 +30,8 @@ source('../functions/chart_plotting_v1.R')
 
 # these 6 stocks make up for more than 40% of the XLV index. 
 xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
-        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA')
+        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 
+        'FOXA', 'PARA')
 etf1 =    rep('SPY', length(xlc))
 etf2 =    rep('XLC', length(xlc))
 
@@ -122,7 +123,7 @@ dev.off()
 ## XLF - Financial Select Sector SPDR Fund
 
 ```{r}
-#| label: xle
+#| label: xlf
 
 # not working because too new:  
 # these 6 stocks make up for more than 40% of the XLV index. 
@@ -162,7 +163,7 @@ for (i in 1:nrow(df)){
                                df$ticker[i], 
                                start_date = today() - 365, 
                                end_date = today())  
-  Sys.sleep(2)
+  Sys.sleep(1.5)
   }
 dev.off()
 
@@ -172,9 +173,10 @@ dev.off()
 ## XLK 
 
 ```{r}
-xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
-        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 'TER',  
-        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
+xlk = c('MSFT', 'AAPL', 'NVDA', 'AVGO', 'CRM', 'ADBE', 'AMD', 'ACN', 'CSCO', 'INTC',  
+        'INTU', 'ORCL', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'PANW', 'PLTR', 
+        'ABNB', 'GOOG', 'META', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
+        'BABA', 'TSM',  'TER') 
 etf1 =    rep('QQQ', length(xlk))
 etf2 =    rep('XLK', length(xlk))
 
@@ -462,8 +464,8 @@ for (i in 1:nrow(df)){
   yo <- tibble(ticker = df$ticker[i]) %>% 
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
-  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-350, end_date = today())
-  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-350, end_date = today())
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-500, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-500, end_date = today())
   Sys.sleep(2)
   }
 dev.off()
@@ -500,17 +502,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 530, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 530, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 530, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -538,16 +540,18 @@ library(tidyr)
 the_path <- here::here()
 
 xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
-        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA')
+        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 
+        'FOXA', 'PARA')
 xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
-        'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
-        'EQT', 'OVV') 
+        'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
+        'EQT', 'OVV', 'FCG') 
 xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP', 'SCHW', 
         'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 'TRV', 
         'CBOE', 'CME', 'ICE', 'KRE') 
-xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
-        'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 'TER',  
-        'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
+xlk = c('MSFT', 'AAPL', 'NVDA', 'AVGO', 'CRM', 'ADBE', 'AMD', 'ACN', 'CSCO', 'INTC',  
+        'INTU', 'ORCL', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'PANW', 'PLTR', 
+        'ABNB', 'GOOG', 'META', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
+        'BABA', 'TSM',  'TER') 
 xlp = c('PG', 'UL',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 
         'DEO', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'MKC', 'DLTR', 
         'HRL', 'CHD', 'CLX', 'COTY', 'ELF', 'SJM', 'K', 'CAG') 
@@ -561,7 +565,7 @@ xly = c('AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'LOW', 'BKNG', 'PAG', 'SBUX', 'TJX',
         'ABNB', 'LULU', 'ORLY', 'MAR', 'GM', 'F', 'HLT', 'AZO', 'ROST', 'DHI', 'YUM', 
         'RCL', 'TSCO', 'PHM', 'EXPE', 'DRI', 'GRMN') 
 xme = c('AA', 'X', 'MP', 'CLF', 'ATI', 'AMR', 'FCX', 'NUE', 'CRS', 'NEM', 'RS', 
-        'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'NEM', 'AEM', 'UEC', 'ALB', 'PAAS', 
+        'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'AEM', 'UEC', 'ALB', 'PAAS', 
         'FMC', 'MOS', 'SQM', 'PBR', 'RIO', 'VALE', 'TECK', 'SCCO', 'BHP') 
 
 conform_data <- function(ticker){

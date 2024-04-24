@@ -119,17 +119,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x)), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 601, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 601, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 601, 
                                end_date = today()) 
   Sys.sleep(2)
   }
@@ -211,20 +211,12 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 #| echo: false
 
 # My positions 
-tickers = c('EWH', 'EWZ', 'EEM', 'EWJ', 'GDXJ', 'FCX', 'RIO', 'CLF', 'MOS', 
-            'OXY', 'HAL', 'CAT', 'MTCH', 
-            'CHTR', 'CAT', 'GS', 'AON', 'CBOE', 'C', 'AMZN', 'NVDA', 'DASH', 
-            'NEE',  'EL', 'YUM', 'ABBV', 'RVTY') 
-etf1 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP', 'SPY', 'SPY', 'SPY',  'SPY', 
-            'SPY', 'SPY', 'SPY', 'SPY', 
-            'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 
-            'SPY', 'SPY', 'SPY', 'SPY', 'SPY')
-etf2 =    c('EEM', 'EEM', 'UUP', 'UUP', 'UUP', 'XME', 'XME', 'XME', 'XME', 
-            'XLE', 'SPY', 'XLI', 'XLC', 
-            'XLC', 'XLI', 'XLF', 'XLF', 'XLF', 'XLF', 'XLY', 'XLK', 'XLK',
-            'XLU', 'XLP', 'XLY', 'XLV', 'XLV')
+tickers = c('EWZ','GDXJ','RGLD', 'RIO', 'CLF', 'COP', 'HAL', 'AON','AMZN', 'SMH','META', 'YUM') 
+etf1 =    c('UUP', 'UUP', 'UUP', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'QQQ', 'SPY', 'SPY')
+etf2 =    c('EEM', 'GLD', 'GDX', 'XME', 'XME', 'XLE', 'XLE', 'XLF', 'XLY', 'XLK', 'XLC', 'XLY')
 
-stock_tickers <- unique(c(tickers, 'UUP', 'EEM')) 
+
+stock_tickers <- unique(c(tickers, 'UUP', 'EEM', 'GLD', 'GDX')) 
 
 for (i in 1:length(stock_tickers)) { 
   tryCatch({ 
@@ -284,17 +276,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x)), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 600, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 600, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 600, 
                                end_date = today()) 
   Sys.sleep(2)
   }

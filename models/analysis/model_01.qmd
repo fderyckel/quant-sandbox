@@ -4,7 +4,7 @@ format:
   html: 
     toc: true
     toc-depth: 2
-    toc-location: left
+    toc-location: body
     theme: darkly
     fontsize: 1.1em
     grid: 
@@ -14,6 +14,8 @@ format:
 ---
 
 We are analysis all variables here, checking predictions certainties, checking future predictions, checking metrics, etc. 
+
+# Setting up 
 
 ```{r}
 #| label: setup
@@ -67,7 +69,7 @@ get_metrics_reg <- function(ticker, model_name) {
 
 ```{r}
 #| label: varimp-29d
-#| eval: false
+#| eval: true
 #| echo: false
 
 num_days = '29d'
@@ -78,27 +80,31 @@ df_VI_v01a <- df |>
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
   summarise(mean_rank = mean(rank_order), 
-            mean_imp = mean(Importance, na.rm=TRUE), 
-            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+            mean_imp = round(mean(Importance, na.rm=TRUE), 4), 
+            sd_imp = round(sd(Importance, na.rm=TRUE), 4)) |> 
+  mutate(model = 'v01a', timeframe = num_days) |> 
   arrange(desc(mean_imp))
 
 df_VI_v01a |> gt()
 
 
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP'))
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01e_', num_days, '_')
 df_VI_v01e <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
   summarise(mean_rank = mean(rank_order), 
-            mean_imp = mean(Importance, na.rm=TRUE), 
-            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+            mean_imp = round(mean(Importance, na.rm=TRUE), 4), 
+            sd_imp = round(sd(Importance, na.rm=TRUE), 4)) |> 
+  mutate(model = 'v01e', timeframe = num_days) |> 
   arrange(desc(mean_imp))
 
 df_VI_v01e |> gt()
 
 df_VI <- df_VI_v01a |> add_row(df_VI_v01e ) |> 
   arrange(mean_rank)
+df_VI |> gt()
 ```
 
 
@@ -111,6 +117,8 @@ df_VI <- df_VI_v01a |> add_row(df_VI_v01e ) |>
 num_days = '41d'
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01a_', num_days, '_')
 
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
+
 df_VI_v01a <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
@@ -118,8 +126,10 @@ df_VI_v01a <- df |>
   summarise(mean_rank = mean(rank_order), 
             mean_imp = mean(Importance, na.rm=TRUE), 
             sd_imp = sd(Importance, na.rm=TRUE)) |> 
-  arrange(desc(mean_imp)) |> mutate(model = 'v01a')
+  mutate(model = 'v01a', timeframe = num_days) |> 
+  arrange(desc(mean_imp)) 
 
+# Just model a, 41d
 df_VI_v01a |> gt()
 
 
@@ -132,15 +142,84 @@ df_VI_v01e <- df |>
   summarise(mean_rank = mean(rank_order), 
             mean_imp = mean(Importance, na.rm=TRUE), 
             sd_imp = sd(Importance, na.rm=TRUE)) |> 
-  arrange(desc(mean_imp)) |> mutate(model = 'v01e')
-
+  mutate(model = 'v01e', timeframe = num_days) |> 
+  arrange(desc(mean_imp))
+# Just model e, 41d
 df_VI_v01e |> gt()
 
+# both model together
 df_VI <- df_VI_v01a |> add_row(df_VI_v01e ) |> 
   arrange(mean_rank)
 df_VI |> gt()
 ```
 
+# Model quality 
+
+## Quality on resamples 
+
+### 29 days (1 1/2 months forward) 
+
+```{r}
+#| label: metrics-29d
+#| echo: false
+
+num_days = '29d'
+yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_', num_days, '_')
+
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
+
+df_ME_v01a <- df |> 
+  mutate(mod_metrics = map2(ticker, 'v01a', get_metrics_class)) |> 
+  unnest(cols = c(mod_metrics)) |> select(-name) |> 
+  mutate(model = 'v01a', timeframe = num_days) 
+
+# for model e
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP'))
+yop <- glue(the_path, '/models/model_metrics/xgboost_v01e_', num_days, '_')
+df_ME_v01e <- df |> 
+  mutate(mod_metrics = map2(ticker, 'v01e', get_metrics_reg)) |> 
+  unnest(cols = c(mod_metrics)) |> select(-name) |> 
+  mutate(model = 'v01e', timeframe = num_days) 
+
+# diplay both metrics
+#df_ME <- df_ME_v01a |> add_row(df_ME_v01e ) |> 
+#  mutate(f1 = (2*Precision*Recall)/(Precision + Recall)) |> 
+#  arrange(ticker, model)
+#df_ME |> gt()
+
+```
+
+### 41 days (2 months forward) 
+
+```{r}
+#| label: metrics-41d
+#| echo: false
+
+num_days = '41d'
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
+
+yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_', num_days, '_')
+df_ME_v01a <- df |> 
+  mutate(mod_metrics = map2(ticker, 'v01a', get_metrics_class)) |> 
+  unnest(cols = c(mod_metrics)) |> select(-name) |> 
+  mutate(model = 'v01a', timeframe = num_days) 
+
+# for model e
+yop <- glue(the_path, '/models/model_metrics/xgboost_v01e_', num_days, '_')
+df_ME_v01e <- df |> 
+  mutate(mod_metrics = map2(ticker, 'v01e', get_metrics_class)) |> 
+  unnest(cols = c(mod_metrics)) |> select(-name) |> 
+  mutate(model = 'v01e', timeframe = num_days) 
+
+# diplay both metrics
+df_ME <- df_ME_v01a |> add_row(df_ME_v01e ) |> 
+  mutate(f1 = (2*Precision*Recall)/(Precision + Recall)) |> 
+  arrange(ticker, model)
+df_ME |> gt()
+```
+
+
+## Quality on test set (last year of data which has been unseen)
 
 # Making prediction 
 

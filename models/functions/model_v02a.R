@@ -77,10 +77,11 @@ model02a <- function(ticker, num_days){
            roll_sd_volu200_251d_lag5 = lag(roll_sd_volu200_251d, n = 5), 
            roll_sd_volu200_251d_lag17 = lag(roll_sd_volu200_251d, n = 17), 
            
-           forw_ret = log(lead(close, n = num_days) / close), 
+           forw_ret = log(lead(close, n = parse_number(num_days)) / close), 
            ord_class = as.factor(ntile(forw_ret, 3))) |> 
     
-    select(date, atr11_open, atr17_open, 
+    select(date, close, forw_ret, 
+           atr11_open, atr17_open, 
            roll_mean_ret1d_61d, roll_mean_ret5d_61d, roll_mean_ret5d_147d, 
            roll_sd_ret1d_61d, roll_sd_ret1d_147d, roll_sd_ret5d_147d, 
            roll_sd_ret5d_147d_lag5, roll_sd_ret5d_147d_lag11, 

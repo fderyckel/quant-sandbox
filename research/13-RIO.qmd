@@ -1,0 +1,356 @@
+---
+title: "03 - RIO"
+format: html
+---
+
+Using Glmnet as feature selection, incrementally select appropriate variables to make a more complete models. 
+
+As external source of data, we will use DIA, QQQ, Ratio DIA/QQQ, Ratio RIO/SPY, Ratio RIO/USCI, Ratio RIO/XME, Ratio GDX/GLD YES!!, Ration RIO/UUP YES!!
+
+```{r}
+#| label: setup
+#| warning: false
+#| message: false
+
+library(readr)
+library(dplyr)
+library(glue)
+library(timetk)
+library(tidyr)
+
+the_path <- here::here()
+
+conform_data <- function(ticker) {
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |> 
+      rename(adjusted = adjClose) |> arrange(date) |> 
+      select(date, open, high, low, close, volume, adjusted) |> 
+      mutate(ret_1d = log(adjusted / lag(adjusted, n=1)), 
+             forw_ret = log(lead(adjusted, n = 41) / adjusted), 
+             ord_class = ntile(forw_ret, 5), 
+             target = case_when(ord_class == 1 ~ 1, 
+                                ord_class == 2 ~ 1, 
+                                ord_class == 3 ~ 2, 
+                                ord_class == 4 ~ 3, 
+                                ord_class == 5 ~ 3), 
+             target = as.factor(target))
+  return(df)
+}
+
+primes <- c(5, 11, 17, 19, 23, 29, 37, 47, 59, 71, 83, 97, 
+            109, 127, 157, 179, 199, 223, 251)
+
+get_returns_sd <- function(df) {
+  for (i in primes) { 
+    ret_name = glue('ret_', i, 'd')
+    sd_name = glue('sd_', i, 'd') 
+    roll_sd <- slidify(.f = sd, .period = i, .align = 'right') 
+    df <- df |> mutate(!!as.name(ret_name) := log(adjusted / lag(adjusted, i)), 
+                       !!as.name(sd_name) := roll_sd(ret_1d)) 
+  }
+  return(df)
+}
+
+get_corr <- function(df) {
+  for (i in primes) { 
+    corr_name = glue('corr_', i, 'd')
+    roll_corr <- slidify(.f = ~cor(.x, .y), .period = i, .align = 'right') 
+    df <- df |> mutate(!!as.name(corr_name) := roll_corr(adj_tick, adj_etf))
+  }
+  return(df)
+}
+
+
+create_relative_prices <- function(df_tick, df_etf) {
+  df_tick <- conform_data(df_tick) |> select(date, adj_tick = adjusted)
+  df_etf <- conform_data(df_etf) |> select(date, adj_etf = adjusted)
+  df <- left_join(df_tick, df_etf, by = c('date')) |> 
+    mutate(adjusted = adj_tick / adj_etf, 
+           ret_1d = log(adjusted / lag(adjusted))) |> 
+    drop_na()
+  return(df)
+}
+
+```
+
+# Features engineering 
+
+```{r}
+
+df_ticker <- conform_data('RIO') 
+df1a <- get_returns_sd(df_ticker) |> 
+  select(-open, -high, -low, -close, -adjusted, -volume, 
+         -ret_1d, -forw_ret, -ord_class) |> 
+  drop_na()
+
+df_rel <- create_relative_prices('GLD', 'GDX') |> 
+  get_corr() |> 
+  get_returns_sd() |> 
+  drop_na() |> 
+  select(-adj_tick, -adj_etf, -adjusted, -ret_1d)
+yo <- df_ticker |> select(date, target)
+df_rel <- left_join(df_rel, yo, by = join_by(date))
+
+### train-test split
+df_train = df1a[1:round(nrow(df1a)*0.8), ]
+df_test = df1a[(round(nrow(df1a)*0.8) + 1):nrow(df1a) , ]
+
+df_rel_train = df_rel[1:round(nrow(df_rel)*0.8), ]
+df_rel_test = df_rel[(round(nrow(df_rel)*0.8) + 1):nrow(df_rel) , ]
+
+```
+
+# (base) model 
+
+```{r}
+#| label: base_model
+#| warning: false
+#| message: false
+
+library(recipes)
+library(rsample)
+library(parsnip)
+library(tune)
+library(dials)
+library(workflows)
+library(yardstick)
+library(ggplot2)
+
+rec_glmnet <- recipe(formula = target ~., data = df_train) |> 
+  update_role(date, new_role = 'ID') |> 
+  step_normalize(all_numeric_predictors())
+rec_xgboost <- recipe(formula = target ~., data = df_train) |> 
+  update_role(date, new_role = 'ID')
+rec_xgboost_rel <- recipe(formula = target ~., data = df_rel_train) |> 
+  update_role(date, new_role = 'ID')
+
+df_prep <- rec_glmnet |> prep(training = df_train)
+df_juiced_glmnet <- juice(df_prep)
+df_baked_glmnet <- df_prep |> bake(new_data = df_test)
+
+df_prep <- rec_xgboost |> prep(training = df_train)
+df_juiced_xgboost <- juice(df_prep)
+df_baked_xgboost <- df_prep |> bake(new_data = df_test)
+
+df_prep_rel <- rec_xgboost_rel |> prep(training = df_rel_train)
+df_juiced_xgboost_rel <- juice(df_prep_rel)
+df_baked_xgboost_rel <- df_prep_rel |> bake(new_data = df_rel_test)
+
+# create the CV validation resamples 
+tscv = rolling_origin(df_train, initial = 1250, assess = 100, lag = 20, skip = 350, cumulative = T)
+tscv_rel = rolling_origin(df_rel_train, initial = 1250, assess = 100, lag = 20, skip = 200, cumulative = T)
+
+model_glmnet <- logistic_reg(penalty = tune(), mixture = tune()) |> 
+  set_engine('glmnet') |> set_mode(mode = 'classification')
+# pure lasso for variable selections
+#model_glmnet <- logistic_reg(penalty = tune(), mixture = 1) |> 
+#  set_engine('glmnet') |> set_mode(mode = 'classification')
+model_xgboost <- boost_tree(mtry = tune(), min_n = tune(), 
+                            learn_rate = tune(), loss_reduction = tune(), 
+                            tree_depth = tune(), trees = tune()) |> 
+  set_engine('xgboost') |> set_mode('classification')
+
+# create wf
+wf_glmnet <- workflow(preprocessor = rec_glmnet, spec = model_glmnet)
+wf_xgboost <- workflow(preprocessor = rec_xgboost, spec = model_xgboost)
+wf_xgboost_rel <- workflow(preprocessor = rec_xgboost_rel, spec = model_xgboost)
+
+glmnet_param <- parameters(penalty(), mixture())
+glmnet_grid_maxEnthropy = grid_max_entropy(glmnet_param, size = 200)
+
+xgboost_param <- parameters(trees(range = c(500, 900)), 
+                            loss_reduction(range = c(-5, -1)), 
+                            mtry(range = c(13L, 18L)), 
+                            learn_rate(range = c(-4, -2)), 
+                            min_n(range = c(19L, 29L)),   
+                            tree_depth(range = c(9L, 13L)))
+xgboost_grid_maxEnthropy = grid_max_entropy(xgboost_param, size = 40)
+
+```
+
+```{r}
+library(doParallel)
+registerDoParallel()
+glmnet_tuning <- tune_grid(wf_glmnet, resamples = tscv, 
+                           grid = glmnet_grid_maxEnthropy, 
+                           metrics = metric_set(f_meas, precision, accuracy, roc_auc), 
+                           control = control_resamples(verbose = T, save_pred = T))
+
+metrics_glmnet <- glmnet_tuning |> collect_metrics() |> 
+  arrange(.metric, desc(mean))
+
+best_glmnet_model <- glmnet_tuning |> show_best(metric = 'roc_auc', n = 1)
+
+glmnet_tuning |> autoplot(metric = c('f_meas', 'roc_auc'))
+```
+
+```{r}
+library(doParallel)
+registerDoParallel()
+xgboost_tuning <- tune_grid(wf_xgboost, resamples = tscv, 
+                            grid = xgboost_grid_maxEnthropy, 
+                            metrics = metric_set(f_meas, precision, accuracy, roc_auc),
+                            control = control_resamples(verbose = T, save_pred = T))
+
+metrics_xgboost <- xgboost_tuning |> collect_metrics() |> 
+  arrange(.metric, desc(mean))
+
+best_xgboost_model <- xgboost_tuning |> show_best(metric = 'f_meas', n = 1)
+
+xgboost_tuning |> autoplot(metric = c('f_meas', 'roc_auc'))
+```
+
+```{r}
+library(doParallel)
+registerDoParallel()
+xgboost_tuning_rel <- tune_grid(wf_xgboost_rel, resamples = tscv_rel, 
+                            grid = xgboost_grid_maxEnthropy, 
+                            metrics = metric_set(f_meas, precision, accuracy, roc_auc),
+                            control = control_resamples(verbose = T, save_pred = T))
+
+metrics_xgboost_re <- xgboost_tuning_rel |> collect_metrics() |> 
+  arrange(.metric, desc(mean))
+
+best_xgboost_rel_model <- xgboost_tuning_rel |> show_best(metric = 'precision', n = 1)
+
+xgboost_tuning_rel |> autoplot(metric = c('f_meas', 'roc_auc'))
+```
+
+
+# final metrics on test set 
+
+```{r}
+final_glmnet <- finalize_workflow(wf_glmnet, 
+                                  parameters =  best_glmnet_model)
+
+glmnet_model_tuned <- model_glmnet |> finalize_model(best_glmnet_model)
+glmnet_final_fit <- glmnet_model_tuned |> fit(formula = target ~., data = df_juiced)
+glmnet_pred_train <- predict(glmnet_final_fit, new_data = df_juiced)
+glmnet_pred <- predict(glmnet_final_fit, new_data = df_baked)
+
+df_pred <- bind_cols(df_baked |> select(date, target), glmnet_pred)
+```
+
+ARGHHHHH all same prediction ....
+
+```{r}
+final_xgboost <- finalize_workflow(wf_xgboost, 
+                                  parameters =  best_xgboost_model)
+xgboost_model_tuned <- model_xgboost |> finalize_model(best_xgboost_model)
+xgboost_final_fit <- xgboost_model_tuned |> fit(formula = target ~., data = df_juiced_xgboost)
+xgboost_pred_train <- predict(xgboost_final_fit, new_data = df_juiced_xgboost)
+xgboost_pred <- predict(xgboost_final_fit, new_data = df_baked_xgboost)
+
+df_pred_xgboost <- bind_cols(df_baked_xgboost |> select(date, target), xgboost_pred)
+```
+
+```{r}
+final_xgboost_rel <- finalize_workflow(wf_xgboost_rel, 
+                                  parameters =  best_xgboost_rel_model)
+xgboost_model_tuned <- model_xgboost |> finalize_model(best_xgboost_rel_model)
+xgboost_final_fit <- xgboost_model_tuned |> fit(formula = target ~., data = df_juiced_xgboost_rel)
+
+xgboost_pred_train <- predict(xgboost_final_fit, new_data = df_juiced_xgboost_rel)
+xgboost_pred <- predict(xgboost_final_fit, new_data = df_baked_xgboost_rel)
+
+df_pred_xgboost_rel <- bind_cols(df_baked_xgboost_rel |> select(date, target), 
+                                 xgboost_pred)
+
+yo <- conf_mat(df_pred_xgboost_rel, truth = target, estimate = .pred_class)
+summary(yo)
+```
+
+
+# variables importance
+
+```{r}
+library(vip)
+library(forcats)
+
+final_glmnet |> fit(df_juiced) |> 
+  pull_workflow_fit() |> 
+  vi(lambda = metrics_glmnet$penalty) |> 
+  mutate(
+    Importance = abs(Importance),
+    Variable = fct_reorder(Variable, Importance)) |>
+  ggplot(aes(x = Importance, y = Variable, fill = Sign)) +
+  geom_col() +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(y = NULL)
+```
+
+```{r}
+library(vip)
+library(forcats)
+
+yo <- final_xgboost |> fit(df_juiced_xgboost) |> 
+  pull_workflow_fit() |> 
+  vi() |> 
+  mutate(
+    Importance = abs(Importance),
+    Variable = fct_reorder(Variable, Importance)) 
+write_csv(yo, file = 'temp/rio_ret_sds_xgboost_var.csv')
+
+yo |> 
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col() +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(y = NULL)
+```
+
+```{r}
+library(vip)
+library(forcats)
+
+yo <- final_xgboost_rel |> fit(df_juiced_xgboost_rel) |> 
+  pull_workflow_fit() |> 
+  vi() |> 
+  mutate(
+    Importance = abs(Importance),
+    Variable = fct_reorder(Variable, Importance)) 
+write_csv(yo, file = 'temp/rio_xme_xgboost_var.csv') 
+
+yo |> 
+  ggplot(aes(x = Importance, y = Variable)) +
+  geom_col() +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(y = NULL)
+```
+
+
+
+
+### Final Model
+
+```{r}
+roll_sd_59d = slidify(.f = sd, .period = 59, .align = 'right')
+roll_sd_157d = slidify(.f = sd, .period = 157, .align = 'right')
+roll_sd_179d = slidify(.f = sd, .period = 179, .align = 'right')
+roll_sd_83d = slidify(.f = sd, .period = 83, .align = 'right')
+roll_sd_97d = slidify(.f = sd, .period = 97, .align = 'right')
+roll_sd_109d = slidify(.f = sd, .period = 109, .align = 'right')
+roll_sd_127d = slidify(.f = sd, .period = 127, .align = 'right')
+roll_sd_199d = slidify(.f = sd, .period = 199, .align = 'right')
+roll_sd_223d = slidify(.f = sd, .period = 223, .align = 'right')
+roll_sd_251d = slidify(.f = sd, .period = 251, .align = 'right')
+
+
+df <- conform_data('RIO') |> select(-forw_ret, -ord_class, -high, -low, -open, -volume) |> 
+  mutate(sd_251d = roll_sd_251d(ret_1d), 
+         sd_199d = roll_sd_199d(ret_1d), 
+         sd_223d = roll_sd_223d(ret_1d), 
+         sd_109d = roll_sd_109d(ret_1d), 
+         sd_127d = roll_sd_127d(ret_1d), 
+         sd_157d = roll_sd_157d(ret_1d), 
+         sd_59d = roll_sd_59d(ret_1d), sd_179d = roll_sd_179d(ret_1d), 
+         sd_83d = roll_sd_83d(ret_1d), sd_97d = roll_sd_97d(ret_1d), 
+         ret_251d = log(adjusted / lag(adjusted, n = 251)), 
+         ret_179d = log(adjusted / lag(adjusted, n = 179)),
+         ret_97d = log(adjusted / lag(adjusted, n = 97)), 
+         ret_157d = log(adjusted / lag(adjusted, n = 157)), 
+         ret_199d = log(adjusted / lag(adjusted, n = 199))
+         )
+
+df_uup <- 
+```
+

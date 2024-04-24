@@ -143,3 +143,35 @@ for (i in 1:nrow(df)){
   }
 dev.off()
 ```
+
+# Criteria based investing 
+I have identified 11 criteria based on TA.  
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+library(tidyr)
+
+conform_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(date, adjusted=adjClose, close = close) |>  
+      arrange(date)
+    return(df)
+}
+
+df <- conform_data('AA') |> 
+  mutate(ema9 = TTR::EMA(close, 9),  sma50 = TTR::SMA(close, 50), 
+         sma200 = TTR::SMA(close, 200), 
+         above_ema9 = if_else(close > ema9, 1, 0), 
+         above_sma50 = if_else(close > sma50, 1, 0), 
+         above_sma200 = if_else(close > sma200, 1, 0), 
+         sma50_abov_sma200 = if_else(sma50 > sma200, 1, 0)) |> 
+  drop_na() |> 
+  select(date, close, above_ema9, above_sma50, above_sma200)
+
+```
+

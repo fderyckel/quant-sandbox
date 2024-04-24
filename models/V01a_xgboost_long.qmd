@@ -4,7 +4,7 @@ format:
   html: 
     toc: true
     toc-depth: 2
-    toc-location: left
+    toc-location: body
     theme: darkly
     fontsize: 1.1em
     grid: 
@@ -45,7 +45,6 @@ the_path <- here::here()
 ticker <- 'AAPL'
 num_days <- '29d'
 
-model_type = '8wClass3ile'
 yop <- glue('xgboost_v01a_', num_days, "_", ticker)
 ```
 
