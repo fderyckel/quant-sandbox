@@ -83,7 +83,7 @@ df1a <- get_returns_sd(df_ticker) |>
          -ret_1d, -forw_ret, -ord_class) |> 
   drop_na()
 
-df_rel <- create_relative_prices('GLD', 'GDX') |> 
+df_rel <- create_relative_prices('DIA', 'QQQ') |> 
   get_corr() |> 
   get_returns_sd() |> 
   drop_na() |> 
@@ -148,7 +148,8 @@ model_glmnet <- logistic_reg(penalty = tune(), mixture = tune()) |>
 model_xgboost <- boost_tree(mtry = tune(), min_n = tune(), 
                             learn_rate = tune(), loss_reduction = tune(), 
                             tree_depth = tune(), trees = tune()) |> 
-  set_engine('xgboost') |> set_mode('classification')
+  set_engine('xgboost') |> 
+  set_mode('classification')
 
 # create wf
 wf_glmnet <- workflow(preprocessor = rec_glmnet, spec = model_glmnet)
@@ -308,7 +309,7 @@ yo <- final_xgboost_rel |> fit(df_juiced_xgboost_rel) |>
   mutate(
     Importance = abs(Importance),
     Variable = fct_reorder(Variable, Importance)) 
-write_csv(yo, file = 'temp/rio_xme_xgboost_var.csv') 
+write_csv(yo, file = 'temp/dia_qqq_xgboost_var.csv') 
 
 yo |> 
   ggplot(aes(x = Importance, y = Variable)) +
