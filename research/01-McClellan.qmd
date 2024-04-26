@@ -1,0 +1,169 @@
+---
+title: "Modeling gaps up and down"
+format: html
+---
+
+Trying to reproduce the McClellan Oscillator 
+
+```{r}
+#| label: list_of_stocks
+
+xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
+        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 
+        'FOXA', 'PARA')
+xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
+        'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
+        'EQT', 'OVV', 'FCG') 
+xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP', 'SCHW', 
+        'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 'TRV', 
+        'CBOE', 'CME', 'ICE', 'KRE') 
+xlk = c('MSFT', 'AAPL', 'NVDA', 'AVGO', 'CRM', 'ADBE', 'AMD', 'ACN', 'CSCO', 'INTC',  
+        'INTU', 'ORCL', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'PANW', 'PLTR', 
+        'ABNB', 'GOOG', 'META', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
+        'BABA', 'TSM',  'TER') 
+xlp = c('PG', 'UL',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 'TGT', 'STZ', 
+        'DEO', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 'HSY', 'MKC', 'DLTR', 
+        'HRL', 'CHD', 'CLX', 'COTY', 'ELF', 'SJM', 'K', 'CAG') 
+xlu = c('NEE', 'SO', 'DUK', 'SRE', 'AEP', 'D', 'PCG', 'CEG', 'EXC', 'XEL', 'ED', 
+        'PEG', 'EIX', 'WEC', 'AWK', 'DTE', 'ES', 'ETR', 'PPL', 'AEE', 'FE') 
+xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'ABT', 'PFE', 'RVTY', 'TMO', 'DHR', 
+        'ISRG', 'ELV', 'MDT', 'BMY', 'CVS', 'SYK', 'ZTS', 
+        'CI', 'BSX', 'BDX', 'MCK', 'HUM', 'COR', 
+        'VRTX', 'REGN', 'AMGN', 'GILD', 'IQV', 'BIIB', 'MRNA', 'MTD', 'ILMN', 'ALNY')  
+xly = c('AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'LOW', 'BKNG', 'PAG', 'SBUX', 'TJX', 'CMG', 
+        'ABNB', 'LULU', 'ORLY', 'MAR', 'GM', 'F', 'HLT', 'AZO', 'ROST', 'DHI', 'YUM', 
+        'RCL', 'TSCO', 'PHM', 'EXPE', 'DRI', 'GRMN') 
+xme = c('AA', 'X', 'MP', 'CLF', 'ATI', 'AMR', 'FCX', 'NUE', 'CRS', 'NEM', 'RS', 
+        'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'AEM', 'UEC', 'ALB', 'PAAS', 
+        'FMC', 'MOS', 'SQM', 'PBR', 'RIO', 'VALE', 'TECK', 'SCCO', 'BHP') 
+```
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+library(tidyr)
+
+the_path <- here::here()
+
+conform_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(date, close, adjusted = adjClose) |>  
+      arrange(date)
+    return(df)
+}
+
+create_ad <- function(ticker) {
+  df <- conform_data(ticker) |> 
+    mutate(up_or_down = if_else(close > lag(close), 1, -1)) |> 
+    select(date, up_or_down) |> 
+    drop_na()
+}
+
+df <- tibble(ticker = c(xlc, xle, xlf, xlp, xlu, xlv, xly, xme))|> 
+  mutate(breadth = map(ticker, create_ad, .progress = TRUE)) |> 
+  unnest(cols = c(breadth)) |> 
+  group_by(date) |> 
+  summarize(adv_decl = sum(up_or_down), 
+            rana = (adv_decl / n()) * 100) |> 
+  mutate(ema19 = TTR::EMA(rana, n = 19), 
+         ema39 = TTR::EMA(rana, n=39), 
+         mclellan = ema19-ema39)
+
+library(ggplot2)
+library(scales)
+
+
+spy <- conform_data('SPY') |> 
+  mutate(forw_ret = log(lead(close, n = 41) / close), 
+         ord_class = as.factor(ntile(forw_ret, n = 3)))
+yo <- left_join(df, spy, by = join_by(date))
+ggplot(yo |> filter(date > today() - 750), aes(x = date)) + 
+  geom_line(aes(y = mclellan), color = 'blue') + 
+  geom_point(aes(y = mclellan, color = ord_class)) + 
+  scale_color_manual(values = c('1' = 'red', '2' = 'blue', '3' = 'green')) + 
+  #geom_hline(aes(yintercept = 0.9), color = 'red', linetype = 'dashed') + 
+  #geom_hline(aes(yintercept = 0.1), color = 'red', linetype = 'dashed') + 
+  scale_x_date(breaks = breaks_width("2 months"),labels = label_date("%b %y")) + 
+  #title(main = 'XLE') + 
+  #annotate("text", x = 1, y = 1, label = 'XLE', color = "white") + 
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(angle = 90), 
+        axis.text.x = element_text(angle = 30, vjust = 0.4), 
+        plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
+        panel.background = element_rect(fill = "black"), 
+        plot.background = element_rect(fill = "Gray 65"), 
+        panel.grid.major.x = element_line(colour = "white", 
+                                          linetype = "dotted", linewidth = 0.1), 
+        panel.grid.major.y = element_line(colour = "white", 
+                                          linetype = "dotted", linewidth = 0.1), 
+        panel.grid.minor.x = element_line(colour = "white", 
+                                          linetype = "dotted", linewidth = 0.1), 
+        panel.grid.minor.y = element_blank()
+        )
+```
+
+```{r}
+library(timetk)
+mean_roll_50 <- slidify(.f = mean, .align = 'right', .period = 50)
+mean_roll_100 <- slidify(.f = mean, .align = 'right', .period = 100)
+mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 200)
+
+create_averages <- function(ticker) {
+  df <- conform_data(ticker) |> 
+    mutate(ema20 = TTR::EMA(adjusted, 20), 
+           above_ema20 = if_else(adjusted > ema20, 1, 0), 
+           sma50 = mean_roll_50(adjusted), 
+           above_sma50 = if_else(adjusted > sma50, 1, 0), 
+           sma100 = mean_roll_100(adjusted), 
+           above_sma100 = if_else(adjusted > sma100, 1, 0), 
+           sma200 = mean_roll_200(adjusted), 
+           above_sma200 = if_else(adjusted > sma200, 1, 0)) |> 
+    select(date, above_sma50, above_sma100, above_sma200) |> 
+    na.omit()
+    
+}
+
+df <- tibble(ticker = c(xlc, xle, xlf, xlp, xlu, xlv, xly, xme)) |> 
+  mutate(breadth = map(ticker, create_averages, .progress = TRUE)) |> 
+  unnest(cols = c(breadth)) |> 
+  group_by(date) |> 
+  summarize(num_stocks = n(), 
+            avg_abov50 = mean(above_sma50), 
+            avg_abov100 = mean(above_sma100), 
+            avg_abov200 = mean(above_sma200)) 
+
+spy <- conform_data('SPY') |> 
+  mutate(forw_ret = log(lead(close, n = 41) / close), 
+         ord_class = as.factor(ntile(forw_ret, n = 3)))
+yo <- left_join(df, spy, by = join_by(date))
+
+ggplot(yo |> filter(date > today() - 750), aes(x = date)) + 
+  geom_line(aes(y = avg_abov50), color = 'blue') + 
+  geom_line(aes(y = avg_abov200), color = 'purple') + 
+  geom_point(aes(y = avg_abov50, color = ord_class)) + 
+  scale_color_manual(values = c('1' = 'red', '2' = 'blue', '3' = 'green')) + 
+  geom_hline(aes(yintercept = 0.9), color = 'red', linetype = 'dashed') + 
+  geom_hline(aes(yintercept = 0.1), color = 'red', linetype = 'dashed') + 
+  scale_x_date(breaks = breaks_width("2 months"),labels = label_date("%b %y")) + 
+  #title(main = 'XLE') + 
+  #annotate("text", x = 1, y = 1, label = 'XLE', color = "white") + 
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(angle = 90), 
+        axis.text.x = element_text(angle = 30, vjust = 0.4), 
+        plot.margin = margin(0.0, 0.2, 0.2, 0.4, "cm"), 
+        panel.background = element_rect(fill = "black"), 
+        plot.background = element_rect(fill = "Gray 65"), 
+        panel.grid.major.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+        panel.grid.major.y = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+        panel.grid.minor.x = element_line(colour = "white", linetype = "dotted", linewidth = 0.1), 
+        panel.grid.minor.y = element_blank()
+        )
+```
+

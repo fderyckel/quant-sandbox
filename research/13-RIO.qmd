@@ -5,7 +5,7 @@ format: html
 
 Using Glmnet as feature selection, incrementally select appropriate variables to make a more complete models. 
 
-As external source of data, we will use DIA, QQQ, Ratio DIA/QQQ, Ratio RIO/SPY, Ratio RIO/USCI, Ratio RIO/XME, Ratio GDX/GLD YES!!, Ration RIO/UUP YES!!
+As external source of data, we will use DIA, QQQ, Ratio DIA/QQQ YES!, Ratio RIO/SPY, Ratio RIO/USCI, Ratio RIO/XME, Ratio GDX/GLD YES!!, Ratio RIO/UUP YES!!
 
 ```{r}
 #| label: setup
@@ -33,7 +33,7 @@ conform_data <- function(ticker) {
                                 ord_class == 3 ~ 2, 
                                 ord_class == 4 ~ 3, 
                                 ord_class == 5 ~ 3), 
-             target = as.factor(target))
+             target = as.factor(target)) |> arrange(date)
   return(df)
 }
 
@@ -83,7 +83,7 @@ df1a <- get_returns_sd(df_ticker) |>
          -ret_1d, -forw_ret, -ord_class) |> 
   drop_na()
 
-df_rel <- create_relative_prices('DIA', 'QQQ') |> 
+df_rel <- create_relative_prices('RIO', 'XME') |> 
   get_corr() |> 
   get_returns_sd() |> 
   drop_na() |> 
@@ -138,7 +138,7 @@ df_baked_xgboost_rel <- df_prep_rel |> bake(new_data = df_rel_test)
 
 # create the CV validation resamples 
 tscv = rolling_origin(df_train, initial = 1250, assess = 100, lag = 20, skip = 350, cumulative = T)
-tscv_rel = rolling_origin(df_rel_train, initial = 1250, assess = 100, lag = 20, skip = 200, cumulative = T)
+tscv_rel = rolling_origin(df_rel_train, initial = 1250, assess = 100, lag = 20, skip = 220, cumulative = T)
 
 model_glmnet <- logistic_reg(penalty = tune(), mixture = tune()) |> 
   set_engine('glmnet') |> set_mode(mode = 'classification')
@@ -212,7 +212,7 @@ xgboost_tuning_rel <- tune_grid(wf_xgboost_rel, resamples = tscv_rel,
 metrics_xgboost_re <- xgboost_tuning_rel |> collect_metrics() |> 
   arrange(.metric, desc(mean))
 
-best_xgboost_rel_model <- xgboost_tuning_rel |> show_best(metric = 'precision', n = 1)
+best_xgboost_rel_model <- xgboost_tuning_rel |> show_best(metric = 'accuracy', n = 1)
 
 xgboost_tuning_rel |> autoplot(metric = c('f_meas', 'roc_auc'))
 ```
@@ -290,7 +290,7 @@ yo <- final_xgboost |> fit(df_juiced_xgboost) |>
   mutate(
     Importance = abs(Importance),
     Variable = fct_reorder(Variable, Importance)) 
-write_csv(yo, file = 'temp/rio_ret_sds_xgboost_var.csv')
+write_csv(yo, file = 'temp/total_rio_xgboost_var.csv')
 
 yo |> 
   ggplot(aes(x = Importance, y = Variable)) +
@@ -304,12 +304,12 @@ library(vip)
 library(forcats)
 
 yo <- final_xgboost_rel |> fit(df_juiced_xgboost_rel) |> 
-  pull_workflow_fit() |> 
+  extract_fit_parsnip() |> 
   vi() |> 
   mutate(
     Importance = abs(Importance),
     Variable = fct_reorder(Variable, Importance)) 
-write_csv(yo, file = 'temp/dia_qqq_xgboost_var.csv') 
+write_csv(yo, file = 'temp/rio_xme_xgboost_var.csv') 
 
 yo |> 
   ggplot(aes(x = Importance, y = Variable)) +
@@ -321,37 +321,107 @@ yo |>
 
 
 
-### Final Model
+
+# Final Model
 
 ```{r}
-roll_sd_59d = slidify(.f = sd, .period = 59, .align = 'right')
-roll_sd_157d = slidify(.f = sd, .period = 157, .align = 'right')
-roll_sd_179d = slidify(.f = sd, .period = 179, .align = 'right')
-roll_sd_83d = slidify(.f = sd, .period = 83, .align = 'right')
-roll_sd_97d = slidify(.f = sd, .period = 97, .align = 'right')
-roll_sd_109d = slidify(.f = sd, .period = 109, .align = 'right')
-roll_sd_127d = slidify(.f = sd, .period = 127, .align = 'right')
-roll_sd_199d = slidify(.f = sd, .period = 199, .align = 'right')
-roll_sd_223d = slidify(.f = sd, .period = 223, .align = 'right')
-roll_sd_251d = slidify(.f = sd, .period = 251, .align = 'right')
+#| warning: false
+#| message: false
+library(stringr)
+names_col <- read_csv('temp/rio_ret_sd_xgboost_var.csv') |> 
+  slice_head(n = 15) |>  pull(Variable) 
+df_ticker <- conform_data('RIO') |> get_returns_sd() |> 
+  drop_na() |> select(date, target, matches(names_col)) |> 
+  rename_with(~str_c(names_col, '_tic'), names_col)
 
+names_col <- read_csv('temp/rio_xme_xgboost_var.csv') |> 
+  slice_head(n = 15) |> pull(Variable) 
+df_xme <- create_relative_prices('RIO', 'XME') |> 
+  get_corr() |> get_returns_sd() |> drop_na() |> 
+  select(date, matches(names_col)) |> 
+  rename_with(~str_c(names_col, '_xme'), names_col)
 
-df <- conform_data('RIO') |> select(-forw_ret, -ord_class, -high, -low, -open, -volume) |> 
-  mutate(sd_251d = roll_sd_251d(ret_1d), 
-         sd_199d = roll_sd_199d(ret_1d), 
-         sd_223d = roll_sd_223d(ret_1d), 
-         sd_109d = roll_sd_109d(ret_1d), 
-         sd_127d = roll_sd_127d(ret_1d), 
-         sd_157d = roll_sd_157d(ret_1d), 
-         sd_59d = roll_sd_59d(ret_1d), sd_179d = roll_sd_179d(ret_1d), 
-         sd_83d = roll_sd_83d(ret_1d), sd_97d = roll_sd_97d(ret_1d), 
-         ret_251d = log(adjusted / lag(adjusted, n = 251)), 
-         ret_179d = log(adjusted / lag(adjusted, n = 179)),
-         ret_97d = log(adjusted / lag(adjusted, n = 97)), 
-         ret_157d = log(adjusted / lag(adjusted, n = 157)), 
-         ret_199d = log(adjusted / lag(adjusted, n = 199))
-         )
+names_col <- read_csv('temp/rio_uup_xgboost_var.csv') |> 
+  slice_head(n = 15) |> pull(Variable) 
+df_uup <- create_relative_prices('RIO', 'UUP') |> 
+  get_corr() |> get_returns_sd() |> drop_na() |> 
+  select(date, matches(names_col)) |> 
+  rename_with(~str_c(names_col, '_uup'), names_col)
 
-df_uup <- 
+names_col <- read_csv('temp/gld_gdx_xgboost_var.csv') |> 
+  slice_head(n = 15) |> pull(Variable) 
+df_gld <- create_relative_prices('GLD', 'GDX') |> 
+  get_corr() |> get_returns_sd() |> drop_na() |> 
+  select(date, matches(names_col)) |> 
+  rename_with(~str_c(names_col, '_gld_gdx'), names_col)
+
+names_col <- read_csv('temp/gld_gdx_xgboost_var.csv') |> 
+  slice_head(n = 15) |> pull(Variable) 
+df_dia <- create_relative_prices('DIA', 'QQQ') |> 
+  get_corr() |> get_returns_sd() |> drop_na() |> 
+  select(date, matches(names_col)) |> 
+  rename_with(~str_c(names_col, '_dia_qqq'), names_col)
+
+df <- left_join(df_ticker, df_xme) |> left_join(df_gld) |> 
+  left_join(df_uup) |> left_join(df_dia) |> drop_na() |> arrange(date)
+
+### train-test split
+df_train = df[1:round(nrow(df)*0.8), ]
+df_test = df[(round(nrow(df)*0.8) + 1):nrow(df) , ]
+rm(df_dia, df_gld, df_ticker, df_uup, df_xme)
+
+library(recipes)
+library(rsample)
+library(parsnip)
+library(tune)
+library(dials)
+library(workflows)
+library(yardstick)
+library(ggplot2)
+
+rec_xgboost <- recipe(formula = target ~., data = df_train) |> 
+  update_role(date, new_role = 'ID')
+
+df_prep <- rec_xgboost |> prep(training = df_train)
+df_juiced_xgboost <- juice(df_prep)
+df_baked_xgboost <- df_prep |> bake(new_data = df_test)
+
+# create the CV validation resamples 
+tscv = rolling_origin(df_train, initial = 1250, assess = 100, lag = 20, skip = 200, cumulative = T)
+
+model_xgboost <- boost_tree(mtry = tune(), min_n = tune(), 
+                            learn_rate = tune(), loss_reduction = tune(), 
+                            tree_depth = tune(), trees = tune()) |> 
+  set_engine('xgboost') |> 
+  set_mode('classification')
+
+wf_xgboost <- workflow(preprocessor = rec_xgboost, spec = model_xgboost)
+
+xgboost_param <- parameters(trees(range = c(500, 900)), 
+                            loss_reduction(range = c(-5, -1)), 
+                            mtry(range = c(13L, 23L)), 
+                            learn_rate(range = c(-4, -2)), 
+                            min_n(range = c(19L, 29L)),   
+                            tree_depth(range = c(11L, 19L)))
+xgboost_grid_maxEnthropy = grid_max_entropy(xgboost_param, size = 40)
 ```
 
+```{r}
+library(doParallel)
+registerDoParallel()
+xgboost_tuning <- tune_grid(wf_xgboost, resamples = tscv, 
+                            grid = xgboost_grid_maxEnthropy, 
+                            metrics = metric_set(f_meas, precision, accuracy, roc_auc),
+                            control = control_resamples(verbose = T, save_pred = T))
+
+metrics_xgboost <- xgboost_tuning |> collect_metrics() |> 
+  arrange(.metric, desc(mean))
+
+best_xgboost_model <- xgboost_tuning |> show_best(metric = 'accuracy', n = 1)
+
+#xgboost_tuning |> autoplot(metric = c('f_meas', 'roc_auc'))
+
+
+```
+
+And a resamples accuracy of 0.57. 

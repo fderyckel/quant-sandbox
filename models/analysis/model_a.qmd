@@ -34,7 +34,7 @@ library(gt)
 
 the_path <- here::here()
 
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM', 'RIO'))
 
 get_var_imp <- function(ticker) {
   df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
@@ -138,7 +138,7 @@ df_VI_v02a |> gt()
 
 num_days = '41d'
 
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM', 'RIO'))
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01a_', num_days, '_')
 df_VI_v01a <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
@@ -199,6 +199,8 @@ yo <- df  |> mutate(f1_test = map2_dbl(ticker, yop_raw, get_testing_metrics_v01)
 df_v01a <- left_join(df_v01a, yo, by = join_by(ticker))
 
 
+
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
 yop <- glue(the_path, '/models/model_metrics/xgboost_v02a_', num_days, '_')
 yop_raw <- glue(the_path, '/models/model_raw/xgboost_v02a_', num_days, '_')
 model_name <- 'v02a_41d'

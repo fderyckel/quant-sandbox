@@ -647,7 +647,7 @@ create_averages <- function(ticker) {
 }
 
 df <- tibble(ticker = c(xlc, xle, xlf, xlp, xlv, xly, xme)) |> 
-  mutate(breadth = map(ticker, create_averages)) |> 
+  mutate(breadth = map(ticker, create_averages, .progress = TRUE)) |> 
   unnest(cols = c(breadth)) |> 
   group_by(date) |> 
   summarize(num_stocks = n(), 

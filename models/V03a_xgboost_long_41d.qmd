@@ -1,5 +1,5 @@
 ---
-title: "Xgboost Modeling Long 41 days. Regression with percentile returns. V3a"
+title: "Xgboost Modeling Long. Regression with percentile returns. V3a"
 format: 
   html: 
     toc: true
@@ -61,9 +61,8 @@ library(glue)
 the_path <- here::here()
 
 ticker <- 'CVX'
-num_days <- 41
+num_days <- '41d'
 
-model_type = '8wClass3ile'
 yop <- glue('xgboost_v02a_', model_type, "_", ticker)
 ```
 

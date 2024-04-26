@@ -1,0 +1,14 @@
+---
+title: "M5 Forecasting"
+format: html
+---
+
+```{python}
+import numpy as np
+import os, psutil
+## Simple "Memory profilers" to see memory usage
+def get_memory_usage():
+    return np.round(psutil.Process(os.getpid()).memory_info()[0]/2.**30, 2) 
+
+```
+
