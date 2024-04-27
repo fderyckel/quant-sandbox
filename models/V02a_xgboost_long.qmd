@@ -58,7 +58,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'RIO'
+ticker <- 'CVX'
 num_days <- '61d'
 
 yop <- glue('xgboost_v02a_', num_days, "_", ticker)
@@ -173,7 +173,7 @@ df_model <- df2 |> filter(date < '2023-06-30')
 library(rsample)
 min_size_training <- 500
 number_of_samples <- 50
-skippy <- 63
+skippy <- 80
 laggy <- 21
 # get the size of the df we are using. 
 validation_size <- floor(nrow(df_model) * 0.2 / number_of_samples) + 1
@@ -244,21 +244,23 @@ xgboost_resampling <- tune_grid(wf, time_slices,
 ############# ESTABLISHING METRICS  ##################################
 ######################################################################
 
-yo_soft_acc <- xgboost_resampling |> collect_predictions() |> 
+df_pred <- xgboost_resampling |> collect_predictions()
+yo_soft_acc <- df_pred |> 
   mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
-                              .pred_class!="3" & ord_class != "3" ~ 1, 
+                              .pred_class=="2" & ord_class == "2" ~ 1, 
+                              .pred_class=="3" & ord_class == "2" ~ 0.5, 
                               TRUE ~ 0)) |> 
   group_by(.config) |> 
-  summarize(mean_soft_acc = sum(soft_acc)/n(), 
+  summarize(mean_soft_acc = mean(soft_acc), 
             mtry = mean(mtry), tree_depth = mean(tree_depth), 
             trees = mean(trees), 
             min_n = mean(min_n), learn_rate = mean(learn_rate))
 
 # if I predict a 3, is it indeed a 3? Higher is better
-yo_precision <- xgboost_resampling %>% collect_predictions() %>% 
-  mutate(spec_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) %>% 
-  filter(.pred_class == "3") %>% 
-  group_by(.config) %>% 
+yo_precision <- df_pred |> 
+  mutate(spec_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) |> 
+  filter(.pred_class == "3") |> 
+  group_by(.config) |> 
   summarize(mean_preci = sum(spec_3)/n())
 
 # if there is a "3" in the actual returns, do I manage to predict it! Higher is better
@@ -370,7 +372,7 @@ source(glue(the_path, "/models/functions/model_v02a.R"))
 
 model <- 'v02a'
 tickers = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX') 
-create_cor_df <- function(ticker, num_days=41) { 
+create_cor_df <- function(ticker, num_days='41d') { 
   df0 <- model02a(ticker, num_days)
   df <- df0 %>% drop_na()
   df_cor <- df %>% select(-date, -ord_class) 

@@ -451,10 +451,13 @@ v02a,FDX,roll_sd_ret1d_61d,roll_sd_ret21d_251d,0.6110278524650559
 v02a,SBUX,roll_sd_ret1d_61d,roll_sd_ret21d_251d_lag19,0.610710987725763
 v02a,SBUX,roll_mean_ret5d_147d,above_sd_sma199_251d,0.6097072919385027
 v02a,SBUX,atr11_open,roll_sd_intraday_251d,0.6079401206814561
+v02a,AMD,close,roll_sd_volu200_251d,-0.6069222298024506
 v02a,FDX,atr11_open,roll_sd_ret5d_147d_lag11,0.6062883484657445
+v02a,AMD,close,roll_sd_volu200_251d_lag5,-0.605822732856393
 v02a,AXP,atr17_open,roll_mean_ret5d_147d,-0.605448004224677
 v02a,CVX,roll_mean_ret5d_61d,roll_mean_ret5d_147d,0.6037659919822144
 v02a,AMD,roll_sd_volu200_31d,roll_sd_volu200_251d,0.6036576080202137
+v02a,AMD,close,roll_sd_volu200_251d_lag17,-0.602697631430866
 v02a,AAPL,atr17_open,roll_sd_intraday_251d,0.6018800533744372
 v02a,AXP,roll_sd_ret1d_61d,roll_sd_ret21d_251d_lag19,0.6012496430146476
 v02a,CVX,atr11_open,roll_sd_ret5d_147d_lag5,0.5974300361812319
@@ -483,8 +486,11 @@ v02a,AMD,roll_sd_volu200_31d,roll_sd_volu200_251d_lag5,0.5811267870362647
 v02a,AXP,roll_sd_ret1d_147d,above_sd_sma199_251d,-0.5809896092155364
 v02a,FDX,roll_sd_ret1d_61d,roll_sd_ret21d_251d_lag7,0.5807577390170103
 v02a,AAPL,atr17_open,roll_sd_ret21d_251d_lag7,0.5805154597468337
+v02a,AAPL,close,roll_sd_volu200_251d,-0.5798256234301042
+v02a,HAL,close,roll_sd_intraday_251d,-0.5796605578475885
 v02a,HAL,atr17_open,roll_mean_ret1d_61d,-0.579542093679478
 v02a,HAL,atr17_open,roll_mean_ret5d_61d,-0.5780644631083595
+v02a,AAPL,close,roll_sd_volu200_251d_lag5,-0.5774441636285153
 v02a,CVX,roll_sd_ret1d_147d,roll_sd_volu200_251d,0.5771973633625171
 v02a,CVX,roll_sd_ret1d_147d,roll_sd_volu200_251d_lag5,0.5750005613408345
 v02a,CVX,roll_sd_ret5d_147d_lag11,roll_sd_intraday_61d,0.5745472526418534
@@ -493,6 +499,7 @@ v02a,AAPL,atr11_open,roll_sd_ret5d_147d_lag11,0.5736078793672159
 v02a,AAPL,atr11_open,roll_sd_ret21d_251d,0.5734760043635582
 v02a,AAPL,roll_sd_intraday_61d,roll_sd_intraday_251d,0.5725582877251791
 v02a,AXP,roll_sd_ret21d_251d,roll_sd_intraday_61d,0.5720160988712485
+v02a,AAPL,close,roll_sd_volu200_251d_lag17,-0.5715349224246289
 v02a,CVX,atr17_open,roll_sd_ret21d_251d,0.5706773329086197
 v02a,AMD,atr11_open,roll_sd_ret1d_147d,0.5698025264821591
 v02a,CVX,roll_sd_intraday_251d,roll_sd_volu200_251d_lag5,0.5697489885885647
@@ -550,6 +557,7 @@ v02a,FDX,atr17_open,above_sd_sma199_251d,-0.5188674217943688
 v02a,CVX,atr11_open,roll_sd_ret21d_251d,0.5184581809591705
 v02a,AXP,roll_sd_ret21d_251d,roll_sd_volu200_251d_lag17,0.517216229319148
 v02a,AXP,roll_mean_ret5d_147d,roll_sd_intraday_61d,-0.5168772923676735
+v02a,HAL,close,roll_sd_ret1d_147d,-0.5152776166332051
 v02a,HAL,roll_sd_ret1d_61d,ma_cross_l,-0.5149745272688384
 v02a,AXP,above_sd_sma199_251d,roll_sd_volu200_251d,-0.514838116534694
 v02a,AMD,atr11_open,roll_sd_ret5d_147d,0.514786534359018
