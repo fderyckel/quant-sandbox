@@ -58,8 +58,8 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'AMD'
-num_days <- '29d'
+ticker <- 'RIO'
+num_days <- '61d'
 
 yop <- glue('xgboost_v02a_', num_days, "_", ticker)
 ```
@@ -216,12 +216,12 @@ model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune
   set_mode("classification") 
 
 stopping_grid <-grid_latin_hypercube(trees(range = c(600, 1000)), 
-                                     loss_reduction(range = c(-10, 1.5)), 
-                                     mtry(range = c(12L, 17L)), 
+                                     loss_reduction(range = c(-8, -1)), 
+                                     mtry(range = c(12L, 19L)), 
                                      learn_rate(range = c(-4, -2)), 
                                      min_n(range = c(17L, 31L)),   
-                                     tree_depth(range = c(5L, 11L)), 
-                                     size = 25)
+                                     tree_depth(range = c(9L, 17L)), 
+                                     size = 29)
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
 
@@ -283,7 +283,7 @@ yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %
   left_join(., yo_soft_acc) %>% 
   mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  0.2 * preci_rank + 0.4 * soft_preci_rank + 0.25 * soft_acc_rank + 0.15 * recall_rank)
+         avg_rank =  0.2 * preci_rank + 0.4 * soft_preci_rank + 0.15 * soft_acc_rank + 0.25 * recall_rank)
 
 yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
   left_join(yo_soft_preci) |> left_join(yo_cost3) |> 

@@ -31,33 +31,10 @@ library(gt)
 
 the_path <- here::here()
 
-get_var_imp <- function(ticker) {
-  df <- read_csv(glue(yop, ticker, '.csv'), show_col_types = FALSE) |> 
-    arrange(desc(Importance)) |> 
-    mutate(rank_order = row_number())
-  return(df)
-}
+ticker <- 'RIO'
+num_days <- '41d'
+
 ```
-
-# Analyzing Variable Importance 
-
-```{r}
-#| label: varimp
-
-yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_8wClass3ile_')
-
-df_VI_v01a <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX')) |> 
-  mutate(var_imp = map(ticker, get_var_imp)) |> 
-  unnest(cols = c(var_imp)) |> 
-  group_by(Variable) |> 
-  summarise(mean_rank = mean(rank_order), 
-            mean_imp = mean(Importance, na.rm=TRUE), 
-            sd_imp = sd(Importance, na.rm=TRUE)) |> 
-  arrange(desc(mean_imp))
-
-df_VI_v01a |> gt()
-```
-
 
 # Making prediction 
 
@@ -67,8 +44,7 @@ df_VI_v01a |> gt()
 #| message: false
 #| eval: false
 
-ticker <- 'AXP'
-num_days <- 41
+
 
 model_name <- 'xgboost_v2a_8wClass3ile_'
 

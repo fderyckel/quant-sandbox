@@ -43,7 +43,7 @@ library(glue)
 the_path <- here::here()
 
 ticker <- 'RIO'
-num_days <- '41d'
+num_days <- '29d'
 
 yop <- glue('xgboost_v01a_', num_days, "_", ticker)
 ```
