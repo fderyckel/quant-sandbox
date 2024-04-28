@@ -93,7 +93,6 @@ for (i in 1:length(stock_tickers)) {
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
 
-
 df <- tibble(ticker = xle, etf1 = etf1, etf2 = etf2) 
 pdf(paste0(the_path, "/charts/charts_stocks_XLE.pdf"), width=13, height=8, onefile = TRUE)
 for (i in 1:nrow(df)){ 

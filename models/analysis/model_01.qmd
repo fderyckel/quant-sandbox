@@ -1,12 +1,12 @@
 ---
-title: "Analysis of Model V01"
+title: "Analysis of Model V01 LONG"
 format: 
   html: 
     toc: true
     toc-depth: 2
     toc-location: body
     theme: darkly
-    fontsize: 1.1em
+    fontsize: 1em
     grid: 
       sidebar-width: 0px
       body-width: 2000px
@@ -14,6 +14,8 @@ format:
 ---
 
 We are analysis all variables here, checking predictions certainties, checking future predictions, checking metrics, etc. 
+
+The model is LONG.  It matters as with yardstick
 
 # Setting up 
 
@@ -85,12 +87,12 @@ df_VI_v01a <- df |>
   mutate(model = 'v01a', timeframe = num_days) |> 
   arrange(desc(mean_imp))
 
-df_VI_v01a |> gt()
+#df_VI_v01a |> gt()
 
 
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP'))
+df_part <- tibble(ticker = c('AAPL', 'AMD', 'AXP'))
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01e_', num_days, '_')
-df_VI_v01e <- df |> 
+df_VI_v01e <- df_part |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -100,7 +102,7 @@ df_VI_v01e <- df |>
   mutate(model = 'v01e', timeframe = num_days) |> 
   arrange(desc(mean_imp))
 
-df_VI_v01e |> gt()
+#df_VI_v01e |> gt()
 
 df_VI <- df_VI_v01a |> add_row(df_VI_v01e ) |> 
   arrange(mean_rank)
@@ -117,8 +119,6 @@ df_VI |> gt()
 num_days = '41d'
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01a_', num_days, '_')
 
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
-
 df_VI_v01a <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
@@ -130,12 +130,11 @@ df_VI_v01a <- df |>
   arrange(desc(mean_imp)) 
 
 # Just model a, 41d
-df_VI_v01a |> gt()
+#df_VI_v01a |> gt()
 
 
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01e_', num_days, '_')
-
-df_VI_v01e <- df |> 
+df_VI_v01e <- df_part |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -145,7 +144,7 @@ df_VI_v01e <- df |>
   mutate(model = 'v01e', timeframe = num_days) |> 
   arrange(desc(mean_imp))
 # Just model e, 41d
-df_VI_v01e |> gt()
+#df_VI_v01e |> gt()
 
 # both model together
 df_VI <- df_VI_v01a |> add_row(df_VI_v01e ) |> 
@@ -166,26 +165,24 @@ df_VI |> gt()
 num_days = '29d'
 yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_', num_days, '_')
 
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
-
 df_ME_v01a <- df |> 
   mutate(mod_metrics = map2(ticker, 'v01a', get_metrics_class)) |> 
   unnest(cols = c(mod_metrics)) |> select(-name) |> 
-  mutate(model = 'v01a', timeframe = num_days) 
+  mutate(f1 = (2*Precision*Recall)/(Precision + Recall)) |> 
+  mutate(model = 'v01a', timeframe = num_days) |> 
+  select(ticker, timeframe, model, Precision, SoftPreci, Accuracy, Recall, f1)
 
 # for model e
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP'))
 yop <- glue(the_path, '/models/model_metrics/xgboost_v01e_', num_days, '_')
-df_ME_v01e <- df |> 
+df_ME_v01e <- df_part |> 
   mutate(mod_metrics = map2(ticker, 'v01e', get_metrics_reg)) |> 
   unnest(cols = c(mod_metrics)) |> select(-name) |> 
-  mutate(model = 'v01e', timeframe = num_days) 
+  mutate(model = 'v01e', timeframe = num_days) |> 
+  select(ticker, model, RMSE)
 
 # diplay both metrics
-#df_ME <- df_ME_v01a |> add_row(df_ME_v01e ) |> 
-#  mutate(f1 = (2*Precision*Recall)/(Precision + Recall)) |> 
-#  arrange(ticker, model)
-#df_ME |> gt()
+df_ME_29d <- left_join(df_ME_v01a, df_ME_v01e, by = join_by('ticker')) |> 
+  arrange(ticker)
 
 ```
 
@@ -196,37 +193,46 @@ df_ME_v01e <- df |>
 #| echo: false
 
 num_days = '41d'
-df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
 
 yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_', num_days, '_')
 df_ME_v01a <- df |> 
   mutate(mod_metrics = map2(ticker, 'v01a', get_metrics_class)) |> 
   unnest(cols = c(mod_metrics)) |> select(-name) |> 
-  mutate(model = 'v01a', timeframe = num_days) 
+  mutate(f1 = (2*Precision*Recall)/(Precision + Recall)) |> 
+  mutate(model = 'v01a', timeframe = num_days) |> 
+  select(ticker, timeframe, model, Precision, SoftPreci, Accuracy, Recall, f1)
 
 # for model e
 yop <- glue(the_path, '/models/model_metrics/xgboost_v01e_', num_days, '_')
 df_ME_v01e <- df |> 
-  mutate(mod_metrics = map2(ticker, 'v01e', get_metrics_class)) |> 
+  mutate(mod_metrics = map2(ticker, 'v01e', get_metrics_reg)) |> 
   unnest(cols = c(mod_metrics)) |> select(-name) |> 
-  mutate(model = 'v01e', timeframe = num_days) 
+  mutate(model = 'v01e', timeframe = num_days) |> 
+  select(ticker, model, RMSE)
 
 # diplay both metrics
-df_ME <- df_ME_v01a |> add_row(df_ME_v01e ) |> 
-  mutate(f1 = (2*Precision*Recall)/(Precision + Recall)) |> 
-  arrange(ticker, model)
+df_ME_41d <- left_join(df_ME_v01a, df_ME_v01e, by = join_by('ticker')) |> 
+  arrange(ticker)
+```
+
+```{r}
+df_ME <- df_ME_29d |> add_row(df_ME_41d) |> 
+  arrange(ticker)
 df_ME |> gt()
 ```
 
 
-## Quality on test set (last year of data which has been unseen)
+## Quality on test set 
 
-# Making prediction 
+last year of data which has been unseen
+
 
 ```{r}
-#| label: makingPrediction
+#| label: prediction_testset_41d
 #| warning: false
 #| message: false
+#| include: false
+#| echo: true
 #| eval: true
 
 library(broom)
@@ -234,33 +240,38 @@ library(tidyr)
 library(parsnip)
 library(yardstick)
 
-ticker <- 'HAL'
+source('../functions/model_v01a.R')
+
+the_path <- here::here()
+
 num_days <- '41d'
-
 yop <- glue(the_path, '/models/model_raw/xgboost_v01a_', num_days, '_')
-model_v01a <- read_rds(glue(yop, ticker, '.rda'))
-df_v01a <- augment(model_v01a, 
-                   model01a(ticker, num_days) |> filter(date > '2023-06-30')) |> 
-  select(date, close, forw_ret, ord_class, v01a_class = .pred_class, 
-         v01a_class1 = .pred_1, v01a_class2 = .pred_2, v01a_class3 = .pred_3)
-
-yop <- glue(the_path, '/models/model_raw/xgboost_v01e_', num_days, '_')
-model_v01e <- read_rds(glue(yop, ticker, '.rda'))
-df_v01e <- augment(model_v01e, 
-                   model01e(ticker, num_days) |> filter(date > '2023-06-30')) |> 
-  select(date, close, forw_ret, v01e_class = ord_class, 
-         v01e_pred = .pred)
-
-yo <- left_join(df_v01a, df_v01e) |> arrange(date) 
-
-yo |> drop_na() |> slice_tail(n = 10) |> gt()
-
-yo |> slice_tail(n = 10) |> gt()
 
 
-conf_mat(yo |> drop_na(), truth = ord_class, estimate = v01a_class)
-summary(conf_mat(yo |> drop_na(), truth = ord_class, estimate = v01a_class)) |> gt()
+get_testing_metrics <- function(ticker) { 
+  model_fit <- read_rds(glue(yop, ticker, '.rda'))
+  df <- model01a(ticker, num_days) |> filter(date > '2023-06-30')
+  df_test_class <- predict(model_fit, new_data = df)
+  df_test_prob <- predict(model_fit, new_data = df, type = 'prob')
+  yo <- bind_cols(df |> select(date, forw_ret, ord_class), df_test_class, df_test_prob)
+  TP = yo |> filter(.pred_class == 3 & ord_class == 3)
+  FP = yo |> filter(.pred_class == 3 & ord_class != 3)
+  FN = yo |> filter(.pred_class != 3 & ord_class == 3)
+  precision_t = nrow(TP) / (nrow(TP) + nrow(FP))
+  recall_t = nrow(TP) / (nrow(TP) + nrow(FN))
+  f1_t = round((2*precision_t*recall_t)/(precision_t + recall_t), 4)
+  df_metrics = tibble(precision_t = precision_t, recall_t = recall_t, f1_t = f1_t)
+  return(df_metrics)
+}
 
-#f_meas(yo, truth = ord_class, estimate = .pred_class)
+df <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM', 'RIO')) 
+
+yo <- df |> 
+  mutate(test_metrics = map(ticker, get_testing_metrics)) |> 
+  unnest(test_metrics)
+```
+
+```{r}
+yo |> gt()
 ```
 
