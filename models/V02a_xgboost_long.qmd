@@ -58,8 +58,8 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'CVX'
-num_days <- '61d'
+ticker <- 'RIO'
+num_days <- '41d'
 
 yop <- glue('xgboost_v02a_', num_days, "_", ticker)
 ```

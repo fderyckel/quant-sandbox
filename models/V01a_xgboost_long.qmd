@@ -42,8 +42,8 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'RIO'
-num_days <- '29d'
+ticker <- 'HAL'
+num_days <- '61d'
 
 yop <- glue('xgboost_v01a_', num_days, "_", ticker)
 ```
@@ -137,7 +137,7 @@ df_model <- df2 |> filter(date < '2023-06-30')
 library(rsample)
 min_size_training <- 500
 number_of_samples <- 50
-skippy <- 63
+skippy <- 75
 laggy <- 21
 # get the size of the df we are using. 
 validation_size <- floor(nrow(df_model) * 0.2 / number_of_samples) + 1
