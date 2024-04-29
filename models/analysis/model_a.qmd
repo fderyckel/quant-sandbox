@@ -98,7 +98,7 @@ get_testing_metrics_v02 <- function(ticker, yop_raw) {
 
 ```{r}
 #| label: varimp-29d
-#| eval: false
+#| eval: true
 #| echo: false
 
 num_days = '29d'
@@ -132,6 +132,7 @@ df_VI_v02a |> tail(n = 5) |> gt()
 
 df_VI <- df_VI_v01a |> add_row(df_VI_v02a ) |> 
   arrange(mean_rank)
+
 df_VI |> gt()
 ```
 
@@ -173,6 +174,7 @@ df_VI_v02a |> tail(n = 5) |> gt()
 
 df_VI <- df_VI_v01a |> add_row(df_VI_v02a ) |> 
   arrange(mean_rank)
+
 df_VI |> gt()
 ```
 
@@ -264,14 +266,59 @@ df_v02a <- left_join(df_v02a, yo, by = join_by(ticker))
 
 df_met <- df_v01a |> add_row(df_v02a) |> 
   arrange(ticker, name)
-
+df2 <- df2 |> add_row(df_met)
 df_met |> gt()
 
 ```
 
 
+
+## 61 days (2 months forward) 
+
 ```{r}
+#| label: metrics-61d
+#| echo: false
+#| message: false
+#| warning: false
+
+num_days = '61d'
+yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_', num_days, '_')
+yop_raw <- glue(the_path, '/models/model_raw/xgboost_v01a_', num_days, '_')
+df_part <- tibble(ticker = c('CVX', 'HAL', 'RIO'))
+model_name <- 'v01a_61d'
+
+df_v01a <- df_part |> 
+  mutate(metrics = map2(ticker, model_name, get_metrics_class)) |> 
+  unnest(cols = c(metrics))  
+yo <- df_part  |>
+  mutate(metrics = map2(ticker, yop_raw, get_testing_metrics_v01)) |> 
+  unnest(cols = c(metrics))
+df_v01a <- left_join(df_v01a, yo, by = join_by(ticker))
+
+
+yop <- glue(the_path, '/models/model_metrics/xgboost_v02a_', num_days, '_')
+yop_raw <- glue(the_path, '/models/model_raw/xgboost_v02a_', num_days, '_')
+model_name <- 'v02a_61d'
+df_v02a <- df_part |> 
+  mutate(metrics = map2(ticker, model_name, get_metrics_class)) |> 
+  unnest(cols = c(metrics)) 
+yo <- df_part  |> 
+  mutate(metrics = map2(ticker, yop_raw, get_testing_metrics_v02)) |> 
+  unnest(cols = c(metrics))
+df_v02a <- left_join(df_v02a, yo, by = join_by(ticker))
+
+df_met <- df_v01a |> add_row(df_v02a) |> 
+  arrange(ticker, name)
+
 df2 <- df2 |> add_row(df_met)
+df_met |> gt()
+
+```
+
+
+## Summary 
+
+```{r}
 df2 |> arrange(ticker, name) |> gt()
 ```
 
