@@ -195,7 +195,8 @@ time_slices <- rolling_origin(df_model,
 library(recipes)
 recipe_base <- recipe(formula = ord_class ~., data = df_model) |> 
   update_role(date, new_role="ID") |> 
-  step_YeoJohnson()
+  step_YeoJohnson(all_numeric_predictors()) |> 
+  step_normalize(all_numeric_predictors())
 ```
 
 
