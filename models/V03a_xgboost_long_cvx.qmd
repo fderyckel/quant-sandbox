@@ -14,15 +14,12 @@ format:
 ---
 
 TODO
-Check correlation
-check correlation: roll_sd_intraday_3M, roll_sd_ret1d_63days.  I would imagine they are very similar.
-add ATR (2 different ones, 11 days, 19 days) ... put it as a percentage.  
-Put something about volume weighted average 
+
 
 
 # Intro 
 
-This model built on V1.  It removes the 5 least important variables and add a bunch of new ones. 
+This model built on V1 and V2.  It removes the 5 least important variables and add a bunch of new ones. 
 
 
 ```{r}
@@ -41,9 +38,9 @@ library(glue)
 the_path <- here::here()
 
 ticker <- 'CVX'
-num_days <- '41d'
+num_days <- '61d'
 
-yop <- glue('xgboost_v03a_', num_days, "_", ticker)
+yop <- glue('xgboost_v03a_', {ticker}, '_', num_days, "_", ticker)
 
 primes <- c(5, 11, 17, 19, 23, 29, 37, 47, 59, 71, 83, 97, 
             109, 127, 157, 179, 199, 223, 251)
@@ -100,7 +97,9 @@ mean_roll_251d <- slidify(.f = mean, .align = 'right', .period = 251)
 sd_roll_21d <- slidify(.f = sd, .align = 'right', .period = 21)
 sd_roll_61d <- slidify(.f = sd, .align = 'right', .period = 61)
 sd_roll_67d <- slidify(.f = sd, .align = 'right', .period = 67)
+sd_roll_127d <- slidify(.f = sd, .align = 'right', .period = 127)
 sd_roll_147d <- slidify(.f = sd, .align = 'right', .period = 147)
+sd_roll_199d <- slidify(.f = sd, .align = 'right', .period = 199)
 sd_roll_251d <- slidify(.f = sd, .align = 'right', .period = 251)
 corr_roll_101d <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 101)
 corr_roll_147d <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 147)
@@ -114,18 +113,22 @@ df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |>
   mutate(ret_1d = log(close / lag(close, n = 1)), 
          ret_5d = log(close / lag(close, n = 5)), 
          ret_21d = log(close / lag(close, 21)), 
+         ret_71d = log(close / lag(close, 71)), 
          intraday = (high - low) / open, 
          roll_sd_intraday_61d = sd_roll_61d(intraday), 
          roll_sd_ret5d_61d = sd_roll_61d(ret_5d), 
          roll_sd_ret1d_67d = sd_roll_67d(ret_1d),
+         roll_sd_ret1d_127d = sd_roll_127d(ret_1d),
          roll_sd_ret1d_147d = sd_roll_147d(ret_1d), 
          roll_sd_ret5d_147d = sd_roll_147d(ret_5d), 
+         roll_sd_ret1d_199d = sd_roll_199d(ret_1d),
          too_corr1 = corr_roll_147d(roll_sd_ret1d_147d, roll_sd_ret5d_147d), 
          roll_sd_intraday_251d = sd_roll_251d(intraday),
          roll_sd_ret1d_251d = sd_roll_251d(ret_1d), 
          too_corr2 = corr_roll_251d(roll_sd_intraday_251d, roll_sd_ret1d_251d), 
          roll_sd_ret21d_251d = sd_roll_251d(ret_21d),  
          too_corr3 = corr_roll_199d(roll_sd_ret21d_251d, roll_sd_intraday_251d), 
+         too_corr4 = corr_roll_199d(roll_sd_ret1d_127d, roll_sd_ret1d_199d),
          
          ema20 = TTR::EMA(close, 20), 
          sma50 = TTR::SMA(close, 50), 
@@ -153,17 +156,16 @@ df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |>
          
          forw_ret = log(lead(close, n = parse_number(num_days)) / close), 
          ord_class = as.factor(ntile(forw_ret, 3))) |> 
-  select(date, ord_class, 
+  select(date, ord_class, ret_71d, 
          ma_cross_l, above_sd_sma200_251d, 
          roll_sd_intraday_61d, roll_sd_ret5d_61d, 
-         roll_sd_ret1d_147d, too_corr1, 
+         roll_sd_ret1d_147d, too_corr1, too_corr4, 
          too_corr3, too_corr2, roll_sd_ret21d_251d, 
          corr_sma50_sma200_101d, 
          corr_ema20_sma50_199d, corr_ema20_sma50_251d, 
          corr_sma50_sma200_199d, corr_sma50_sma200_251d, 
          roll_sd_volu50_21d, roll_sd_volu100_61d, roll_sd_volu200_251d
-         ) |> 
-  filter(date < '2023-06-30')
+         ) 
 
 tick1 <- 'DIA'
 tick2 <- 'QQQ'
@@ -174,6 +176,46 @@ df_rel <- create_relative_prices(tick1, tick2) |>
   rename_with(~tolower(glue("{tick1}_{tick2}_{.}")), -date)
 
 df_model <- left_join(df, df_rel, by = join_by(date))
+
+tick1 <- 'XLE'
+tick2 <- 'SPY'
+df_rel <- create_relative_prices(tick1, tick2) |> 
+  get_corr() |> get_returns_sd() |> 
+  drop_na() |> 
+  select(date, corr_251d, corr_157d, corr_37d, sd_199d, sd_251d) |> 
+  rename_with(~tolower(glue("{tick1}_{tick2}_{.}")), -date)
+df_model <- left_join(df_model, df_rel, by = join_by(date))
+
+tick1 <- 'CVX'
+tick2 <- 'XLE'
+df_rel <- create_relative_prices(tick1, tick2) |> 
+  get_corr() |> get_returns_sd() |> 
+  drop_na() |> 
+  select(date, corr_199d, corr_97d, corr_83d, sd_223d, sd_251d) |> 
+  rename_with(~tolower(glue("{tick1}_{tick2}_{.}")), -date)
+df_model <- left_join(df_model, df_rel, by = join_by(date))
+
+tick1 <- 'OIH'
+tick2 <- 'VDE'
+df_rel <- create_relative_prices(tick1, tick2) |> 
+  get_corr() |> get_returns_sd() |> 
+  drop_na() |> 
+  select(date, corr_251d, corr_179d, corr_109d, sd_251d, sd_157d) |> 
+  rename_with(~tolower(glue("{tick1}_{tick2}_{.}")), -date)
+df_model <- left_join(df_model, df_rel, by = join_by(date))
+
+tick1 <- 'CVX'
+tick2 <- 'UUP'
+df_rel <- create_relative_prices(tick1, tick2) |> 
+  get_corr() |> get_returns_sd() |> 
+  drop_na() |> 
+  select(date, corr_199d, corr_157d, sd_223d, sd_127d) |> 
+  rename_with(~tolower(glue("{tick1}_{tick2}_{.}")), -date)
+df_model <- left_join(df_model, df_rel, by = join_by(date))
+
+df_model <- df_model 
+df_new <- df_model |> filter(date > '2023-06-30')
+df_model <- df_model |> filter(date < '2023-06-30') |> drop_na() 
 ```
 
 # Model preparation 
@@ -191,7 +233,7 @@ library(rsample)
 
 min_size_training <- 500
 number_of_samples <- 50
-skippy <- 87
+skippy <- 55
 laggy <- 21
 # get the size of the df we are using. 
 validation_size <- floor(nrow(df_model) * 0.25 / number_of_samples) + 1
@@ -226,7 +268,7 @@ model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune
   set_engine("xgboost") |>  
   set_mode("classification") 
 
-wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
+wf_xgboost <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
 
 library(dials)
 stopping_grid <- grid_latin_hypercube(trees(range = c(600, 1000)), 
@@ -239,10 +281,136 @@ stopping_grid <- grid_latin_hypercube(trees(range = c(600, 1000)),
 
 ############# SAMPLING FOR CROSS-VALIDATION ##########################
 
+rm(df, df_rel, laggy, min_size_training, primes, number_of_samples, tick1, tick2)
+rm(skippy, conform_data, create_relative_prices, get_returns_sd, mean_roll_251d)
+rm(corr_roll_101d, corr_roll_147d, corr_roll_199d, corr_roll_251d, get_corr)
+rm(sd_roll_127d, sd_roll_147d, sd_roll_199d, sd_roll_21d, sd_roll_61d, 
+   sd_roll_251d, sd_roll_67d)
+
+```
+
+# Running models and collecting metrics 
+
+```{r}
+library(doParallel)
+registerDoParallel()
+xgboost_xv_resamples <- tune_grid(wf_xgboost, resamples = time_slices, 
+                            grid = stopping_grid, 
+                            metrics = metric_set(accuracy, roc_auc),
+                            control = control_resamples(verbose = T, save_pred = T))
+
+metrics_xgboost <- xgboost_xv_resamples |> collect_metrics() |> 
+  arrange(.metric, desc(mean))
+
+df_pred <- xgboost_xv_resamples |> collect_predictions()
+yo_soft_acc <- df_pred |> 
+  mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
+                              .pred_class=="2" & ord_class == "2" ~ 1, 
+                              .pred_class=="1" & ord_class == "1" ~ 1, 
+                              .pred_class=="3" & ord_class == "2" ~ 0.5, 
+                              .pred_class=="2" & ord_class == "1" ~ 0.5, 
+                              TRUE ~ 0)) |> 
+  group_by(.config) |> 
+  summarize(mean_soft_acc = mean(soft_acc), 
+            mtry = mean(mtry), tree_depth = mean(tree_depth), 
+            trees = mean(trees), 
+            min_n = mean(min_n), learn_rate = mean(learn_rate))
+
+# if I predict a 3, is it indeed a 3? Higher is better
+yo_precision <- df_pred |> 
+  mutate(spec_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) |> 
+  filter(.pred_class == "3") |> 
+  group_by(.config) |> 
+  summarize(mean_preci = sum(spec_3)/n())
+
+# if there is a "3" in the actual returns, do I manage to predict it! Higher is better
+yo_recall <- df_pred  |>  
+  mutate(sens_3 = if_else(.pred_class == "3" & ord_class == "3", 1, 0)) |> 
+  select(-mtry, -min_n, -learn_rate, -loss_reduction, -tree_depth) |> 
+  filter(ord_class == "3") |> 
+  group_by(.config) |> 
+  summarize(mean_recall = sum(sens_3)/n())
+
+# if I predict a 3, is it indeed a 3? Higher is better
+yo_soft_preci <- df_pred |> 
+  mutate(spec_3 = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
+                            .pred_class=="3" & ord_class == "2" ~ 0.5, 
+                            .pred_class=="2" & ord_class == "1" ~ 0.5,
+                            .pred_class=="3" & ord_class == "1" ~ 0, 
+                            TRUE ~ 0)) |> 
+  filter(.pred_class == "3") |>  
+  group_by(.config) |> 
+  summarize(mean_soft_preci = sum(spec_3)/n())
+
+yo_cost <- left_join(yo_precision, yo_recall) |> left_join(yo_soft_preci) |> 
+  left_join(yo_soft_acc) |>  
+  mutate(soft_acc_rank = percent_rank(mean_soft_acc), 
+         recall_rank = percent_rank(mean_recall), 
+         preci_rank = percent_rank(mean_preci), 
+         soft_preci_rank = percent_rank(mean_soft_preci), 
+         avg_rank =  (0.25 * preci_rank) + (0.3 * soft_preci_rank) + 
+           (0.15 * soft_acc_rank) + (0.3 * recall_rank))
+
+yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
+  left_join(yo_soft_preci) |> left_join(yo_cost) |> 
+  select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, mean_soft_acc, 
+         mtry, tree_depth, trees, min_n, learn_rate) |> 
+  arrange(desc(avg_rank), mean_preci)
+
+#rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
+
+write_csv(yo_metric, glue(the_path, "/models/model_metrics/", yop, ".csv"))
 ```
 
 
+```{r}
+best_model <- yo_metric$.config[1]
 
+best_param <- df_pred |> 
+  filter(.config == best_model) |> slice_tail()
+best_param
+
+final_model <- finalize_model(model_xgboost, best_param)
+final_model
+
+final_wf <- workflow() |> add_recipe(recipe_base) |> add_model(final_model)
+final_wf
+
+model_base <- fit(object = final_wf, data = df_model)
+
+write_rds(model_base, glue(the_path, "/models/model_raw/", yop, ".rda"))
+
+library(vip)
+df_prep <- prep(recipe_base)
+var_importance <- final_model %>% 
+  set_engine("xgboost", importance = TRUE) %>% 
+  fit(ord_class ~ ., data = juice(df_prep) %>% select(-date)) %>%
+  vi()
+
+write_csv(var_importance, 
+          glue(the_path, "/models/model_vars_imp/", yop, ".csv"))
+```
+
+
+# fitting model on new observations 
+
+```{r}
+xgboost_final_fit <- read_rds('model_raw/xgboost_v03a_CVX_61d_CVX.rda')
+xgboost_pred <- predict(xgboost_final_fit, new_data = df_new)
+xgboost_pred_prob <- predict(xgboost_final_fit, new_data = df_new, type = 'prob')
+df_pred_xgboost <- bind_cols(df_new |> select(date, ord_class), 
+                                 xgboost_pred, xgboost_pred_prob)
+
+
+xgboost_final_fit2 <- read_rds('model_raw/xgboost_v02a_29d_CVX.rda')
+xgboost_pred2 <- predict(xgboost_final_fit2, new_data = df_new2)
+xgboost_pred_prob2 <- predict(xgboost_final_fit, new_data = df_new, type = 'prob')
+df_pred_xgboost2 <- bind_cols(df_new2 |> select(date, ord_class), 
+                                 xgboost_pred2, xgboost_pred_prob2) |> 
+  rename(ord_class_29d = ord_class)
+
+yo <- left_join(df_pred_xgboost, df_pred_xgboost2, by = join_by(date))
+```
 
 
 
@@ -252,36 +420,13 @@ stopping_grid <- grid_latin_hypercube(trees(range = c(600, 1000)),
 #| message: false
 #| warning: false
 
-
-# setting up the path within the project for easier portability of code
-the_path <- here::here()
-
 library(corrr)
-library(glue)
-library(dplyr)
-library(purrr)
-library(tidyr)
 
-source(glue(the_path, "/models/functions/model_v03a.R"))
+df_cor <- df_model %>% select(-date, -ord_class) 
+yo <- correlate(df_cor) %>% shave() %>% stretch()
 
-model <- 'v03a'
-tickers = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX') 
-create_cor_df <- function(ticker, num_days='41d') { 
-  df0 <- model03a(ticker, num_days)
-  df <- df0 %>% drop_na()
-  df_cor <- df %>% select(-date, -ord_class) 
-  yo <- correlate(df_cor) %>% shave() %>% stretch()
-  return(yo)
-  }
-
-df0 <- tibble(model = model, ticker = tickers) %>% 
-  mutate(cor_df = map(ticker, create_cor_df)) %>% 
-  unnest()
-
-df1 <- df0 %>% filter(r >= 0.5 | r <= -0.5) |> 
+df1 <- yo %>% filter(r >= 0.5 | r <= -0.5) |> 
   arrange(desc(abs(r)))
-
-write_csv(df1, glue(the_path, '/models/analysis/model_v02a_corr.csv'))
 
 library(gt)
 
