@@ -159,7 +159,7 @@ df2 <- df |>
          ord_class) 
 
 df_model <- df2 
-df_new2 <- df_model |> filter(date > '2023-06-30')
+df_new_svm <- df_model |> filter(date > '2023-06-30')
 df_model <- df_model |> filter(date < '2023-06-30') |> drop_na()
 ```
 
@@ -217,10 +217,6 @@ model_svm_klab <- svm_rbf(cost = tune(), rbf_sigma = tune()) |>
   set_engine('kernlab') |> 
   set_mode('classification')
 
-model_svm_liq <- svm_rbf(cost = tune(), rbf_sigma = tune()) |> 
-  set_engine('liquidSVM') |> 
-  set_mode('classification')
-
 stopping_grid <-grid_latin_hypercube(cost(), rbf_sigma(), size = 19)
 #stopping_grid <-grid_regular(cost(), rbf_sigma(), levels = 5)
 
@@ -229,11 +225,6 @@ wf_liq <- workflow() |> add_recipe(recipe_base) |> add_model(model_svm_liq)
 
 doParallel::registerDoParallel()
 svm_klab_resampl <- tune_grid(wf_klab, time_slices, 
-                                grid = stopping_grid, 
-                                metrics = metric_set(accuracy, precision), 
-                                control = control_resamples(save_pred = TRUE, 
-                                                            save_workflow = TRUE))
-svm_liq_resampl <- tune_grid(wf_liq, time_slices, 
                                 grid = stopping_grid, 
                                 metrics = metric_set(accuracy, precision), 
                                 control = control_resamples(save_pred = TRUE, 
@@ -251,7 +242,7 @@ svm_liq_resampl <- tune_grid(wf_liq, time_slices,
 ############# ESTABLISHING METRICS  ##################################
 ######################################################################
 
-df_pred <- xgboost_resampling |> collect_predictions()
+df_pred <- svm_klab_resampl |> collect_predictions()
 yo_soft_acc <- df_pred |> 
   mutate(soft_acc = case_when(.pred_class=="1" & ord_class == "1" ~ 1, 
                               .pred_class=="2" & ord_class == "2" ~ 1, 
@@ -287,18 +278,19 @@ yo_soft_preci <- df_pred |>
   group_by(.config) |> 
   summarize(mean_soft_preci = sum(spec_3)/n())
 
-yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %>% 
-  left_join(., yo_soft_acc) %>% 
+yo_cost3 <- left_join(yo_precision, yo_recall, by = join_by(.config)) |> 
+  left_join(yo_soft_preci, by = join_by(.config)) |>  
+  left_join(yo_soft_acc, by = join_by(.config)) |>  
   mutate(soft_acc_rank = percent_rank(mean_soft_acc), 
          recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), 
          soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  avg_rank =  (0.25 * preci_rank) + (0.3 * soft_preci_rank) + 
+         avg_rank = (0.25 * preci_rank) + (0.3 * soft_preci_rank) + 
            (0.15 * soft_acc_rank) + (0.3 * recall_rank))
 
-yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
-  left_join(yo_soft_preci) |> left_join(yo_cost3) |> 
-  select(.config, avg_rank, cost, rbf_sigma) |> 
+yo_metric <- yo_cost3 |> 
+  select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, 
+         mean_soft_acc, cost, rbf_sigma) |> 
   arrange(desc(avg_rank), mean_preci)
 
 #rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
@@ -311,11 +303,11 @@ write_csv(yo_metric, glue(the_path, "/models/model_metrics/", yop, ".csv"))
 
 best_model <- yo_metric$.config[1]
 
-best_param <-xgboost_resampling |> collect_metrics() |> 
+best_param <-svm_klab_resampl |> collect_metrics() |> 
   filter(.config == best_model) |> slice_tail()
 best_param
 
-final_model <- finalize_model(model_xgboost, best_param)
+final_model <- finalize_model(model_svm_klab, best_param)
 final_model
 
 final_wf <- workflow() |> add_recipe(recipe_base) |> add_model(final_model)
@@ -328,7 +320,7 @@ write_rds(model_base, glue(the_path, "/models/model_raw/", yop, ".rda"))
 library(vip)
 df_prep <- prep(recipe_base)
 var_importance <- final_model %>% 
-  set_engine("xgboost", importance = TRUE) %>% 
+  set_engine("kernlab", importance = TRUE) %>% 
   fit(ord_class ~ ., data = juice(df_prep) %>% select(-date)) %>%
   vi()
 
@@ -336,6 +328,25 @@ write_csv(var_importance,
           glue(the_path, "/models/model_vars_imp/", yop, ".csv"))
 ```
 
+# fitting model on new observations 
+
+```{r}
+xgboost_final_fit <- read_rds('model_raw/xgboost_v03a_CVX_61d_CVX.rda')
+xgboost_pred <- predict(xgboost_final_fit, new_data = df_new_xgb3a)
+xgboost_pred_prob <- predict(xgboost_final_fit, new_data = df_new_xgb3a, type = 'prob')
+df_pred_xgboost <- bind_cols(df_new_xgb3a |> select(date, ord_class), 
+                                 xgboost_pred, xgboost_pred_prob)
+
+
+xgboost_final_fit2 <- read_rds('model_raw/svm_v02a_short_29d_CVX.rda')
+xgboost_pred2 <- predict(xgboost_final_fit2, new_data = df_new_svm)
+xgboost_pred_prob2 <- predict(xgboost_final_fit2, new_data = df_new_svm, type = 'prob')
+df_pred_svm <- bind_cols(df_new_svm |> select(date, ord_class), 
+                                 xgboost_pred2, xgboost_pred_prob2) |> 
+  rename(ord_class_61d = ord_class)
+
+yo <- left_join(df_pred_xgboost, df_pred_xgboost2, by = join_by(date))
+```
 
 # rsample
 

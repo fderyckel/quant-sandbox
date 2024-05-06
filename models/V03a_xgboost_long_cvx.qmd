@@ -214,7 +214,7 @@ df_rel <- create_relative_prices(tick1, tick2) |>
 df_model <- left_join(df_model, df_rel, by = join_by(date))
 
 df_model <- df_model 
-df_new <- df_model |> filter(date > '2023-06-30')
+df_new_xgb3a <- df_model |> filter(date > '2023-06-30')
 df_model <- df_model |> filter(date < '2023-06-30') |> drop_na() 
 ```
 
