@@ -21,6 +21,8 @@ We are analysis all variables here, checking predictions certainties, checking f
 #| label: setup
 #| warning: false
 #| message: false
+#| code-fold: true
+#| code-summary: "Show the code"
 
 source('../functions/model_v01a.R')
 source('../functions/model_v02a.R')
@@ -100,11 +102,13 @@ get_testing_metrics_v02 <- function(ticker, yop_raw) {
 #| label: varimp-29d
 #| eval: true
 #| echo: false
+#| code-fold: true
+#| code-summary: "Show the code"
 
 num_days = '29d'
 
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01a_', num_days, '_')
-df_VI_v01a <- df |> 
+df_vi_v01a_29d <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -114,11 +118,11 @@ df_VI_v01a <- df |>
   mutate(model = 'v01a', timeframe = num_days) |> 
   arrange(desc(mean_imp))
 
-df_VI_v01a |> tail(n = 5) |> gt()
+#df_VI_v01a |> tail(n = 5) |> gt()
 
 df_part <- tibble(ticker = c('AAPL', 'AXP', 'CVX', 'HAL', 'RIO'))
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_', num_days, '_')
-df_VI_v02a <- df_part |> 
+df_vi_v02a_29d <- df_part |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -128,12 +132,12 @@ df_VI_v02a <- df_part |>
   mutate(model = 'v02a', timeframe = num_days) |> 
   arrange(desc(mean_imp))
 
-df_VI_v02a |> tail(n = 5) |> gt()
+#df_VI_v02a |> tail(n = 5) |> gt()
 
-df_VI <- df_VI_v01a |> add_row(df_VI_v02a ) |> 
-  arrange(mean_rank)
+df_vi_29d <- df_vi_v01a_29d |> add_row(df_vi_v02a_29d ) |> arrange(mean_rank)
 
-df_VI |> gt()
+#df_VI |> gt()
+df_vi_29d |> gt()
 ```
 
 
@@ -142,11 +146,13 @@ df_VI |> gt()
 ```{r}
 #| label: varimp-41d
 #| echo: false
+#| code-fold: true
+#| code-summary: "Show the code"
 
 num_days = '41d'
 
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01a_', num_days, '_')
-df_VI_v01a <- df |> 
+df_vi_v01a_41d <- df |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -156,11 +162,11 @@ df_VI_v01a <- df |>
   mutate(model = 'v01a', timeframe = num_days) |>
   arrange(desc(mean_imp)) 
 
-df_VI_v01a |> tail(n = 5) |> gt()
+#df_VI_v01a_41d |> tail(n = 5) |> gt()
 
 df_part <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
 yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_', num_days, '_')
-df_VI_v02a <- df_part |> 
+df_vi_v02a_41d <- df_part |> 
   mutate(var_imp = map(ticker, get_var_imp)) |> 
   unnest(cols = c(var_imp)) |> 
   group_by(Variable) |> 
@@ -170,19 +176,82 @@ df_VI_v02a <- df_part |>
   mutate(model = 'v02a', timeframe = num_days) |>
   arrange(desc(mean_imp)) |> mutate(model = 'v02a')
 
-df_VI_v02a |> tail(n = 5) |> gt()
+#df_vi_v02a_41d |> tail(n = 5) |> gt()
 
-df_VI <- df_VI_v01a |> add_row(df_VI_v02a ) |> 
+df_vi_41d <- df_vi_v01a_41d |> add_row(df_vi_v02a_41d ) |> 
   arrange(mean_rank)
 
-df_VI |> gt()
+df_vi_41d |> gt()
 ```
+
+### 61 days (2 months forward) 
+
+```{r}
+#| label: varimp-61d
+#| code-fold: true
+#| code-summary: "Show the code"
+
+num_days = '61d'
+
+df_part <- tibble(ticker = c('CVX', 'HAL', 'RIO'))
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v01a_', num_days, '_')
+df_vi_v01a_61d <- df_part |> 
+  mutate(var_imp = map(ticker, get_var_imp)) |> 
+  unnest(cols = c(var_imp)) |> 
+  group_by(Variable) |> 
+  summarise(mean_rank = mean(rank_order), 
+            mean_imp = mean(Importance, na.rm=TRUE), 
+            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+  mutate(model = 'v01a', timeframe = num_days) |>
+  arrange(desc(mean_imp)) 
+
+#df_vi_v01a_61d |> tail(n = 5) |> gt()
+
+df_part <- tibble(ticker = c('AAPL', 'CVX', 'HAL', 'RIO'))
+yop <- glue(the_path, '/models/model_vars_imp/xgboost_v02a_', num_days, '_')
+df_vi_v02a_61d <- df_part |> 
+  mutate(var_imp = map(ticker, get_var_imp)) |> 
+  unnest(cols = c(var_imp)) |> 
+  group_by(Variable) |> 
+  summarise(mean_rank = mean(rank_order), 
+            mean_imp = mean(Importance, na.rm=TRUE), 
+            sd_imp = sd(Importance, na.rm=TRUE)) |> 
+  mutate(model = 'v02a', timeframe = num_days) |>
+  arrange(desc(mean_imp)) |> mutate(model = 'v02a')
+
+#df_vi_v02a_61d |> tail(n = 5) |> gt()
+
+df_vi_61d <- df_vi_v01a_61d |> add_row(df_vi_v02a_61d ) |> 
+  arrange(mean_rank)
+
+df_vi_61d |> gt()
+```
+
+
+## Summary 
+
+```{r}
+#| label: varimp-summary
+#| code-fold: true
+#| code-summary: "Show the code"
+
+df_vi <- tibble(v01_29d = c(df_vi_v01a_29d$Variable, rep('NA', 9)), 
+                v01_41d = c(df_vi_v01a_41d$Variable, rep('NA', 9)),
+                v01_61d = c(df_vi_v01a_61d$Variable, rep('NA', 9)),
+                v02_29d = df_vi_v02a_29d$Variable, 
+                v02_41d = df_vi_v02a_41d$Variable, 
+                v02_61d = df_vi_v02a_29d$Variable)
+df_vi |> gt()
+
+```
+
 
 ## With SHAP value 
 
 ```{r}
 
 ```
+
 
 
 # Analysing metrics 
@@ -194,6 +263,9 @@ df_VI |> gt()
 #| echo: false
 #| message: false
 #| warning: false
+
+suppressWarnings(library(xgboost))
+suppressMessages(library(xgboost))
 
 num_days = '29d'
 yop <- glue(the_path, '/models/model_metrics/xgboost_v01a_', num_days, '_')
@@ -234,7 +306,7 @@ df2 <- df_met
 
 ```{r}
 #| label: metrics-41d
-#| echo: false
+#| echo: true
 #| message: false
 #| warning: false
 
@@ -252,7 +324,7 @@ yo <- df  |>
 df_v01a <- left_join(df_v01a, yo, by = join_by(ticker))
 
 
-df_part <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'SBUX', 'YUM'))
+df_part <- tibble(ticker = c('AAPL', 'AMD', 'AXP', 'CVX', 'FDX', 'HAL', 'RIO', 'SBUX', 'YUM'))
 yop <- glue(the_path, '/models/model_metrics/xgboost_v02a_', num_days, '_')
 yop_raw <- glue(the_path, '/models/model_raw/xgboost_v02a_', num_days, '_')
 model_name <- 'v02a_41d'
@@ -266,7 +338,9 @@ df_v02a <- left_join(df_v02a, yo, by = join_by(ticker))
 
 df_met <- df_v01a |> add_row(df_v02a) |> 
   arrange(ticker, name)
+
 df2 <- df2 |> add_row(df_met)
+
 df_met |> gt()
 
 ```
@@ -277,7 +351,7 @@ df_met |> gt()
 
 ```{r}
 #| label: metrics-61d
-#| echo: false
+#| echo: true
 #| message: false
 #| warning: false
 
@@ -298,6 +372,7 @@ df_v01a <- left_join(df_v01a, yo, by = join_by(ticker))
 
 yop <- glue(the_path, '/models/model_metrics/xgboost_v02a_', num_days, '_')
 yop_raw <- glue(the_path, '/models/model_raw/xgboost_v02a_', num_days, '_')
+df_part <- tibble(ticker = c('AAPL', 'CVX', 'HAL', 'RIO'))
 model_name <- 'v02a_61d'
 df_v02a <- df_part |> 
   mutate(metrics = map2(ticker, model_name, get_metrics_class)) |> 
@@ -320,45 +395,8 @@ df_met |> gt()
 
 ```{r}
 df2 |> arrange(ticker, name) |> gt()
+
+df2 |> select(ticker, name, F1_train) |> arrange(ticker, name) |> 
+  pivot_wider(names_from = name, values_from = F1_train, names_sort = TRUE) |> gt()
+
 ```
-
-
-# Making prediction 
-
-```{r}
-#| label: makingPrediction
-#| warning: false
-#| message: false
-#| eval: false
-
-ticker <- 'AXP'
-num_days <- '41d'
-yop <- glue(the_path, '/models/model_raw/xgboost_v01a_', num_days, '_')
-
-library(parsnip)
-library(yardstick)
-
-get_testing_metrics <- function(ticker, model_name) { 
-  model_fit <- read_rds(glue(yop, ticker, '.rda'))
-  df <- model01a(ticker, num_days) |> filter(date > '2023-06-30')
-  df_test_class <- predict(model_fit, new_data = df)
-  #df_test_prob <- predict(model_fit, new_data = df, type = 'prob')
-  yo <- bind_cols(df |> select(date, forw_ret, ord_class), df_test_class, df_test_prob)
-  f_meas(yo, truth = ord_class, estimate = .pred_class)
-  return(f_meas)
-  }
-
-
-
-#df_test_class <- predict(model_fit, new_data = df)
-#df_test_prob <- predict(model_fit, new_data = df, type = 'prob')
-#yo <- bind_cols(df |> select(date, forw_ret, ord_class), df_test_class, df_test_prob)
-
-library(broom)
-library(tidyr)
-conf_mat(yo, truth = ord_class, estimate = .pred_class)
-summary(conf_mat(yo, truth = ord_class, estimate = .pred_class))
-
-f_meas(yo, truth = ord_class, estimate = .pred_class)
-```
-

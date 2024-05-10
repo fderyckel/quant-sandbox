@@ -13,11 +13,12 @@ format:
       margin-width: 0px
 ---
 
-TODO
-Check correlation
-check correlation: roll_sd_intraday_3M, roll_sd_ret1d_63days.  I would imagine they are very similar.
-add ATR (2 different ones, 11 days, 19 days) ... put it as a percentage.  
-Put something about volume weighted average 
+MAIN Difference from original Model 2 is that: 
+* we have added a pre-processing steps (step_YeoJohnson)
+* we have changed the measures for best models to account for more recall at the expense of some precision (recal = 0.3, precision = 0.55, acc = 0.15)
+* time slices ... training on around 5 years and less number of samples but bigger validation set.  Time slices are non-cumulative. Ideally, validation set is > 30 and training set between 1000 and 1300. 
+* decreased XV-Grid to 23.  We did not find clear patterns on the hyper-parameters tuning so far. 
+* change the ATR denominator to 'close' instead of 'open'
 
 
 # Intro 
@@ -26,7 +27,7 @@ This model built on V1.  It removes the 5 least important variables and add a bu
 
 * This is a classification model.  Forward returns have been ordered in thirdile. 
 * The model engine is Xgboost  
-* To predict: Forward return at 41 days and 61 days.  
+* To predict: Forward return at, 29 days, 41 days and 61 days.  
 
 Other idiosyncrasies of this model: 
 
@@ -35,7 +36,10 @@ Other idiosyncrasies of this model:
 Changes from V01 
 * We are using V01 and introducing 3 lags for each of the top 5 variables (lag5, lag11, lag19).  
 * We are removing the bottom 5 variables from V01
-  + corr_sma50_sma200_1Y, above_sd_ret5d_3M, above_sd_ret5d_7M, above_sd_intraday_1Y, above_sd_ret1d_3M
+  + above_sd_ret5d_3M 
+  + above_sd_ret5d_7M, 
+  + above_sd_intraday_1Y 
+  + above_sd_ret1d_3M
 * We use returns but are scaling the returns in the pre-processing stage. 
 * we are adding percentage above main moving average (EMA23, SMA47, SMA101, SMA199)
 
@@ -58,10 +62,10 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'RIO'
+ticker <- 'AXP'
 num_days <- '41d'
 
-yop <- glue('xgboost_v02a_', num_days, "_", ticker)
+yop <- glue('xgboost_v02a2_', num_days, "_", ticker)
 ```
 
 ## Buidling df 
@@ -89,10 +93,11 @@ corr_roll_251d <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 251)
 df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
   arrange(date) |> 
   select(date, open, high, low, close, volume)
+
 yo <- tibble(atr11 = TTR::ATR(df[, 3:5], n = 11)[,2])
-df <- bind_cols(df, yo) |> mutate(atr11_open = atr11/open) |> select(-atr11)
+df <- bind_cols(df, yo) |> mutate(atr11_open = atr11/close) |> select(-atr11)
 yo <- tibble(atr17 = TTR::ATR(df[, 3:5], n = 17)[,2]) 
-df <- bind_cols(df, yo) |> mutate(atr17_open = atr17/open) |> select(-atr17)
+df <- bind_cols(df, yo) |> mutate(atr17_open = atr17/close) |> select(-atr17)
 
 df <- df |> 
   mutate(ret_1d = log(close / lag(close, n = 1)), 
@@ -172,11 +177,11 @@ df_model <- df2 |> filter(date < '2023-06-30')
 ############# SAMPLING FOR CROSS-VALIDATION ##########################
 library(rsample)
 min_size_training <- 500
-number_of_samples <- 50
-skippy <- 80
-laggy <- 21
+number_of_samples <- 43
+skippy <- 90
+laggy <- 37
 # get the size of the df we are using. 
-validation_size <- floor(nrow(df_model) * 0.2 / number_of_samples) + 1
+validation_size <- floor(nrow(df_model) * 0.25 / number_of_samples) + 1
 training_size <- nrow(df_model) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
 
 if (training_size < 500) {
@@ -186,7 +191,8 @@ if (training_size < 500) {
 }
 
 time_slices <- rolling_origin(df_model, 
-                              initial = training_size, assess = validation_size + laggy, 
+                              initial = training_size, 
+                              assess = validation_size + laggy, 
                               lag = -laggy, skip = skippy, 
                               cumulative = FALSE)
 
@@ -194,6 +200,7 @@ time_slices <- rolling_origin(df_model,
 library(recipes)
 recipe_base <- recipe(formula = ord_class ~., data = df_model) |> 
   update_role(date, new_role="ID") |> 
+  step_scale(all_numeric_predictors()) |> 
   step_YeoJohnson(all_numeric_predictors())
   
 ```
@@ -217,17 +224,17 @@ model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune
   set_engine("xgboost") |>  
   set_mode("classification") 
 
-stopping_grid <-grid_latin_hypercube(trees(range = c(600, 1000)), 
+stopping_grid <-grid_latin_hypercube(trees(range = c(500, 900)), 
                                      loss_reduction(range = c(-8, -1)), 
                                      mtry(range = c(12L, 19L)), 
                                      learn_rate(range = c(-4, -2)), 
                                      min_n(range = c(17L, 31L)),   
                                      tree_depth(range = c(9L, 17L)), 
-                                     size = 29)
+                                     size = 23)
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
 
-doParallel::registerDoParallel()
+doParallel::registerDoParallel(cores = 3)
 xgboost_resampling <- tune_grid(wf, time_slices, 
                                 grid = stopping_grid, 
                                 metrics = metric_set(accuracy, mn_log_loss), 
@@ -250,7 +257,9 @@ df_pred <- xgboost_resampling |> collect_predictions()
 yo_soft_acc <- df_pred |> 
   mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
                               .pred_class=="2" & ord_class == "2" ~ 1, 
+                              .pred_class=="1" & ord_class == "1" ~ 1, 
                               .pred_class=="3" & ord_class == "2" ~ 0.5, 
+                              .pred_class=="2" & ord_class == "1" ~ 0.5, 
                               TRUE ~ 0)) |> 
   group_by(.config) |> 
   summarize(mean_soft_acc = mean(soft_acc), 
@@ -277,7 +286,6 @@ yo_recall <- xgboost_resampling %>% collect_predictions() |>
 yo_soft_preci <- xgboost_resampling |> collect_predictions() |> 
   mutate(spec_3 = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
                             .pred_class=="3" & ord_class == "2" ~ 0.5, 
-                            .pred_class=="3" & ord_class == "1" ~ 0, 
                             TRUE ~ 0)) %>% 
   filter(.pred_class == "3") |>  
   group_by(.config) |> 
@@ -287,7 +295,8 @@ yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %
   left_join(., yo_soft_acc) %>% 
   mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  0.2 * preci_rank + 0.4 * soft_preci_rank + 0.15 * soft_acc_rank + 0.25 * recall_rank)
+         avg_rank =  0.25 * preci_rank + 0.3 * soft_preci_rank + 
+                     0.15 * soft_acc_rank + 0.3 * recall_rank)
 
 yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
   left_join(yo_soft_preci) |> left_join(yo_cost3) |> 

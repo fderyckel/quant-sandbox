@@ -291,13 +291,27 @@ rm(sd_roll_127d, sd_roll_147d, sd_roll_199d, sd_roll_21d, sd_roll_61d,
 
 # Running models and collecting metrics 
 
+## Cross-validation on time-series slices 
+
 ```{r}
+#| label: model_run
+#| message: false
+#| warning: false
+
 library(doParallel)
 registerDoParallel()
 xgboost_xv_resamples <- tune_grid(wf_xgboost, resamples = time_slices, 
                             grid = stopping_grid, 
                             metrics = metric_set(accuracy, roc_auc),
                             control = control_resamples(verbose = T, save_pred = T))
+
+```
+
+## creating appropriate metrics for multi-class + collecting best parameters
+```{r}
+#| label: model_metrics
+#| message: false
+#| warning: false
 
 metrics_xgboost <- xgboost_xv_resamples |> collect_metrics() |> 
   arrange(.metric, desc(mean))
@@ -360,10 +374,7 @@ yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |>
 #rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
 
 write_csv(yo_metric, glue(the_path, "/models/model_metrics/", yop, ".csv"))
-```
 
-
-```{r}
 best_model <- yo_metric$.config[1]
 
 best_param <- df_pred |> 
