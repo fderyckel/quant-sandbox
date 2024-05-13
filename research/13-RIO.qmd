@@ -37,7 +37,7 @@ conform_data <- function(ticker) {
   return(df)
 }
 
-primes <- c(5, 11, 17, 19, 23, 29, 37, 47, 59, 71, 83, 97, 
+primes <- c(5, 11, 19, 29, 37, 47, 59, 71, 83, 97, 
             109, 127, 157, 179, 199, 223, 251)
 
 get_returns_sd <- function(df) {
@@ -77,33 +77,39 @@ create_relative_prices <- function(df_tick, df_etf) {
 
 ```{r}
 
-df_ticker <- conform_data('RIO') 
+df_ticker <- conform_data('XOM') 
 df1a <- get_returns_sd(df_ticker) |> 
   select(-open, -high, -low, -close, -adjusted, -volume, 
          -ret_1d, -forw_ret, -ord_class) |> 
   drop_na()
 
-df_rel <- create_relative_prices('RIO', 'XME') |> 
+tick1 <- 'VDE'
+tick2 <- 'USCI'
+df_rel <- create_relative_prices(tick1, tick2) |> 
   get_corr() |> 
   get_returns_sd() |> 
   drop_na() |> 
-  select(-adj_tick, -adj_etf, -adjusted, -ret_1d)
+  select(-adj_tick, -adj_etf, -adjusted, -ret_1d) |> 
+  rename_with(~tolower(glue("{tick1}_{tick2}_{.}")), -date)
+#df1 <- df_rel
+df1 <- left_join(df1, df_rel, by = c('date'))
+
 yo <- df_ticker |> select(date, target)
-df_rel <- left_join(df_rel, yo, by = join_by(date))
+df1 <- left_join(df1, yo, by = join_by(date))
 
 ### train-test split
-df_train = df1a[1:round(nrow(df1a)*0.8), ]
-df_test = df1a[(round(nrow(df1a)*0.8) + 1):nrow(df1a) , ]
+#df_train = df1a[1:round(nrow(df1a)*0.8), ]
+#df_test = df1a[(round(nrow(df1a)*0.8) + 1):nrow(df1a) , ]
 
-df_rel_train = df_rel[1:round(nrow(df_rel)*0.8), ]
-df_rel_test = df_rel[(round(nrow(df_rel)*0.8) + 1):nrow(df_rel) , ]
+df_rel_train = df1[1:round(nrow(df1)*0.8), ]
+df_rel_test = df1[(round(nrow(df1)*0.8) + 1):nrow(df1) , ]
 
 ```
 
 # (base) model 
 
 ```{r}
-#| label: base_model
+#| label: base_model_preprocessing
 #| warning: false
 #| message: false
 
@@ -116,32 +122,32 @@ library(workflows)
 library(yardstick)
 library(ggplot2)
 
-rec_glmnet <- recipe(formula = target ~., data = df_train) |> 
-  update_role(date, new_role = 'ID') |> 
-  step_normalize(all_numeric_predictors())
-rec_xgboost <- recipe(formula = target ~., data = df_train) |> 
-  update_role(date, new_role = 'ID')
+#rec_glmnet <- recipe(formula = target ~., data = df_train) |> 
+#  update_role(date, new_role = 'ID') |> 
+#  step_normalize(all_numeric_predictors())
+#rec_xgboost <- recipe(formula = target ~., data = df_train) |> 
+#  update_role(date, new_role = 'ID')
 rec_xgboost_rel <- recipe(formula = target ~., data = df_rel_train) |> 
   update_role(date, new_role = 'ID')
 
-df_prep <- rec_glmnet |> prep(training = df_train)
-df_juiced_glmnet <- juice(df_prep)
-df_baked_glmnet <- df_prep |> bake(new_data = df_test)
+#df_prep <- rec_glmnet |> prep(training = df_train)
+#df_juiced_glmnet <- juice(df_prep)
+#df_baked_glmnet <- df_prep |> bake(new_data = df_test)
 
-df_prep <- rec_xgboost |> prep(training = df_train)
-df_juiced_xgboost <- juice(df_prep)
-df_baked_xgboost <- df_prep |> bake(new_data = df_test)
+#df_prep <- rec_xgboost |> prep(training = df_train)
+#df_juiced_xgboost <- juice(df_prep)
+#df_baked_xgboost <- df_prep |> bake(new_data = df_test)
 
 df_prep_rel <- rec_xgboost_rel |> prep(training = df_rel_train)
 df_juiced_xgboost_rel <- juice(df_prep_rel)
 df_baked_xgboost_rel <- df_prep_rel |> bake(new_data = df_rel_test)
 
 # create the CV validation resamples 
-tscv = rolling_origin(df_train, initial = 1250, assess = 100, lag = 20, skip = 350, cumulative = T)
+#tscv = rolling_origin(df_train, initial = 1250, assess = 100, lag = 20, skip = 350, cumulative = T)
 tscv_rel = rolling_origin(df_rel_train, initial = 1250, assess = 100, lag = 20, skip = 220, cumulative = T)
 
-model_glmnet <- logistic_reg(penalty = tune(), mixture = tune()) |> 
-  set_engine('glmnet') |> set_mode(mode = 'classification')
+#model_glmnet <- logistic_reg(penalty = tune(), mixture = tune()) |> 
+#  set_engine('glmnet') |> set_mode(mode = 'classification')
 # pure lasso for variable selections
 #model_glmnet <- logistic_reg(penalty = tune(), mixture = 1) |> 
 #  set_engine('glmnet') |> set_mode(mode = 'classification')
@@ -152,24 +158,28 @@ model_xgboost <- boost_tree(mtry = tune(), min_n = tune(),
   set_mode('classification')
 
 # create wf
-wf_glmnet <- workflow(preprocessor = rec_glmnet, spec = model_glmnet)
-wf_xgboost <- workflow(preprocessor = rec_xgboost, spec = model_xgboost)
+#wf_glmnet <- workflow(preprocessor = rec_glmnet, spec = model_glmnet)
+#wf_xgboost <- workflow(preprocessor = rec_xgboost, spec = model_xgboost)
 wf_xgboost_rel <- workflow(preprocessor = rec_xgboost_rel, spec = model_xgboost)
 
-glmnet_param <- parameters(penalty(), mixture())
-glmnet_grid_maxEnthropy = grid_max_entropy(glmnet_param, size = 200)
+#glmnet_param <- parameters(penalty(), mixture())
+#glmnet_grid_maxEnthropy = grid_max_entropy(glmnet_param, size = 200)
 
 xgboost_param <- parameters(trees(range = c(500, 900)), 
                             loss_reduction(range = c(-5, -1)), 
-                            mtry(range = c(13L, 18L)), 
+                            mtry(range = c(23L, 38L)), 
                             learn_rate(range = c(-4, -2)), 
                             min_n(range = c(19L, 29L)),   
-                            tree_depth(range = c(9L, 13L)))
-xgboost_grid_maxEnthropy = grid_max_entropy(xgboost_param, size = 40)
+                            tree_depth(range = c(19L, 41L)))
+xgboost_grid_maxEnthropy = grid_max_entropy(xgboost_param, size = 19)
 
+
+rm(df_ticker, df1, yo, primes)
 ```
 
 ```{r}
+#| label: glmnet
+
 library(doParallel)
 registerDoParallel()
 glmnet_tuning <- tune_grid(wf_glmnet, resamples = tscv, 
@@ -186,8 +196,10 @@ glmnet_tuning |> autoplot(metric = c('f_meas', 'roc_auc'))
 ```
 
 ```{r}
+#| label: xgboost_single
+
 library(doParallel)
-registerDoParallel()
+registerDoParallel(cores = 3)
 xgboost_tuning <- tune_grid(wf_xgboost, resamples = tscv, 
                             grid = xgboost_grid_maxEnthropy, 
                             metrics = metric_set(f_meas, precision, accuracy, roc_auc),
@@ -202,8 +214,10 @@ xgboost_tuning |> autoplot(metric = c('f_meas', 'roc_auc'))
 ```
 
 ```{r}
+#| label: xgboost_rel
+
 library(doParallel)
-registerDoParallel()
+registerDoParallel(cores = 3)
 xgboost_tuning_rel <- tune_grid(wf_xgboost_rel, resamples = tscv_rel, 
                             grid = xgboost_grid_maxEnthropy, 
                             metrics = metric_set(f_meas, precision, accuracy, roc_auc),
@@ -221,6 +235,7 @@ xgboost_tuning_rel |> autoplot(metric = c('f_meas', 'roc_auc'))
 # final metrics on test set 
 
 ```{r}
+
 final_glmnet <- finalize_workflow(wf_glmnet, 
                                   parameters =  best_glmnet_model)
 
@@ -290,7 +305,7 @@ yo <- final_xgboost |> fit(df_juiced_xgboost) |>
   mutate(
     Importance = abs(Importance),
     Variable = fct_reorder(Variable, Importance)) 
-write_csv(yo, file = 'temp/total_rio_xgboost_var.csv')
+write_csv(yo, file = 'temp/cvx_etf_xgboost_var.csv')
 
 yo |> 
   ggplot(aes(x = Importance, y = Variable)) +
@@ -309,7 +324,7 @@ yo <- final_xgboost_rel |> fit(df_juiced_xgboost_rel) |>
   mutate(
     Importance = abs(Importance),
     Variable = fct_reorder(Variable, Importance)) 
-write_csv(yo, file = 'temp/rio_xme_xgboost_var.csv') 
+write_csv(yo, file = 'temp/XOM_etf2_xgboost_var.csv') 
 
 yo |> 
   ggplot(aes(x = Importance, y = Variable)) +

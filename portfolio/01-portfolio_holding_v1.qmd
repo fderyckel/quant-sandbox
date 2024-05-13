@@ -12,6 +12,13 @@ format:
     embed-resources: true
 ---
 
+## TODO for my reports ... 
+
+Report stocks with unsual volumnes (on the upside)
+Might report weekly and monthly and 6 months as horizaontal bar chart.. it gives the magnitude in a quicker way. 
+
+
+
 ```{r}
 #| label: setup
 #| warning: false
@@ -211,9 +218,9 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 #| echo: false
 
 # My positions 
-tickers = c('EWZ','GDXJ','RGLD', 'RIO', 'CLF', 'COP', 'HAL', 'AON','AMZN', 'SMH','META', 'YUM') 
-etf1 =    c('UUP', 'UUP', 'UUP', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'QQQ', 'SPY', 'SPY')
-etf2 =    c('EEM', 'GLD', 'GDX', 'XME', 'XME', 'XLE', 'XLE', 'XLF', 'XLY', 'XLK', 'XLC', 'XLY')
+tickers = c('EWZ','GDXJ','RGLD', 'RIO', 'CLF', 'COP', 'PSX', 'XOM', 'SMH', 'IBM','DASH','META', 'GOOG') 
+etf1 =    c('UUP', 'UUP', 'UUP', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'QQQ', 'QQQ', 'QQQ', 'SPY', 'SPY')
+etf2 =    c('EEM', 'GLD', 'GDX', 'XME', 'XME', 'XLE', 'XLE', 'XLE', 'XLK', 'XLK', 'XLK', 'XLC', 'XLC')
 
 
 stock_tickers <- unique(c(tickers, 'UUP', 'EEM', 'GLD', 'GDX')) 
@@ -337,8 +344,11 @@ calc_vol <- function(ticker) {
 df_vol <- tibble(ticker = df$ticker) |> 
   mutate(vol = map(ticker, calc_vol)) |> 
   unnest(cols = c(vol)) |> 
-  arrange(desc(roll211d_sd_ret1d))
+  mutate(weekly_vol_change = round(weekly_vol_change, 3), 
+         monthly_vol_change = round(monthly_vol_change, 3)) |> 
+  select(ticker, weekly_vol_change, monthly_vol_change) |> 
+  arrange(desc(weekly_vol_change)) 
 
-
+df_vol |> gt()
 ```
 

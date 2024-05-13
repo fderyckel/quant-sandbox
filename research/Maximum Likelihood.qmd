@@ -1,0 +1,161 @@
+---
+title: "Maximum Likelihood Estimation (MLE)"
+format: html
+---
+
+Trying to understand a bit better the whole idea behidn MLE. 
+
+When the data you are using for modelling are not following a normal distribution, you can't really use the traditional methods of regressions that are assuming data are normally distributed.  
+To avoid that, some data transformation are possible (log transformation, square root, reciprocal functions)... sometimes, that even still doesn't work. 
+
+How should we model such data so that the basic assumptions of the model are not violated? How about modeling this data with a different distribution rather than a normal one? If we do use a different distribution, how will we estimate the coefficients?
+
+That's when MLE comes in. 
+
+Let's take an easy example
+
+```{r}
+#| message: false
+#| warning: false
+
+library(dplyr)
+library(ggplot2)
+
+df = tibble(x = rnorm(50, mean = 50, sd = 10))
+ggplot(df, aes(x = x)) + geom_dotplot()
+
+```
+
+These dots comes from a distribution where we know the parameters (mean = 50, sd = 10).  In real life, we usually do not know the parameters of the distribution of our data.  So we have to estimate them.  
+
+We can estimate the parameters of the data (in our case from the vector x).  First we have to make an assumptions about the data distribution.  Here we assume the data are normally distributed and we get 
+
+```{r}
+print(mean(df$x))
+print(sd(df$x))
+```
+
+Both parameters are close enough from the real values (50 and 10).  
+
+Another way to get the parameters values is to use MLE: **a method for estimating population parameters (such as the mean and variance for Normal, rate (lambda) for Poisson, etc.) from sample data such that the probability (likelihood) of obtaining the observed data is maximized.**
+
+Given the observed data and a model of interest, **we need to find the one Probability Density Function/Probability Mass Function (f(x|θ)), among all the probability densities that are most likely to have produced the data.**
+
+To solve that problem, we defined a likelihood function: $$L(x; \theta) = f(x | \theta)$$
+
+* $\theta$ is the vector of parameter (usually 1-2 parameters)
+* $x$ is the vector of observations. 
+
+We want to find the $\theta$ such that we maximize the likelihood. 
+
+Then, we assume that the observations are iid (independent and identically distributed random variables from the same probability distribution $f_0$)
+
+$$L(x;\theta) = f(x_1, x_2, \cdots  x_n | \theta) = f_0(x_1|\theta) \cdot f_0(x_2|\theta) \cdot f(x_3|\theta) \cdots f_0(x_n|\theta)$$ 
+
+Taking the log both side 
+$$log(L(x;\theta)) = log[f_0(x_1|\theta) \cdot f_0(x_2|\theta) \cdot f(x_3|\theta) \cdots f_0(x_n|\theta)]$$
+Using properties of log
+$$log(L(x;\theta)) = log[f_0(x_1|\theta)] + log[f_0(x_2|\theta)] + log[f(x_3|\theta)] + log[f_0(x_n|\theta)]$$
+Or in other words 
+$$LL(x;\theta) = \sum_{i=1}^n log[f_0(x_i|\theta)]$$
+Finding the maxima of the log-likelihood function is an unconstrained non-linear optimization problem. 
+
+In MLE, we can assume that we have a likelihood function L(θ;x), where θ is the distribution parameter vector, and x is the set of observations. We are interested in finding the value of θ that maximizes the likelihood with given observations (values of x).
+
+When the model is assumed to be Gaussian, as in the examples above, the MLE estimates are equivalent to the ordinary least squares method.  
+
+# In practice 
+
+Let's assume we have a large sample size of n-observation which can be treated as emanating from a Poison Distribution $P \sim Po(\mu_i)$. 
+Let's also assume that we want that mean $\mu_i$ to depend of a vector of explanatory varibales $x_i$.  
+We can then state that $$log(\mu_i) = x_i \cdot \theta$$ 
+(using log will ensure that $\mu_i$ is positive)
+Or $$\mu_i = e^{x_i \cdot \theta}$$
+* $\theta$ is the vector of the coefficients of the model 
+* $\mu_i$ has been assumed to be the mean of a Poisson distribution, 
+
+The point is now to find $\theta$ using MLE. 
+
+Now, assuming $Y \sim Po(\mu)$, we can say that 
+$$P(Y=y) = \frac{e^{-\mu} \cdot \mu^y}{y!}$$
+
+Taking the log on both side and ignoring $$LL(\theta) = \sum_{i=1}^{n} \left( y_i \cdot log(\mu_i) - \mu_i \right)$$ 
+
+* $\mu_i$ depends on the covariates $x_i$ and a vector of $\theta$ coefficients. 
+
+To put it in practice... Use data from ticket sale (18,000+ observations) of a date and a count variable (an integer that represents the number of ticket sold)
+
+
+
+```{r}
+#| message: false
+#| warning: false
+
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+df <- read_csv('../data_others/tickets_sale.csv') 
+glimpse(df)
+
+df <- df |> 
+  mutate(date = as_date(Datetime, format = '%d-%m-%Y %H:00'), tickets = Count, 
+         weekdays = weekdays(date), month = month(date), 
+         age = as.integer(round((date - as_date(min(date)))/7)))
+
+str(df)
+```
+
+
+```{r}
+ggplot(df, aes(x = tickets)) + 
+  #geom_histogram(aes(y = ..density..), colour = 1, fill = 'white') + 
+  geom_histogram(aes(y = after_stat(density)), colour = 1, fill = 'white') +
+  geom_density(colour = 'red')
+```
+
+```{r}
+library(ggplot2)
+ggplot(df, aes(x = date, y = tickets)) + 
+  geom_line(colour = 'blue')
+```
+
+BFGS is an optimization algorithm to find a minimum (like gradient descent is).  It is a second order algorithm, aka... it used the second derivatives. BFGS is often the default algorithm used in optimization for MLE estimations (aka find the minimum of MLE function).  
+
+We could code the negative log likelihood as follow: 
+
+```{r}
+nll <- function(theta0, theta1) {
+  x = df$age[-idx]
+  y = df$tickets[-idx]
+  mu = exp(theta0 + x * theta1)
+  #mu = exp(theta0 + x*theta1)
+  #-sum(y * log(mu) - mu)
+  -sum(y* (log(mu)) - mu)
+}
+
+idx <- sample.int(n = nrow(df), size = round(0.25 * nrow(df)), replace = FALSE)
+
+
+# calling the mle function to calculate the parameters
+param_est <- stats4::mle(minuslogl = nll, start = list(theta0 = 2, theta1 = 1))
+print(param_est)
+
+
+```
+
+```{r}
+idx <- caret::createDataPartition(df$tickets, p=0.25,list=FALSE)
+```
+
+
+
+
+```{python}
+import yfinance as yf
+import pandas as pd
+yo = yf.download('^TNX')
+yo.to_csv('../data_stock_fmpr/^TNX.csv', index = True)
+```
+

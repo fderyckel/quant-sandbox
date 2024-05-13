@@ -52,17 +52,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 550, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -101,17 +101,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 550, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -196,17 +196,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 550, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -242,17 +242,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 550, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -289,17 +289,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 550, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -426,17 +426,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 550, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 550, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -451,11 +451,13 @@ dev.off()
 st <- c('EWQ', 'EWP', 'EWG', 'EWU', 'EWI', 'EWL', 'EPOL', 'EWD', 'EWN', 
         'EEM', 'EWZ', 'EWW', 'EWJ', 'EWY', 'EWS', 'EWM', 'FXI', 'KWEB', 
         'EWH', 'EWT', 'THD', 'EIDO', 'EPHE', 'EWA', 'EZA', 'EWC')
+
 for (i in 1:length(st)) { 
   tryCatch({ 
     get_fmpr_prices(st[i])
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
+
 df <- tibble(ticker = st) 
 pdf(paste0(the_path,"/charts/charts_foreign.pdf"), width=13, height=8, onefile = TRUE)
 for (i in 1:nrow(df)){ 
@@ -475,6 +477,7 @@ dev.off()
 
 ```{r}
 #| label: indicses
+#| eval: false
 
 etf_tickers <- c( "SPY", "RSP", 'DIA', "QQQ", "TLT", "HYG",  
                   'GLD', 'GDX', "GDXJ", "XLE", "VDE", "XOP", 
@@ -482,7 +485,6 @@ etf_tickers <- c( "SPY", "RSP", 'DIA', "QQQ", "TLT", "HYG",
                   "XLF", "XLI", "XLY", "XLV", "XBI", "IYT", 'XLC', 'XLP', "FXG", 
                   'XLK', "HACK", "SMH", "IPAY", 
                   "ITB", 'PBW', "IWD", "IWF")
-
 for (i in 1:length(etf_tickers)) { 
   tryCatch({ 
     get_fmpr_prices(etf_tickers[i])
@@ -590,7 +592,8 @@ calc_vol <- function(ticker) {
            ret_1Y = round(log(adjusted / lag(adjusted, n = 251)), 3),
            roll21d_sd_ret1d = round(sd_roll_21d(ret_1d), 3), 
            roll211d_sd_ret1d = round(sd_roll_211d(ret_1d), 3),
-           weekly_vol_change = round(log(roll21d_sd_ret1d / lag(roll21d_sd_ret1d, n = 5)), 3)) |> 
+           weekly_vol_change = round(log(roll21d_sd_ret1d / lag(roll21d_sd_ret1d, n = 5)), 3), 
+           monthly_vol_change = round(log(roll21d_sd_ret1d / lag(roll21d_sd_ret1d, n = 21)), 3)) |> 
     slice_tail(n = 1) |> 
     select(-ret_1d)
 }
@@ -598,9 +601,40 @@ calc_vol <- function(ticker) {
 df_vol <- tibble(ticker = c(xlc, xle, xlf, xlp, xlu, xlv, xly, xme)) |> 
   mutate(vol = map(ticker, calc_vol)) |> 
   unnest(cols = c(vol)) |> 
-  arrange(desc(roll211d_sd_ret1d))
+  arrange(desc(date), desc(weekly_vol_change))
+
+yo1M <-  df_vol |> arrange(desc(date), desc(ret_1M))
+yo3M <-  df_vol |> arrange(desc(date), desc(ret_3M))
+
+
 ```
- 
+
+
+# Leading sectors and countries 
+
+```{r}
+etf_tickers <- c( "SPY", "RSP", 'DIA', "QQQ", "TLT", "HYG",  
+                  'GLD', 'GDX', "GDXJ", "XLE", "VDE", "XOP", 
+                  "DBB", "XME", "VAW", "XLB", "DBA", 
+                  "XLF", "XLI", "XLY", "XLV", "XBI", "IYT", 'XLC', 'XLP', "FXG", 
+                  'XLK', "HACK", "SMH", "IPAY", 
+                  "ITB", 'PBW', "IWD", "IWF")
+
+st <- c('EWQ', 'EWP', 'EWG', 'EWU', 'EWI', 'EWL', 'EPOL', 'EWD', 'EWN', 
+        'EEM', 'EWZ', 'EWW', 'EWJ', 'EWY', 'EWS', 'EWM', 'FXI', 'KWEB', 
+        'EWH', 'EWT', 'THD', 'EIDO', 'EPHE', 'EWA', 'EZA', 'EWC')
+
+df_vol_etf <- tibble(ticker = c(etf_tickers, st)) |> 
+  mutate(vol = map(ticker, calc_vol)) |> 
+  unnest(cols = c(vol)) |> 
+  arrange(desc(roll211d_sd_ret1d))
+
+etf_1M <-  df_vol_etf |> arrange(desc(date), desc(ret_1M))
+etf_3M <-  df_vol_etf |> arrange(desc(date), desc(ret_3M))
+```
+
+
+
 # Breadth of markets 
 
 ```{r}
@@ -626,21 +660,18 @@ conform_data <- function(ticker){
     return(df)
 }
 
-mean_roll_50 <- slidify(.f = mean, .align = 'right', .period = 50)
-mean_roll_100 <- slidify(.f = mean, .align = 'right', .period = 100)
+mean_roll_50 <- slidify(.f = mean, .align = 'right', .period = 50) 
 mean_roll_200 <- slidify(.f = mean, .align = 'right', .period = 200)
+mean_roll_251 <- slidify(.f = mean, .align = 'right', .period = 251)
+mean_roll_1251 <- slidify(.f = mean, .align = 'right', .period = 1251)
 
 create_averages <- function(ticker) {
   df <- conform_data(ticker) |> 
-    mutate(ema20 = TTR::EMA(adjusted, 20), 
-           above_ema20 = if_else(adjusted > ema20, 1, 0), 
-           sma50 = mean_roll_50(adjusted), 
+    mutate(sma50 = mean_roll_50(adjusted), 
            above_sma50 = if_else(adjusted > sma50, 1, 0), 
-           sma100 = mean_roll_100(adjusted), 
-           above_sma100 = if_else(adjusted > sma100, 1, 0), 
            sma200 = mean_roll_200(adjusted), 
            above_sma200 = if_else(adjusted > sma200, 1, 0)) |> 
-    select(date, above_sma50, above_sma100, above_sma200) |> 
+    select(date, above_sma50, above_sma200) |> 
     na.omit()
     
 }
@@ -651,12 +682,18 @@ df <- tibble(ticker = c(xlc, xle, xlf, xlp, xlv, xly, xme)) |>
   group_by(date) |> 
   summarize(num_stocks = n(), 
             avg_abov50 = mean(above_sma50), 
-            avg_abov100 = mean(above_sma100), 
             avg_abov200 = mean(above_sma200)) 
+df_spy <- conform_data('SPY') |> 
+  mutate(forw_ret_41d = log(lead(close, n = 61) / close), 
+         ord_class = as.factor(ntile(forw_ret_41d, n = 3))) |> 
+  select(date, ord_class)
+df <- left_join(df, df_spy, by = join_by(date))
 
-ggplot(df |> filter(date > today() - 750), aes(x = date)) + 
+ggplot(df |> filter(date > today() - 1250), aes(x = date)) + 
   geom_line(aes(y = avg_abov50), color = 'blue') + 
   geom_line(aes(y = avg_abov200), color = 'purple') + 
+  geom_point(aes(y = avg_abov200, color = ord_class)) + 
+  scale_color_manual(values = c('1' = 'red', '2' = 'orange', '3' = 'green')) + 
   geom_hline(aes(yintercept = 0.9), color = 'red', linetype = 'dashed') + 
   geom_hline(aes(yintercept = 0.1), color = 'red', linetype = 'dashed') + 
   scale_x_date(breaks = breaks_width("2 months"),labels = label_date("%b %y")) + 

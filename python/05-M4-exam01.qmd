@@ -1,0 +1,110 @@
+---
+title: "Exam3 - 01"
+format: html
+---
+
+
+Get 2 energy stocks
+XOM and CVX
+
+```{python}
+import pandas as pd
+import numpy as np
+
+df_cvx = pd.read_csv('../data_stock_fmpr/CVX.csv')
+df_xom = pd.read_csv('../data_stock_fmpr/XOM.csv', parse_dates = True, index_col = 'date')
+
+df_xom.head()
+
+```
+
+```{python}
+import matplotlib.pyplot as plt
+
+plt.plot(df_xom['adjClose'])
+plt.title('Adjusted Price for XOM')
+plt.show()
+```
+
+
+
+
+# create features 
+
+EMA defined as $$EMA_t = \alpha \cdot P_t + (1-\alpha) \cdot EMA_{t-1}$$
+$$EMA_t = EMA_{t−1} + \alpha \cdot (P_t − EMA_{t−1})$$ 
+and  $$\alpha = \frac{2}{N+1}$$ 
+
+```{python}
+# create an empty df
+df = pd.DataFrame()
+df['ret_1d'] = np.log(df_xom['adjClose'] / df_xom['adjClose'].shift(1))
+df['ret_1d_sign'] = np.sign(df['ret_1d'])
+
+def create_EMA(price, period): 
+  copied_price = price.copy()
+  sma_price = price.rolling(period).mean()
+  
+```
+
+
+
+# Diamond tutorial 
+
+```{python}
+import pandas as pd
+import numpy as np
+
+df_xom = pd.read_csv('../data_stock_fmpr/XOM.csv', parse_dates = True, index_col = 'date')
+df_xom = df_xom.sort_index()
+df = pd.DataFrame()
+df['price'] = df_xom['adjClose']
+df['return'] = np.log(df['price']).diff()
+#df['ret_1d'] = np.log(df).diff().  Same thing! 
+df['return_alt'] = np.log(df['price'] / df['price'].shift(1))
+
+df.head()
+```
+
+```{python}
+## create the lagged returns columns. 
+lags = 5
+cols = []
+
+for lag in range(1, lags+1): 
+  col = 'lag_ret_%dd' % lag
+  df[col] = df['return'].shift(lag)
+  cols.append(col)
+
+df.head(10)
+```
+
+```{python}
+# drop na values
+df.dropna(inplace = True)
+df = df.drop(['price', 'return_alt'], axis = 1)
+df['sign'] = np.sign(df['return'])
+df.head()
+```
+
+Keep adding some features
+ 
+```{python}
+
+df1 = df.copy()
+features_list = []
+
+for lag_period in (5, 19, 37, 47, 61, 97, 157, 199, 251): 
+  df1['ret_'+ str(lag_period) + 'd'] = df1['return'].rolling(lag_period).sum()
+  df1['sd_'+ str(lag_period) + 'd'] = df1['return'].rolling(lag_period).std()
+
+
+df2 = df.copy()
+for lag_period in range(5, 251, 11): 
+  df2['ret_'+ str(lag_period) + 'd'] = df2['return'].rolling(lag_period).sum()
+  df2['sd_' + str(lag_period) + 'd'] = df2['return'].rolling(lag_period).std()
+  
+df1.dropna(inplace = True)
+df2.dropna(inplace = True)
+```
+

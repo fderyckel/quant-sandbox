@@ -1,0 +1,212 @@
+---
+title: "M4L4 Exercises"
+format: html
+---
+
+
+Create a custom transformer that replaces outlier values of 1, 5, 20, 60 and 120 days SPX percentage returns. Determine the lower and upper bound of acceptable values based on the q-th percentile. Compare the result with the original feature set. Use the SPX dataset used in the Python Labs.
+
+```{python}
+import pandas as pd
+import numpy as np
+
+spy = pd.read_csv('../data_stock_fmpr/SPY.csv')
+
+from sklearn.base import BaseEstimator, TransformerMixin
+
+## we create a new class that inherit from both BaseEstimator and TransofmerMix. 
+class outlierTransformer(BaseEstimator, TransformerMixin): 
+  
+  def __init__(self, q_lower, q_upper): 
+    self.q_lower = q_lower
+    self.q_upper = q_upper
+    
+  def fit(self, X, y=None): 
+    self.lower = np.percentile(X, self.q_lower, axis = 0)
+    self.upper = np.percentile(X, self.q_upper, axis = 0)
+    
+    return self
+  
+  def transform(self, X): 
+    Xt = X.copy()
+    idx_lower = X < self.lower
+    idx_upper = X > self.upper 
+    for i in range(X.shape[1]): 
+      Xt[idx_lower[:,i], i] = self.lower[i]
+      Xt[idx_upper[:,i], i] = self.upper[i]
+      
+    return Xt
+    
+    
+```
+
+Trying the exercise 
+
+```{python}
+spy = pd.read_csv('../data_stock_fmpr/SPY.csv', index_col = 0, parse_dates = True)
+spy = spy.head(252)
+
+ret_dic = {str(i) + 'D_ret': spy['adjClose'].pct_change(i) for i in [1, 5, 21, 63, 126]}
+
+spy_df = pd.DataFrame(ret_dic).dropna()
+
+spy_df.head(5)
+
+# convert to a numpy array
+spy_np = spy_df.values
+spy_np
+
+spy_df.describe()
+
+yolo = outlierTransformer(5, 95)
+yolo.fit(spy_np)
+Xt = yolo.transform(spy_np)
+pd.DataFrame(Xt).describe()
+```
+
+```{python}
+import matplotlib
+import matplotlib.pyplot as plt
+
+plt.clf()
+_, bins, _ = plt.hist(spy_np[:, 0], density = True, bins = 100, alpha = 1, color = 'b', label = 'Original')
+plt.hist(Xt[:, 0], density = True, bins = bins, alpha = 0.7, color = 'r', label = 'Transformed returns')
+plt.xlim(-0.045, 0.045)
+plt.title('Original Vs Transformed Returns')
+plt.legend()
+plt.show()
+
+
+```
+
+
+# Lesson 5
+
+Generate a training dataset containing 30 observations with two predictors centered around -0.5 and 0.5 with a cluster standard deviation of 0.4 and one qualitative response variable. Define classes that takes ‘Red’ when response variable is positive and ‘Blue’ otherwise. Use this generated dataset to make a prediction for y when X1 = X2 = 0.25 using K-nearest neighbours.
+
+```{python}
+import numpy as np
+import pandas as pd
+
+from sklearn.datasets import make_blobs
+from sklearn.preprocessing import StandardScaler
+
+X, y_train = make_blobs(n_samples = 30, centers = [[-0.5, -0.5],[0.5, 0.5]], cluster_std = 0.4, random_state = 110)
+
+df = pd.DataFrame({'x1': X[:, 0], 'x2': X[:, 1], 'y': y_train})
+df['class'] = df['y'].apply(lambda x: 'red' if x > 0 else 'blue')
+```
+
+Calculate distance between each point and the point [0.25, 0.25]
+
+```{python}
+from sklearn.metrics.pairwise import euclidean_distances
+df['euclidean'] = pd.Series(euclidean_distances(df[['x1', 'x2']], [[0.25, 0.25]]).flatten())
+
+df.nsmallest(11, 'euclidean')
+```
+
+Draw a classifier
+
+```{python}
+from sklearn.neighbors import KNeighborsClassifier
+import matplotlib.pyplot as plt
+import matplotlib
+
+def drawBoundary(x, y, k): 
+  
+  # instantiate the model object 
+  knn = KNeighborsClassifier(n_neighbors = 5)
+  
+  # fit the model on the object x (predictors) and y (predicted)
+  knn.fit(x, y)
+  
+  # get min and max values to plot mesh boundary
+  x_min, x_max = X[:, 0].min() -1, X[:, 0].max() + 1
+  y_min, y_max = X[:, 1].max() -1, X[: 1].max() + 1
+  
+  #create a meshgrid
+  h = 0.2
+  xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+  
+  # we now make a prediction for each square of the mesh
+  Z = knn.predict(np.c_[xx.ravel(), yy.ravel()])
+  Z_shap = Z.reshape(xx.shape)
+  
+  plt.clf()
+  #this next line is trowing me errors ... can't fix it. 
+  plt.contour(xx, yy, Z_shap, cmap=plt.cm.bwr, linestyles = 'dashed', linewidths=0.5)
+  plt.scatter(X[:,0], X[:,1], c=df['class'])
+  plt.title(f'KNN Decision Boundary with {k} Nearest Neighbours')
+  plt.xlabel('$X_1$')
+  plt.ylabel('$X_2$', rotation = 'horizontal')
+  
+  plt.show()
+
+
+drawBoundary(X, y_train, 5)
+```
+
+
+
+## education dataset with GRE
+
+```{python}
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv('../data_others/binary.csv')
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+features = df.drop('admit', axis = 1)
+target = df['admit']
+
+# conveting to numpy array 
+X = features.values
+y = target.values
+
+# set up a pipleline with scaling + model
+PipeL = Pipeline([('scaler', StandardScaler()), 
+                  ('logistic', LogisticRegression(solver = 'liblinear'))])
+PipeL.fit(X, y)
+
+PipeL.get_params()
+
+penalty = ['l1', 'l2']
+C = np.linspace(0.01, 10, 20)
+
+param_grid = dict(logistic__C = C, logistic__penalty = penalty)
+param_grid
+
+gridsearch = GridSearchCV(PipeL, param_grid, n_jobs = 1, cv = 10, verbose = 1)
+
+searchBestModel = gridsearch.fit(X, y)
+searchBestModel.best_params_
+searchBestModel.best_score_
+
+PipeL['logistic'].coef_
+```
+
+```{python}
+
+```
+
+
+
+
+
+```{python}
+import numpy as np
+# creating arrays
+myarray1 = np.array([1, 2, 3])
+myarray2 = np.array([4, 5, 6])
+
+# using the numpy.c_ 
+myarray = np.c_[myarray1, myarray2]
+print(myarray)
+```
+
