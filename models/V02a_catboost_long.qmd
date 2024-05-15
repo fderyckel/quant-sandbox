@@ -13,12 +13,11 @@ format:
       margin-width: 0px
 ---
 
-MAIN Difference from original Model 2 is that: 
-* we have added a pre-processing steps (step_YeoJohnson)
-* we have changed the measures for best models to account for more recall at the expense of some precision (recal = 0.3, precision = 0.55, acc = 0.15)
-* time slices ... training on around 5 years and less number of samples but bigger validation set.  Time slices are non-cumulative. Ideally, validation set is > 30 and training set between 1000 and 1300. 
-* decreased XV-Grid to 23.  We did not find clear patterns on the hyper-parameters tuning so far. 
-* change the ATR denominator to 'close' instead of 'open'
+TODO
+Check correlation
+check correlation: roll_sd_intraday_3M, roll_sd_ret1d_63days.  I would imagine they are very similar.
+add ATR (2 different ones, 11 days, 19 days) ... put it as a percentage.  
+Put something about volume weighted average 
 
 
 # Intro 
@@ -27,7 +26,7 @@ This model built on V1.  It removes the 5 least important variables and add a bu
 
 * This is a classification model.  Forward returns have been ordered in thirdile. 
 * The model engine is Xgboost  
-* To predict: Forward return at, 29 days, 41 days and 61 days.  
+* To predict: Forward return at 41 days and 61 days.  
 
 Other idiosyncrasies of this model: 
 
@@ -36,10 +35,7 @@ Other idiosyncrasies of this model:
 Changes from V01 
 * We are using V01 and introducing 3 lags for each of the top 5 variables (lag5, lag11, lag19).  
 * We are removing the bottom 5 variables from V01
-  + above_sd_ret5d_3M 
-  + above_sd_ret5d_7M, 
-  + above_sd_intraday_1Y 
-  + above_sd_ret1d_3M
+  + corr_sma50_sma200_1Y, above_sd_ret5d_3M, above_sd_ret5d_7M, above_sd_intraday_1Y, above_sd_ret1d_3M
 * We use returns but are scaling the returns in the pre-processing stage. 
 * we are adding percentage above main moving average (EMA23, SMA47, SMA101, SMA199)
 
@@ -62,10 +58,10 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'AXP'
+ticker <- 'RIO'
 num_days <- '41d'
 
-yop <- glue('xgboost_v02a2_', num_days, "_", ticker)
+yop <- glue('catboost_v02a_', num_days, "_", ticker)
 ```
 
 ## Buidling df 
@@ -93,11 +89,10 @@ corr_roll_251d <- slidify(.f = ~cor(.x, .y), .align = 'right', .period = 251)
 df <- read_csv(glue(the_path, '/data_stock_fmpr/', ticker, '.csv')) |> 
   arrange(date) |> 
   select(date, open, high, low, close, volume)
-
 yo <- tibble(atr11 = TTR::ATR(df[, 3:5], n = 11)[,2])
-df <- bind_cols(df, yo) |> mutate(atr11_open = atr11/close) |> select(-atr11)
+df <- bind_cols(df, yo) |> mutate(atr11_open = atr11/open) |> select(-atr11)
 yo <- tibble(atr17 = TTR::ATR(df[, 3:5], n = 17)[,2]) 
-df <- bind_cols(df, yo) |> mutate(atr17_open = atr17/close) |> select(-atr17)
+df <- bind_cols(df, yo) |> mutate(atr17_open = atr17/open) |> select(-atr17)
 
 df <- df |> 
   mutate(ret_1d = log(close / lag(close, n = 1)), 
@@ -161,13 +156,121 @@ df2 <- df |>
          corr_sma50_sma200_199d, corr_sma50_sma200_101d,
          roll_sd_volu200_31d, roll_sd_volu200_251d, 
          roll_sd_volu200_251d_lag5, roll_sd_volu200_251d_lag17, 
-         ord_class) |> 
-  drop_na()
+         ord_class) 
 
-df_model <- df2 |> filter(date < '2023-06-30')
+df_model <- df2 
+df_new2 <- df_model |> filter(date > '2023-06-30')
+df_model <- df_model |> filter(date < '2023-06-30') |> drop_na()
 ```
 
 ## Resampling and Recipes 
+
+```{python}
+import pandas as pd
+import numpy as np
+df_cb = yoo
+df_cb.isnull().sum()
+X = df_cb.drop(['date', 'ord_class'], axis = 1)
+X.values
+y = df_cb['ord_class']
+
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
+from catboost import CatBoostClassifier
+from sklearn.metrics import accuracy_score, f1_score, recall_score
+from sklearn.metrics import ConfusionMatrixDisplay, RocCurveDisplay
+
+
+tscv = TimeSeriesSplit(n_splits = 5, gap=40)
+
+model_cb_basics = CatBoostClassifier(iterations = 800, depth = 12, learning_rate = 0.0001, loss_function='MultiClass', verbose = True)
+
+model_cb_basics.fit(X, y)
+model_cb_basics.predict_proba(X)
+
+accuracy_score(y, model_cb_basics.predict(X))
+df_new = r.df_new2
+#df_new.dropna(inplace=True)
+df_new3 = df_new.drop(['date', 'ord_class'], axis = 1, inplace = False)
+#y_new = df_new['ord_class']
+
+#accuracy_score(y_new, model_cb_basics.predict(df_new3))
+#f1_score(y_new, model_cb_basics.predict(df_new3), average = 'macro')
+yo = model_cb_basics.predict(df_new3)
+data = [[y_new], [yo[:,0]]]
+yo = pd.DataFrame(data, columns = ['ord_class', 'predictions'])
+```
+
+```{r}
+df_cb_pred <- tibble(ord_class = df_new2$ord_class,  predictions = py$yo)
+yooo <- py$yo
+```
+
+```{python}
+#| label: py_catboost_tuned
+#| message: true
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
+from catboost import CatBoostClassifier
+
+df_cb = r.df_model
+
+X = df_cb.drop(['date', 'ord_class'], axis = 1) 
+y = df_cb['ord_class']
+
+tscv = TimeSeriesSplit(n_splits = 5, gap=40)
+
+model_cb_hp = CatBoostClassifier(loss_function='MultiClass', verbose = True)
+param_grid = {'iterations': [550, 650, 750, 850], 
+              'learning_rate': [0.001, 0.003, 0.007, 0.01, 0.0005], 
+              'depth': [7, 9, 11, 13]}
+rs = RandomizedSearchCV(model_cb_hp, param_grid, cv = tscv, n_jobs = 3)
+
+rs.fit(X, y)
+
+model_cb_hp_bestParam = CatBoostClassifier(**rs.best_params_)
+model_cb_hp_fitted = model_cb_hp_bestParam.fit(X, y)
+
+import matplotlib.pyplot as plt
+feature_imp = model_cb_hp_fitted.feature_importances_
+sorted_idx = np.argsort(feature_imp)
+fig = plt.figure(figsize=(12, 6))
+plt.barh(range(len(sorted_idx)), feature_imp[sorted_idx], align='center')
+plt.yticks(range(len(sorted_idx)), np.array(X.columns)[sorted_idx])
+plt.title('Feature Importance')
+plt.show()
+
+data = {'features': np.array(X.columns), 'rank': sorted_idx, 'varimp': feature_imp}
+varimp_df = pd.DataFrame(data)
+
+import joblib
+joblib.dump(model_cb_hp_fitted, 'catboost_v02a_41d_CVX.pkl')
+
+loaded_model = joblib.load('../models/catboost_v02a_41d_CVX.pkl')
+```
+
+```{r}
+library(reticulate)
+varimp = py$yo
+
+yooo = py$varimp_df
+readr::write_csv(yooo, 'model_metrics/catboost_v02a_41d_CVX.csv')
+```
+
+```{python}
+# After you train the model using fit(), save like this - 
+model.save_model('model_name')    # extension not required.
+
+# And then, later load - 
+from catboost import CatBoostClassifier
+model = CatBoostClassifier()      # parameters not required.
+model.load_model('model_name')
+
+# Now, try predict().
+
+```
+
 
 ```{r}
 #| label: preprocessing
@@ -180,7 +283,6 @@ min_size_training <- 500
 number_of_samples <- 43
 skippy <- 90
 laggy <- 37
-
 # get the size of the df we are using. 
 validation_size <- floor(nrow(df_model) * 0.25 / number_of_samples) + 1
 training_size <- nrow(df_model) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
@@ -192,18 +294,14 @@ if (training_size < 500) {
 }
 
 time_slices <- rolling_origin(df_model, 
-                              initial = training_size, 
-                              assess = validation_size + laggy, 
+                              initial = training_size, assess = validation_size + laggy, 
                               lag = -laggy, skip = skippy, 
                               cumulative = FALSE)
 
 ######################################################################
 library(recipes)
 recipe_base <- recipe(formula = ord_class ~., data = df_model) |> 
-  update_role(date, new_role="ID") |> 
-  step_scale(all_numeric_predictors()) |> 
-  step_YeoJohnson(all_numeric_predictors())
-  
+  update_role(date, new_role="ID") 
 ```
 
 
@@ -215,32 +313,31 @@ recipe_base <- recipe(formula = ord_class ~., data = df_model) |>
 #| warning: false
 
 library(parsnip)
+library(catsnip)
 library(tune)
 library(dials)
 library(workflows)
 library(yardstick)
-model_xgboost <- boost_tree(trees = tune(), mtry = tune(), loss_reduction = tune(), 
-                            tree_depth = tune(), 
-                            learn_rate = tune(), min_n = tune()) %>% 
-  set_engine("xgboost") |>  
+model_catboost <- boost_tree(trees = tune(), mtry = tune(), 
+                             tree_depth = tune(), 
+                             learn_rate = tune(), min_n = tune()) |> 
+  set_engine("catboost") |>  
   set_mode("classification") 
 
-stopping_grid <-grid_latin_hypercube(trees(range = c(500, 900)), 
-                                     loss_reduction(range = c(-8, -1)), 
-                                     mtry(range = c(12L, 19L)), 
-                                     learn_rate(range = c(-4, -2)), 
-                                     min_n(range = c(17L, 31L)),   
-                                     tree_depth(range = c(9L, 17L)), 
-                                     size = 23)
+stopping_grid <- grid_latin_hypercube(trees(range = c(600, 1000)), 
+                                      mtry(range = c(12L, 19L)), 
+                                      learn_rate(range = c(-4, -3)), 
+                                      min_n(range = c(17L, 31L)),   
+                                      tree_depth(range = c(9L, 17L)), 
+                                      size = 23)
 
-wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
+wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_catboost)  
 
 doParallel::registerDoParallel(cores = 3)
-xgboost_resampling <- tune_grid(wf, time_slices, 
-                                grid = stopping_grid, 
-                                metrics = metric_set(accuracy, mn_log_loss), 
-                                control = control_resamples(save_pred = TRUE, 
-                                                            save_workflow = TRUE))
+catboost_resampling <- tune_grid(wf, time_slices, grid = stopping_grid, 
+                                 #metrics = metric_set(accuracy, mn_log_loss), 
+                                 control = control_resamples(save_pred = TRUE, 
+                                                             save_workflow = TRUE))
 
 
 ```
@@ -294,8 +391,10 @@ yo_soft_preci <- xgboost_resampling |> collect_predictions() |>
 
 yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %>% 
   left_join(., yo_soft_acc) %>% 
-  mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
-         preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
+  mutate(soft_acc_rank = percent_rank(mean_soft_acc), 
+         recall_rank = percent_rank(mean_recall), 
+         preci_rank = percent_rank(mean_preci), 
+         soft_preci_rank = percent_rank(mean_soft_preci), 
          avg_rank =  0.25 * preci_rank + 0.3 * soft_preci_rank + 
                      0.15 * soft_acc_rank + 0.3 * recall_rank)
 

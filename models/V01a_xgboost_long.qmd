@@ -136,9 +136,10 @@ df_model <- df2 |> filter(date < '2023-06-30')
 ############# SAMPLING FOR CROSS-VALIDATION ##########################
 library(rsample)
 min_size_training <- 500
-number_of_samples <- 50
-skippy <- 75
-laggy <- 21
+number_of_samples <- 43
+skippy <- 90
+laggy <- 37
+
 # get the size of the df we are using. 
 validation_size <- floor(nrow(df_model) * 0.2 / number_of_samples) + 1
 training_size <- nrow(df_model) - (skippy * (number_of_samples - 1)) - (laggy + validation_size) - 49
@@ -208,6 +209,9 @@ xgboost_resampling <- tune_grid(wf, time_slices,
 yo_soft_acc <- xgboost_resampling |> collect_predictions() |> 
   mutate(soft_acc = case_when(.pred_class=="3" & ord_class == "3" ~ 1, 
                               .pred_class!="3" & ord_class != "3" ~ 1, 
+                              .pred_class=="1" & ord_class == "1" ~ 1, 
+                              .pred_class=="3" & ord_class == "2" ~ 0.5, 
+                              .pred_class=="2" & ord_class == "1" ~ 0.5, 
                               TRUE ~ 0)) |> 
   group_by(.config) |> 
   summarize(mean_soft_acc = sum(soft_acc)/n(), 
@@ -244,7 +248,8 @@ yo_cost3 <- left_join(yo_precision, yo_recall) %>% left_join(., yo_soft_preci) %
   left_join(., yo_soft_acc) %>% 
   mutate(soft_acc_rank = percent_rank(mean_soft_acc), recall_rank = percent_rank(mean_recall), 
          preci_rank = percent_rank(mean_preci), soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank =  0.2 * preci_rank + 0.4 * soft_preci_rank + 0.15 * soft_acc_rank + 0.25 * recall_rank)
+         avg_rank =  0.2 * preci_rank + 0.4 * soft_preci_rank + 
+                     0.15 * soft_acc_rank + 0.25 * recall_rank)
 
 yo_metric <- left_join(yo_precision, yo_soft_acc) |> left_join(yo_recall) |> 
   left_join(yo_soft_preci) |> left_join(yo_cost3) |> 
