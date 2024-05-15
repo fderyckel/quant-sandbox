@@ -38,9 +38,9 @@ library(glue)
 the_path <- here::here()
 
 ticker <- 'CVX'
-num_days <- '61d'
+num_days <- '83d'
 
-yop <- glue('xgboost_v03a_short_', {ticker}, '_', num_days, "_", ticker)
+yop <- glue('xgboost_v03a_short_', num_days, "_", ticker)
 
 primes <- c(5, 11, 17, 19, 23, 29, 37, 47, 59, 71, 83, 97, 
             109, 127, 157, 179, 199, 223, 251)
