@@ -58,7 +58,7 @@ library(glue)
 
 the_path <- here::here()
 
-ticker <- 'CVX'
+ticker <- 'RIO'
 num_days <- '41d'
 
 yop <- glue('xgboost_v02a_', num_days, "_", ticker)
@@ -226,7 +226,7 @@ stopping_grid <-grid_latin_hypercube(trees(range = c(600, 1000)),
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_xgboost)  
 
-doParallel::registerDoParallel()
+doParallel::registerDoParallel(cores = 3)
 xgboost_resampling <- tune_grid(wf, time_slices, 
                                 grid = stopping_grid, 
                                 metrics = metric_set(accuracy, mn_log_loss), 

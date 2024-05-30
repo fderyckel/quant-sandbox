@@ -1,0 +1,1181 @@
+---
+title: "06-Exam3"
+format: html
+---
+
+
+# Modelign Task. 
+
+Short term 
+
+We will use a commodity stock 'RIO'
+
+## Loading Data 
+
+```{python}
+#| warning: false
+#| message: false
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+
+#rio = yf.download('RIO')
+df = pd.DataFrame(rio)
+
+# checking for missing values. 
+df.isnull().sum()
+print(df.head())
+
+# getting returns 
+df['ret_1d_target'] = np.log(df['Adj Close'].shift(-1) / df['Adj Close'])
+df['ret_1d_shifted'] = (np.log(df['Adj Close']).diff(1)).shift(1)
+
+df['o-c'] = np.log(df.Open/df.Close).shift(1)
+df['h-l'] = np.log(df.High/df.Low).shift(1)
+df['o-o'] = np.log(df.Open/df.Open.shift(1))
+df['o-prevC'] = np.log(df.Open/df.Close.shift(1))
+
+new_cols = {}
+# creating our lag variables
+for lags in range(1, 17, 1): 
+  new_cols['ret_1d_lag' + str(lags) + 'd'] = df.ret_1d_shifted.shift(lags)
+  new_cols['o-c-lag' + str(lags) + 'd'] = df['o-c'].shift(lags)
+  new_cols['o-o-lag' + str(lags) + 'd'] = df['o-o'].shift(lags)
+  new_cols['h-l-lag' + str(lags) + 'd'] = df['h-l'].shift(lags)
+  new_cols['o-prevC-lag' + str(lags) + 'd'] = df['o-prevC'].shift(lags)
+
+for days in range(2, 61, 3): 
+  new_cols['ret_'+ str(days)] = df.ret_1d_shifted.rolling(days).sum()
+  new_cols['sd_' + str(days)] = df.ret_1d_shifted.rolling(days).std()
+
+for lags in range(2, 61, 4): 
+  new_cols['sma_' + str(lags) + 'd'] = df['Adj Close'].rolling(window=lags).mean()
+  new_cols['sma_' + str(lags) + 'd'] = np.log(df['Adj Close'] / new_cols['sma_' + str(lags) + 'd'])
+  new_cols['sma_' + str(lags) + 'd'] = new_cols['sma_' + str(lags) + 'd'].shift(1)
+
+for lags in range(3, 10, 2): 
+  new_cols['ema_' + str(lags) + 'd'] = df['Adj Close'].ewm(span = lags, adjust = False).mean() 
+  new_cols['ema_' + str(lags) + 'd'] = np.log(df['Adj Close'] / new_cols['ema_' + str(lags) + 'd'])
+  new_cols['ema_' + str(lags) + 'd'] = new_cols['ema_' + str(lags) + 'd'].shift(1)
+
+df_new_cols = pd.DataFrame(new_cols)
+df = pd.concat([df, df_new_cols], axis = 1)
+
+
+df.shape
+
+df.dropna(inplace = True)
+
+df_new = df.loc['2019-01-01':].copy()
+df_new.shape
+
+# Step 2: Calculate the median of the relevant column in the filtered data
+median_return = df_new['ret_1d_shifted'].dropna().median()
+print(f"Median Return: {np.round(median_return, 6)}")
+
+# Step 3: Create the 'target' column based on the median return
+df_new['target'] = np.where(df_new['ret_1d_target'] > median_return, 1, 0)
+df_new.shape
+df_new['target'].value_counts(normalize = True).round(4) * 100
+
+df3 = df_new.drop(['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'target', 
+               'ret_1d_target'], axis = 1).copy()
+print(df3.shape)
+np.median(df3['ret_1d_shifted'])
+X = df3
+y = df_new['target']
+
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, shuffle = False)
+
+print('Shape of x_train:', x_train.shape)
+print('Shape of y_train:', y_train.shape)
+print('Shape of x_test:', x_test.shape)
+print('Shape of y_test:', y_test.shape)
+print(f"Size of training set is {len(x_train)} and size of testing set is {len(x_test)}")
+
+```
+
+```{python}
+
+df.shape
+```
+
+```{python}
+# adding relative returns  prices and std.  
+def relative_returns(stock, etf): 
+  stock_data = yf.download(stock)
+  etf_data = yf.download(etf)
+  rel_price = stock_data.join(etf_data, how = 'left')
+  
+  return rel_price
+
+stock = 'RIO'
+etf = 'XME'
+relative_returns('RIO', 'XME')
+```
+
+### Checking for correlation 
+
+```{python}
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+corr_matrix = df3.corr()
+print(corr_matrix)
+
+
+plt.clf()
+plt.figure(figsize = (12, 10))
+heatmap = sns.heatmap(corr_matrix, #annot=False, fmt=".2f", cmap='coolwarm', 
+            vmin=-1, vmax=1, linewidths=.5, cbar_kws={"shrink": .9})
+heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=45, horizontalalignment='right', fontsize=10)
+heatmap.set_yticklabels(heatmap.get_yticklabels(), fontsize=8)
+plt.show()
+```
+
+```{python}
+corr_pairs = corr_matrix.unstack()
+
+# Convert the series to a DataFrame and reset index
+corr_pairs_df = pd.DataFrame(corr_pairs, columns=['Correlation']).reset_index()
+
+# Rename the columns for clarity
+corr_pairs_df.columns = ['Variable_1', 'Variable_2', 'Correlation']
+
+# Remove self-correlations (correlation of a variable with itself)
+corr_pairs_df = corr_pairs_df[corr_pairs_df['Variable_1'] != corr_pairs_df['Variable_2']]
+
+# Drop duplicate pairs (e.g., (A, B) and (B, A))
+corr_pairs_df['abs_corr'] = corr_pairs_df['Correlation'].abs()
+corr_pairs_df = corr_pairs_df.sort_values(by='abs_corr', ascending=False).drop_duplicates(subset=['Correlation']).drop(columns=['abs_corr'])
+
+# Sort the pairs by the absolute value of the correlation
+sorted_corr_pairs = corr_pairs_df.sort_values(by='Correlation', ascending=False)
+
+# Select the top 20 pairs
+top_20_corr_pairs = sorted_corr_pairs.head(50)
+```
+
+
+## Base model 
+
+As base model, we throw everything (we have time and compute power) and see what we get.  
+We'll then fine tune our features to see if we can get better results. 
+
+```{python}
+from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.model_selection import TimeSeriesSplit, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.decomposition import PCA
+from sklearn.svm import SVC 
+
+from sklearn.metrics import roc_curve, ConfusionMatrixDisplay, accuracy_score, auc
+
+```
+
+
+```{python}
+#| label: base-model
+
+model_svm_base = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('minmax_scaler', MinMaxScaler()), # it does seem like addign that help
+  ("pca", PCA(n_components = 0.99, random_state = 42)),
+  ('classifier', SVC(kernel = 'rbf', probability = True, random_state = 42))
+])
+
+model_svm_base.fit(x_train, y_train)
+
+#y_pred = model_svm_lin.predict(x_test)
+#model_svm_lin.decision_function(x_train)
+
+acc_train = accuracy_score(y_train, model_svm_base.predict(x_train))
+acc_test = accuracy_score(y_test, model_svm_base.predict(x_test))
+print(acc_train)
+print(acc_test)
+```
+
+no PCA: 0.5930 and 0.47426. linear
+no PCA: 0.69244 and 0.49264. RBF
+no PCA: 0.4917 and 0.5. sigmoid
+no PCA: 0.6740 and 0.5036 poly
+
+As is 0.95 PCA, 0.54328 and 0.547794. linear
+As is 0.95 PCA, 0.6685 and 0.4889. RBF
+As is 0.95 PCA, 0.49335 and 0.5036. sigmoid
+
+As is 0.99 PCA, 0.4935 and 0.50. sigmoid
+As is 0.99 PCA, 0.6786 and 0.4816. poly
+As is 0.99 PCA, 0.6786 and 0.4852.  RBF
+As is 0.99 PCA, 0.54696. and 0.4852.  linear
+
+```{python}
+
+pca_levels = [0.74, 0.75, 0.77, 0.8, 0.83, 0.85, 0.86, 0.89, 0.9, 0.93, 0.95, 0.96, 0.99]
+kernel_type = ['linear', 'rbf', 'poly', 'sigmoid']
+df_xval_score = pd.DataFrame(columns = ['pca_levels','kernel_type','xval_score'])
+tscv = TimeSeriesSplit(n_splits = 10, gap = 1)
+
+
+for level in pca_levels: 
+  for k_type in kernel_type: 
+    model_svm_base = Pipeline([ 
+      ('std_scaler', StandardScaler()), 
+      ('minmax_scaler', MinMaxScaler()), 
+      ("pca", PCA(n_components = level, random_state = 42)), 
+      ('classifier', SVC(kernel = k_type, probability = True, random_state = 42))
+      ]) 
+    
+    score_xval = cross_val_score(estimator = model_svm_base, 
+                                 X = x_train, y = y_train, cv = tscv, 
+                                 scoring = 'roc_auc', 
+                                 n_jobs = 3).mean()
+    new_row = pd.DataFrame({'pca_levels': [level], 
+                            'kernel_type': [k_type], 
+                            'xval_score': [score_xval]})
+    df_xval_score = pd.concat([df_xval_score, new_row], ignore_index=True)
+
+print(df_xval_score)
+```
+
+```{python}
+model_svm_base = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('minmax_scaler', MinMaxScaler()), # it does seem like addign that help
+  ("pca", PCA(n_components = 0.80, random_state = 42)),
+  ('classifier', SVC(kernel = 'poly', probability = True, random_state = 42))
+])
+
+model_svm_base.fit(x_train, y_train)
+```
+
+###  Base model wihtout PCA to get features 
+
+### Method 1 using kbest 
+
+```{python}
+stat_test_type = [chi2, f_classif, mutual_info_classif]
+kbest = [10, 15, 20, 25, 30, 35]
+df_xval_score = pd.DataFrame(columns = ['stat_test', 'kbest','kernel_type','xval_score'])
+tscv = TimeSeriesSplit(n_splits = 10, gap = 1)
+
+feat_scaling = Pipeline([('std_scaler', StandardScaler()), ('minmax_scaler', MinMaxScaler())])
+x_train_scaled = feat_scaling.fit_transform(x_train)
+x_test_scaled = feat_scaling.fit(x_test)
+  
+for stt in stat_test_type: 
+  for kb in kbest: 
+    for k_type in kernel_type: 
+      skbest = SelectKBest(score_func = stt, k = kb) 
+      x_train_sel = skbest.fit_transform(x_train_scaled, y_train)
+      #skbest.fit(x_train_scaled, y_train) 
+      #x_skb = x_train_scaled.iloc[:, skbest.get_support()]
+      mod_svc = SVC(kernel = k_type, probability = True) 
+      score_skb = cross_val_score(mod_svc, x_train_sel, y_train, 
+                                  cv=tscv, scoring='roc_auc', n_jobs = 3).mean()
+      new_row = pd.DataFrame({'stat_test': [stt.__name__], 'kbest': [kb], 
+                               'kernel_type': [k_type], 'xval_score': [score_skb]})  
+      df_xval_score = pd.concat([df_xval_score, new_row], ignore_index = True)
+
+df_xval_score = df_xval_score.sort_values(by = 'xval_score', ascending = False)
+```
+
+```{python}
+
+skbest = SelectKBest(score_func = f_classif, k = df_xval_score.iloc[0,1]) 
+skbest.fit(x_train_scaled, y_train)
+x_train_skb = x_train.iloc[:, skbest.get_support()]
+x_test_skb  = x_test.iloc[:, skbest.get_support()]
+
+model_svm_reduc = Pipeline([
+  ('scaler', MinMaxScaler()), 
+  ('minmax_scaler', MinMaxScaler()), 
+  ('svm',SVC(kernel = df_xval_score.iloc[0,2], probability = True))])
+
+mod_svc_kbest = model_svm_reduc.fit(x_train_skb, y_train)
+
+mod_svc_kbest.fit(x_train_sel, y_train)
+
+y_prob = mod_svc_kbest.predict_proba(x_test_skb)[:,1]
+
+
+fpr, tpr, threshold = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+print(np.round(roc_auc, 4))
+```
+
+
+```{python}
+
+from sklearn.feature_selection import SelectKBest, chi2, f_classif, mutual_info_classif
+
+feat_scaling = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('minmax_scaler', MinMaxScaler())
+  ])
+
+x_train_scaled = feat_scaling.fit_transform(x_train)
+#skbest = SelectKBest(score_func=chi2, k = 20)
+#skbest = SelectKBest(score_func=f_classif, k = 25)
+skbest = SelectKBest(score_func=mutual_info_classif, k = 10)
+skbest.fit(x_train_scaled, y_train)
+
+x_skb = x_train.iloc[:, skbest.get_support()] # get the columns of interest
+
+#for f, s in zip(x_train.columns, skbest.scores_):
+#    print(f'F-score: {s:0.4} for feature {f}')
+
+
+tscv = TimeSeriesSplit(n_splits = 5, gap = 1)
+
+
+for k_type in kernel_type: 
+  kbest_pipe = Pipeline([ 
+    ('std_scaler', StandardScaler()), 
+    ('scaler', MinMaxScaler()),  
+    ('svm', SVC(kernel=k_type, probability = True))  ])
+  score_skb = cross_val_score(kbest_pipe, x_skb, y_train, cv=tscv, scoring='roc_auc').mean() 
+  print(f"{k_type} has roc_auc of {np.round(score_skb, 4)}")
+
+print('-'*50)
+print('Those selected features are:', x_skb.columns)
+```
+k = 10, tscv=11
+linear has roc_auc of 0.4943
+rbf has roc_auc of 0.4957
+poly has roc_auc of 0.4872
+sigmoid has roc_auc of 0.5205
+
+13 xval in tscv
+linear has roc_auc of 0.4657
+rbf has roc_auc of 0.4902
+poly has roc_auc of 0.4646
+sigmoid has roc_auc of 0.5243
+
+7 xval in tscv
+linear has roc_auc of 0.4932
+rbf has roc_auc of 0.495
+poly has roc_auc of 0.4684
+sigmoid has roc_auc of 0.4843
+
+linear has roc_auc in xval with 25 features of 0.5148
+
+```{python}
+
+x_train_skb = x_train.iloc[:, skbest.get_support()]
+x_test_skb  =  x_test.iloc[:, skbest.get_support()]
+
+model_svm_reduc = Pipeline([('scaler', MinMaxScaler()), 
+                     ('svm',SVC(kernel='linear', probability = True))])
+
+score_skb = cross_val_score(model_svm_reduc, x_skb, y_train, cv=tscv, scoring='roc_auc').mean() 
+print(f"roc_auc of {np.round(score_skb, 4)}")
+model_svm_reduc.fit(x_train_skb, y_train)
+y_prob = model_svm_reduc.predict_proba(x_test_skb)[:, 1]
+
+
+fpr, tpr, threshold = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+print(np.round(roc_auc, 4))
+```
+roc-auc test = 0.5013
+
+
+
+min_max + linear: 'o-c', 'ret_1d_lag5d', 'ret_8', 'ret_11', 'ret_14', 'ret_17', 
+                  'sd_20', 'sd_23', 'sd_26', 'sd_29', 'sd_32', 'sd_35', 'sd_38', 
+                  'sd_41', 'sd_44', 'sd_47', 'sd_50', 'sd_53', 'sd_56', 'sd_59', 
+                  'sma_10d', 'sma_14d', 'sma_18d', 'sma_22d', 'ema_13d'
+
+min_max + linear + anova: 'ret_1d_shifted', 'o-c', 'ret_1d_lag5d', 'ret_1d_lag7d', 
+                        'ret_8','ret_11', 'sd_38', 'sd_41', 'sd_44', 'sd_47', 
+                        'sd_50', 'sd_53', 'sd_56', 'sd_59', 'sma_2d', 'sma_10d', 
+                        'sma_14d', 'sma_18d', 'ema_8d',  'ema_13d'
+
+min_max + rbf: 'ret_1d_lag5d', 'ret_8', 'ret_11', 'sd_23', 'sd_26', 'sd_29',
+               'sd_32', 'sd_35', 'sd_38', 'sd_41', 'sd_44', 'sd_47', 'sd_50',
+               'sd_53', 'sd_56', 'sd_59', 'sma_10d', 'sma_14d', 'sma_18d', 'sma_22d'
+
+### Method 2 using clustering  on Spearman rank-order correlations 
+
+Using the [permutation_importance](https://scikit-learn.org/stable/modules/generated/sklearn.inspection.permutation_importance.html) method from sklean in python. 
+
+```{python}
+from scipy.cluster import hierarchy
+from scipy.spatial.distance import squareform
+from scipy.stats import spearmanr
+
+cor = spearmanr(x_train).correlation
+corr = (cor + cor.T)/2
+np.fill_diagonal(corr, 1)
+
+distance_matrix = 1 - np.abs(corr)
+dist_linkage = hierarchy.ward(squareform(distance_matrix))
+dendro = hierarchy.dendrogram(
+    dist_linkage, labels=df3.columns.to_list(), ax=ax1, leaf_rotation=90)
+dendro_idx = np.arange(0, len(dendro["ivl"]))
+
+from collections import defaultdict
+
+cluster_ids = hierarchy.fcluster(dist_linkage, 0.99, criterion="distance")
+cluster_id_to_feature_ids = defaultdict(list)
+for idx, cluster_id in enumerate(cluster_ids):
+    cluster_id_to_feature_ids[cluster_id].append(idx)
+selected_features = [v[0] for v in cluster_id_to_feature_ids.values()]
+selected_features_names = df3.columns[selected_features]
+print(selected_features_names.shape)
+x_train_sel = x_train[selected_features_names]
+x_test_sel = x_test[selected_features_names]
+
+
+model_svm_spea = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('scaler', MinMaxScaler()), 
+  ('classifier', SVC(kernel = 'rbf', probability = True, random_state = 42))
+])
+
+score_spear = cross_val_score(model_svm_spea, 
+                            x_train_sel, y_train, cv=tscv, scoring='roc_auc').mean() 
+print(f"roc_auc of {np.round(score_spear, 4)}")
+model_svm_spea.fit(x_train_sel, y_train)
+y_prob = model_svm_spea.predict_proba(x_test_sel)[:, 1]
+
+fpr, tpr, threshold = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+print(np.round(roc_auc, 4))
+```
+linear -  0.4691 xval + 0.4803 roc-test
+sigmoid - 0.5192 xval + 0.4283 roc-test
+rbf -     0.4825 xval + 0.497  roc-test
+poly -    0.4968 xval + 0.5168 roc-test
+
+```{python}
+
+from sklearn.inspection import permutation_importance
+import matplotlib.pyplot as plt
+
+model_svm_spea = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('scaler', MinMaxScaler()), 
+  ('classifier', SVC(kernel = 'linear', probability = True, random_state = 42))
+])
+
+model_svm_spea.fit(x_train, y_train)
+
+acc_train = accuracy_score(y_train, model_svm_base.predict(x_train))
+acc_test = accuracy_score(y_test, model_svm_base.predict(x_test))
+print(acc_train)
+print(acc_test)
+
+perm_importance = permutation_importance(model_svm_base, x_train, y_train, n_repeats = 100,  
+                                        scoring = 'roc_auc', random_state=42, n_jobs = 3)
+
+#feature_names = ['feature_' + (str(r +1)) for r in range(0, yo_train.shape[1])]
+feature_names = df3.columns
+features = np.array(feature_names)
+features.shape
+sorted_idx = perm_importance.importances_mean.argsort()
+plt.clf()
+plt.barh(features[sorted_idx[69:89]], perm_importance.importances_mean[sorted_idx[69:89]])
+plt.xlabel("Permutation Importance")
+plt.show()
+```
+
+acc_train: 0.59208,  acc_test: 0.50367
+
+BUT BUT BUT When features are collinear, permuting one feature has little effect on the models performance because it can get the same information from a correlated feature. Note that this is not the case for all predictive models and depends on their underlying implementation.   One way to handle multicollinear features is by performing hierarchical clustering on the Spearman rank-order correlations, picking a threshold, and keeping a single feature from each cluster. First, we plot a heatmap of the correlated features:  
+
+```{python}
+
+from scipy.cluster import hierarchy
+from scipy.spatial.distance import squareform
+from scipy.stats import spearmanr
+import matplotlib.pyplot as plt
+
+plt.clf()
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 8))
+cor = spearmanr(x_train).correlation
+corr = (cor + cor.T)/2
+np.fill_diagonal(corr, 1)
+
+# We convert the correlation matrix to a distance matrix before performing
+# hierarchical clustering using Ward's linkage.
+distance_matrix = 1 - np.abs(corr)
+dist_linkage = hierarchy.ward(squareform(distance_matrix))
+dendro = hierarchy.dendrogram(
+    dist_linkage, labels=df3.columns.to_list(), ax=ax1, leaf_rotation=90)
+dendro_idx = np.arange(0, len(dendro["ivl"]))
+
+ax2.imshow(corr[dendro["leaves"], :][:, dendro["leaves"]])
+ax2.set_xticks(dendro_idx)
+ax2.set_yticks(dendro_idx)
+ax2.set_xticklabels(dendro["ivl"], rotation="vertical")
+ax2.set_yticklabels(dendro["ivl"])
+_ = fig.tight_layout()
+plt.show()
+```
+
+```{python}
+X = df3
+y = df_new['target']
+
+from sklearn.model_selection import train_test_split
+x_train_col, x_test_col, y_train_col, y_test_col = train_test_split(X, y, test_size = 0.2, shuffle = False)
+```
+
+Next, we manually pick a threshold by visual inspection of the dendrogram to group our features into clusters and choose a feature from each cluster to keep, select those features from our dataset, and train a new random forest. The test accuracy of the new random forest did not change much compared to the random forest trained on the complete dataset.
+
+```{python}
+from collections import defaultdict
+
+cluster_ids = hierarchy.fcluster(dist_linkage, 0.8, criterion="distance")
+cluster_id_to_feature_ids = defaultdict(list)
+for idx, cluster_id in enumerate(cluster_ids):
+    cluster_id_to_feature_ids[cluster_id].append(idx)
+selected_features = [v[0] for v in cluster_id_to_feature_ids.values()]
+selected_features_names = df3.columns[selected_features]
+
+X_train_sel = x_train_col[selected_features_names]
+X_test_sel = x_test_col[selected_features_names]
+
+print(X_train_sel.shape)
+
+model_svm_base_sel = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('classifier', SVC(kernel = 'linear', probability = True, random_state = 42))
+])
+
+model_svm_base_sel.fit(X_train_sel, y_train_col)
+print("Baseline accuracy on test data with features removed:"
+    f" {model_svm_base_sel.score(X_test_sel, y_test_col):.2}"
+)
+
+```
+
+Now permutation importance on the less correlated features
+
+```{python}
+def plot_permutation_importance(clf, X, y, ax):
+    result = permutation_importance(clf, X, y, n_repeats=10, random_state=42, n_jobs=2)
+    perm_sorted_idx = result.importances_mean.argsort()
+
+    ax.boxplot(
+        result.importances[perm_sorted_idx].T,
+        vert=False,
+        labels=X.columns[perm_sorted_idx],
+    )
+    ax.axvline(x=0, color="k", linestyle="--")
+    return ax
+  
+fig, ax = plt.subplots(figsize=(7, 6))
+plot_permutation_importance(model_svm_base_sel, X_train_sel, y_train, ax)
+ax.set_title("Permutation Importances on selected subset of features\n(test set)")
+ax.set_xlabel("Decrease in accuracy score")
+ax.figure.tight_layout()
+plt.show()
+```
+
+
+Permutation importance Now with PCA 
+
+```{python}
+
+model_svm_prep = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ("pca", PCA(n_components = 0.95, random_state = 42))
+])
+
+yo_train = model_svm_prep.fit_transform(x_train)
+yo_train.shape
+model_svm_lin = SVC(kernel = 'linear', probability = True, random_state = 42)
+model_svm_lin.fit(yo_train, y_train)
+
+perm_importance = permutation_importance(model_svm_lin, yo_train, y_train, n_repeats = 100,  
+                                        scoring = 'roc_auc', random_state=42, n_jobs = 3)
+
+feature_names = ['feature_' + (str(r +1)) for r in range(0, yo_train.shape[1])]
+#feature_names = df3.columns
+features = np.array(feature_names)
+sorted_idx = perm_importance.importances_mean.argsort()
+plt.clf()
+plt.barh(features[sorted_idx], perm_importance.importances_mean[sorted_idx])
+plt.xlabel("Permutation Importance")
+plt.show()
+
+```
+
+So with 0.95 variance, we get 22 PCA and PCA 5, 2, 13, 9, 8 matter the most
+So with 0.95 variance, we get 22 PCA and PCA 21, 4, 2, 6, 3, 11 matter the most. 
+so with 0.99 variance, we get 29 PCA and PCA 28, 18, 24, 1, 11, 23, 27 matter. 
+
+```{python}
+scaler = StandardScaler()
+x_train_scaled = scaler.fit_transform(x_train)
+pca_trial1 = PCA(n_components = 0.95, random_state = 42)
+x_train_pca = pca_trial1.fit_transform(x_train_scaled)
+x_train_pca.shape
+#pca_trial1.components_
+
+pc21 = abs(pca_trial1.components_[[21]])
+top_10_indices = np.argsort(pc21)[-10:][::-1]
+yo = np.array(top_10_indices).flatten()
+print(df3.columns[yo[79:89]])
+
+pc4 = abs(pca_trial1.components_[[4]])
+top_10_indices = np.argsort(pc4)[-10:][::-1]
+yo = np.array(top_10_indices).flatten()
+print(df3.columns[yo[79:89]])
+
+pc3 = abs(pca_trial1.components_[[3]])
+top_10_indices = np.argsort(pc3)[-10:][::-1]
+yo = np.array(top_10_indices).flatten()
+print(df3.columns[yo[79:89]])
+
+pc6 = abs(pca_trial1.components_[[6]])
+top_10_indices = np.argsort(pc6)[-10:][::-1]
+yo = np.array(top_10_indices).flatten()
+print(df3.columns[yo[79:89]])
+```
+
+
+ 
+ 
+ 
+### Method 3 Using select from Model 
+
+```{python}
+from sklearn.feature_selection import SelectFromModel
+from sklearn.ensemble import RandomForestClassifier
+
+feat_scaling = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('minmax_scaler', MinMaxScaler())
+  ])
+
+
+#svm_lin = SVC(kernel = 'rbf',  random_state = 42)
+rf_clf = RandomForestClassifier(n_estimators=1000, random_state=42)
+x_train_scaled = feat_scaling.fit_transform(x_train)
+sfm = SelectFromModel(rf_clf, max_features=25, threshold='median')
+sfm.fit(x_train, y_train)
+
+
+print(sfm.get_support())
+
+feature_names = x_train.columns  # or list of feature names if x_train is a DataFrame
+
+# Get the boolean mask of selected features
+selected_features_mask = sfm.get_support()
+
+# Use the mask to filter the feature names
+selected_features = feature_names[selected_features_mask]
+
+# Print the selected feature names
+print(selected_features)
+```
+No PCA,  poly, 0.51020
+PCA0.99, poly, 0.507142
+PCA0.99, poly, 0.51020
+All others give poorer results. 
+
+```{python}
+model_svm_rf = Pipeline([
+  ('minmax_scaler', MinMaxScaler()), 
+  ('std_scaler', StandardScaler()), 
+  ('classifier', SVC(kernel = 'poly', probability = True, random_state = 42))])
+
+tscv = TimeSeriesSplit(n_splits = 20, gap = 1)
+score_selBest = cross_val_score(model_svm_rf, 
+                                x_train.iloc[:, sfm.get_support()], y_train, 
+                                cv=tscv, n_jobs = 3).mean()
+print(np.round(score_selBest, 4))
+
+model_svm_rf.fit(x_train.iloc[:, sfm.get_support()], y_train)
+y_prob = model_svm_rf.predict_proba(x_test.iloc[:, sfm.get_support()])[:, 1]
+
+fpr, tpr, threshold = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+print(np.round(roc_auc, 4))
+```
+
+sigmoid xval: 0.5082/0.5098   roc: 0.5413
+linear xval:  0.5122/0.5176   roc: 0.5154
+rbf xval:     0.5071/0.5294   roc: 0.4409
+poly xval:    0.5378/0.5137   roc: 0.5
+
+
+### Method 4 Using recursive feature elimination with CV 
+
+```{python}
+from sklearn.feature_selection import SelectFromModel, RFECV
+from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.model_selection import TimeSeriesSplit, cross_val_score
+
+#clf = SVC(kernel = 'sigmoid', C = 1.5, gamma=0.01,random_state = 42)
+rf_clf = RandomForestClassifier(n_estimators=800, random_state=42)
+tscv = TimeSeriesSplit(n_splits = 15, gap = 1)
+cv = tscv
+
+feat_scaling = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('minmax_scaler', MinMaxScaler())
+  ])
+
+x_train_scaled = feat_scaling.fit_transform(x_train)
+
+rfecv = RFECV(
+    estimator=rf_clf,
+    #step=1,
+    cv=tscv,
+    scoring="accuracy",
+    min_features_to_select=20,
+    n_jobs=3,
+)
+
+rfecv.fit(x_train_scaled, y_train)
+
+print(f"Optimal number of features: {rfecv.n_features_}")
+```
+
+```{python}
+rf_feat_sel = df3.iloc[:, rfecv.support_]
+print(rf_feat_sel.columns)
+
+
+model_svm_rfecv = Pipeline([ 
+    ('std_scaler', StandardScaler()), 
+    ('minmax_scaler', MinMaxScaler()),
+    #("pca", PCA(n_components = 0.99, random_state = 42)), 
+    ('classifier', SVC(kernel = 'rbf', probability=True, random_state = 42))])
+
+score_rfe = cross_val_score(model_svm_rfecv, x_train.iloc[:, rfecv.support_], y_train, cv=tscv).mean()
+print(np.round(score_rfe, 4))
+
+model_svm_rfecv.fit(x_train.iloc[:, rfecv.support_], y_train)
+
+y_prob = model_svm_rfecv.predict_proba(x_test.iloc[:, rfecv.support_])[:, 1]
+
+fpr, tpr, threshold = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+print(np.round(roc_auc, 4))
+```
+
+PCA0.8,  poly, xval:    0.5078 ***. 0.4992
+PCA0.95, poly, xval:    0.5059 ***
+PCA0.99, poly, xval:    0.5039 ***
+PCA0.99, sigmoid, xval: 0.4824
+PCA0.99, linear, xval:  0.4873
+PCA0.99, rbf, xval:     0.4804
+PCA0.8, sigmoid, xval:  0.501       0.5269
+
+
+
+score_rfe with rbf + no PCA= 0.492857
+score_rfe with sigmoid + no PCA= 0.5000
+score_rfe with linear + no PCA0.51122
+score_rfe with poly + no PCA= 0.527551
+score_rfe with linear + PCA0.95 = 0.502040
+score_rfe with poly +   PCA0.95 = 0.521428
+score_rfe with sigmoid + PCA0.95 = 0.48673
+score_rfe with rbf + PCA0.95 = 0.482653
+score_rfe with rbf + PCA0.99 = 0.491836
+score_rfe with poly + PCA0.99 = 0.531632
+
+
+### Base model KPCA 
+
+Using KPCA does not work much better! 
+
+```{python}
+model_svm_prep = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ("kpca", KernelPCA(n_components = 15, gamma = 1, random_state=42)),
+])
+
+yo = model_svm_prep.fit_transform(x_train)
+model_svm_lin = SVC(kernel = 'rbf', probability = True, random_state=42)
+model_svm_lin.fit(yo, y_train)
+
+acc_train = accuracy_score(y_train, model_svm_lin.predict(yo))
+
+yoo = model_svm_prep.transform(x_test)
+acc_test = accuracy_score(y_test, model_svm_lin.predict(yoo))
+print(np.round(acc_train, 4))
+print(np.round(acc_test, 4))
+
+```
+KPCA, n_comp = 30, gamma = 10, SVC(kernel='linear'), 0.5608,  0.4743
+KPCA, n_comp = 10, gamma = 5, SVC(kernel='linear'),  0.523 0.4669
+KPCA, n_comp = 10, gamma = 5, SVC(kernel='rbf'),     0.5994  0.5037
+KPCA, n_comp = 15, gamma = 5, SVC(kernel='rbf'),     0.6354. 0.5257
+KPCA, n_comp = 15, gamma = 5, SVC(kernel='linear'),  0.5433. 0.4743
+
+### Base model using t-SNE... 
+
+```{python}
+from sklearn.manifold import TSNE
+
+model_svm_prep = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ("tsne", TSNE(n_components = 2, random_state = 42)) #init = 'pca',
+])
+
+yo = model_svm_prep.fit_transform(x_train)
+yo.shape
+model_svm_lin = SVC(kernel = 'rbf', probability = True) #C = 5, gamma = 0.05,
+model_svm_lin.fit(yo, y_train)
+
+acc_train = accuracy_score(y_train, model_svm_lin.predict(yo))
+
+#yoo = model_svm_prep.transform(x_test)
+#acc_test = accuracy_score(y_test, model_svm_lin.predict(yoo))
+print(acc_train)
+#print(acc_test)
+
+colors = ['red' if val == 0 else 'green' for val in y_train]
+x_min, x_max = np.min(yo, 0), np.max(yo, 0)
+X = (yo - x_min) / (x_max - x_min)   
+plt.clf()
+#plt.scatter(X[:, 1], X[:, 2], c = colors)
+plt.scatter(X[:, 0], X[:, 1], c = colors)
+plt.show()
+```
+
+
+## SHAP values 
+
+Not working with standard scaler ... Have to fit transform first!!! 
+
+```{python}
+import shap
+import matplotlib.pyplot as plt
+
+model_svm_base = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('classifier', SVC(kernel = 'linear', probability = True, random_state = 42))
+])
+
+model_svm_base.fit(x_train, y_train)
+
+shap.initjs()
+
+K = 100  # Number of clusters
+x_train_kmeans = shap.kmeans(x_train, K)
+
+
+explainer = shap.KernelExplainer(model_svm_lin.predict_proba, x_train_kmeans)
+shap_values = explainer.shap_values(x_test, n_jobs = 3)
+#shap_values = explainer.shap_values(x_train)
+shap.force_plot(explainer.expected_value[0], shap_values[..., 0], x_test)
+
+explainer2 = shap.Explainer(model_svm_lin)
+shap.summary_plot(shap_values)
+```
+
+
+## Checking with PCA
+
+One way to address collinearity is to use PCA 
+
+```{python}
+print(x_train.shape)
+#x_train[1:3, ]
+print(y_train.shape)
+
+#let's scale the data 
+scaler = StandardScaler()
+x_train_scaled = scaler.fit_transform(x_train)
+x_test_scaled = scaler.transform(x_test)
+#x_train_scaled.shape
+#x_train_scaled.std()
+#x_test_scaled.std()    ##interestingly std() is not 1!!!!
+
+pca = PCA()      # apply PCA with all the components
+x_train_pca = pca.fit_transform(x_train_scaled)
+x_train_pca.shape
+
+cumul_var_ratio = np.cumsum(pca.explained_variance_ratio_)
+#cumul_var_ratio
+
+# to keep 99% of the variance 
+num_comp = np.argmax(cumul_var_ratio > 0.99) + 1
+num_comp
+
+pca29 = PCA(n_components = 0.99)
+x_train_29pca = pca29.fit_transform(x_train_scaled)
+x_test_29pca = pca29.transform(x_test_scaled)
+```
+
+Some experiments 
+```{python}
+pca29.components_
+
+pc1 = abs(pca29.components_[[1]])
+top_10_indices = np.argsort(yo)[-10:][::-1]
+#top_10_indices
+yo = np.array(top_10_indices).flatten()
+#yo.shape
+df3.columns[pc1]
+
+pc2 = abs(pca29.components_[[2]])
+top_10_indices = np.argsort(pc2)[-10:][::-1]
+yo = np.array(top_10_indices).flatten()
+df3.columns[yo]
+
+pc3 = abs(pca29.components_[[3]])
+top_10_indices = np.argsort(pc3)[-10:][::-1]
+yo = np.array(top_10_indices).flatten()
+df3.columns[yo]
+
+```
+
+
+#### roc curve
+
+```{python}
+
+```
+
+# X-Val with SVM Linear 
+
+```{python}
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.svm import SVC
+from sklearn.decomposition import PCA
+from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, cross_val_score
+
+model_svm_lin = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ("pca", PCA(n_components = 0.99)), 
+  ('clf', SVC())
+])
+
+tscv = TimeSeriesSplit(n_splits = 10, gap = 1)
+
+param_grid = {'clf__C': [10, 0.02, 3, 0.005, 2, 0.007, 1, 0.1, 0.5, 0.01], 
+              'clf__gamma': [0.03, 0.05, 0.08, 0.04, 0.02, 0.01, 1, 0.2, 0.5, 5, 20], 
+              'clf__kernel': ['linear']}
+
+grid = GridSearchCV(model_svm_lin, param_grid, verbose = 1, #random_state = 42, 
+                    scoring = 'accuracy', cv = tscv, n_jobs = 3)
+grid.fit(x_train, y_train)
+
+grid.best_params_
+grid.best_score_
+
+
+model_svm_lin_fitted = Pipeline([('std_scaler', StandardScaler()), ('pca', PCA(n_components = 0.99)), ('clf', SVC(C= 0.007, gamma= 0.03, kernel='linear'))])
+  
+score_base = cross_val_score(model_svm_lin_fitted, x_train, y_train, cv = tscv, n_jobs = 3)
+score_base.mean()
+
+print("Best parameters:", grid.best_params_)
+print("Best score:", grid.best_score_)
+```
+
+NO PCA
+{'clf__C': 3, 'clf__gamma': 0.03, 'clf__kernel': 'linear'}  0.5082
+
+PCA0.95
+{'clf__C': 10, 'clf__gamma': 0.03, 'clf__kernel': 'linear'} 0.5020
+{'clf__C': 11, 'clf__gamma': 0.03, 'clf__kernel': 'linear'} 0.5020
+
+PCA0.99
+{'clf__C': 0.01, 'clf__gamma': 0.03, 'clf__kernel': 'linear'}  0.49489
+{'clf__C': 0.005, 'clf__gamma': 0.03, 'clf__kernel': 'linear'} 0.51326
+{'clf__C': 0.007, 'clf__gamma': 0.03, 'clf__kernel': 'linear'} 0.515306
+
+
+# X-Val SVM radial 
+
+```{python}
+
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, cross_val_score
+#model_svm_rbf.decision_function(x_train)
+
+model_svm_rbf = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ("pca", PCA(n_components = 0.95)), 
+  ('clf', SVC())
+])
+
+tscv = TimeSeriesSplit(n_splits = 10, gap = 1)
+
+param_grid = {'clf__C': [80, 100, 120, 90, 110, 50, 13, 70, 15, 60, 30], 
+              'clf__gamma': [0.03, 0.05, 0.035, 0.04, 0.045, 0.5, 0.1, 0.033, 0.025], 
+              #'clf__epsilon': [0.03, 0.05, 0.07, 1], 
+              'clf__kernel': ['rbf']}
+
+grid = GridSearchCV(model_svm_rbf, param_grid, verbose = 1, 
+                    scoring = 'accuracy', cv = tscv, n_jobs = 3)
+grid.fit(x_train, y_train)
+
+grid.best_params_
+grid.best_score_
+
+
+print("Best parameters:", grid.best_params_)
+print("Best score:", grid.best_score_)
+
+
+#svm_best_param = SVC(**grid.best_params_)
+#svm_best_param.fit(x_train, y_train)
+
+
+#y_pred = svm_best_param.predict(x_test)
+
+#acc_tuned_train = accuracy_score(y_train, svm_best_param.predict(x_train))
+#acc_tuned_test = accuracy_score(y_test, y_pred)
+
+#print(acc_train)
+#print(acc_test)
+
+
+```
+
+NO PCA, 
+{'clf__C': 20, 'clf__gamma': 0.05, 'clf__kernel': 'rbf'} 0.5116
+{'clf__C': 10, 'clf__gamma': 0.05, 'clf__kernel': 'rbf'} 0.5132
+
+PCA 0.95, 
+{'clf__C': 80, 'clf__gamma': 0.04, 'clf__kernel': 'rbf'} 0.5326
+{'clf__C': 100, 'clf__gamma': 0.04, 'clf__kernel': 'rbf'} 0.53265
+{'clf__C': 50, 'clf__gamma': 0.05, 'clf__kernel': 'rbf'}  0.5325
+{'clf__C': 50, 'clf__gamma': 0.03, 'clf__kernel': 'rbf'}  0.5061
+
+PCA 0.99 
+{'clf__C': 10, 'clf__gamma': 0.04, 'clf__kernel': 'rbf'}  0.513265
+{'clf__C': 8, 'clf__gamma': 0.05, 'clf__kernel': 'rbf'}   0.51428
+{'clf__C': 12, 'clf__gamma': 0.035, 'clf__kernel': 'rbf'} 0.518367
+
+# X-Val SVM polynomial 
+
+```{python}
+model_svm_poly = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ("pca", PCA(n_components = 0.99)),
+  ('clf', SVC())
+])
+
+
+
+tscv = TimeSeriesSplit(n_splits = 5, gap = 1)
+
+param_grid = {'clf__C': [0.05, 0.07, 0.5, 1, 0.01], 
+              'clf__gamma': [1.5, 0.5, 1, 2], 
+              'clf__degree': [2, 3, 4], 
+              'clf__kernel': ['poly']
+}
+
+grid = GridSearchCV(model_svm_poly, param_grid, verbose = 1, 
+                    scoring = 'accuracy', cv = tscv, n_jobs = 3)
+grid.fit(x_train, y_train)
+
+grid.best_params_
+grid.best_score_
+
+```
+These kernels take long time!!!!
+
+NO PCA
+{'clf__C': 0.07, 'clf__degree': 2, 'clf__gamma': 1, 'clf__kernel': 'poly'} 0.513812
+
+PCA 0.95.  
+{'clf__C': 0.05, 'clf__degree': 2, 'clf__gamma': 2, 'clf__kernel': 'poly'}. 0.50828
+{'clf__C': 0.05, 'clf__degree': 2, 'clf__gamma': 2, 'clf__kernel': 'poly'}  0.50828
+
+PCA 0.99
+{'clf__C': 0.01, 'clf__degree': 3, 'clf__gamma': 0.5, 'clf__kernel': 'poly'}0.5270
+
+# X-Val SVM sigmoid  
+
+```{python}
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, cross_val_score
+#model_svm_rbf.decision_function(x_train)
+
+model_svm_sigm = Pipeline([
+  ('minmax_scaler', MinMaxScaler()), 
+  ('std_scaler', StandardScaler()), 
+  ("pca", PCA(n_components = 0.95)), 
+  ('clf', SVC())
+])
+
+tscv = TimeSeriesSplit(n_splits = 10, gap = 1)
+
+param_grid = {'clf__C': [1, 1.5, 2, 3, 5, 0.8, 10, 20, 0.5, 0.8, 0.05], 
+              'clf__gamma': [0.003, 0.005, 0.008, 0.02, 3, 0.001, 0.01, 0.1], 
+              'clf__kernel': ['sigmoid']}
+
+grid = GridSearchCV(model_svm_sigm, param_grid, verbose = 1, 
+                    scoring = 'accuracy', cv = tscv, n_jobs = 3)
+grid.fit(x_train, y_train)
+
+grid.best_params_
+grid.best_score_
+
+
+print("Best parameters:", grid.best_params_)
+print("Best score:", grid.best_score_)
+```
+
+No PCA
+{'clf__C': 5, 'clf__gamma': 0.003, 'clf__kernel': 'sigmoid'}  0.518367
+{'clf__C': 1, 'clf__gamma': 0.03, 'clf__kernel': 'sigmoid'}   0.524489
+{'clf__C': 1.5, 'clf__gamma': 0.01, 'clf__kernel': 'sigmoid'}  0.531632
+
+PCA 0.95
+{'clf__C': 3, 'clf__gamma': 0.01, 'clf__kernel': 'sigmoid'}   0.524489795
+{'clf__C': 20, 'clf__gamma': 0.001, 'clf__kernel': 'sigmoid'} 0.5244897
+
+PCA 0.99
+{'clf__C': 1.5, 'clf__gamma': 0.008, 'clf__kernel': 'sigmoid'}  0.52755102
+{'clf__C': 3, 'clf__gamma': 0.01, 'clf__kernel': 'sigmoid'}  0.524489
+{'clf__C': 10, 'clf__gamma': 0.1, 'clf__kernel': 'sigmoid'}  0.516326
+
+
+
+
+
+
+
+# New variables - Techical analysis 
+
+```{python}
+
+for i in [1:3]: 
+  print(i)
+
+
+
+
+
+```
+
+
+
+
+```{python}
+```{python}
+#| label: base-model-pca-fit
+#| output: false
+
+model_svm_base = Pipeline([
+  ('std_scaler', StandardScaler()), 
+  ('minmax_scaler', MinMaxScaler()), 
+  ("pca", PCA(n_components=df_xval_score.iloc[0,0], random_state = 42)),
+  ('classifier', SVC(kernel=df_xval_score.iloc[0,1], probability=True, random_state = 42))
+])
+
+model_svm_base.fit(x_train, y_train)
+```
+```
+
+
+
+

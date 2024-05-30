@@ -128,7 +128,7 @@ demark_signals<- function(ticker) {
 ```
 
 ```{r}
-df2 <- conform_data('KMB') |> bullish_price_flip() |> bearish_price_flip() |> na.omit() |> 
+df2 <- conform_data('XOM') |> bullish_price_flip() |> bearish_price_flip() |> na.omit() |> 
   sell_setup() |> buy_setup() |> sell_countdown() |> buy_countdown() |> 
   select(index, close, high, buPF = bullish_price_flip,  sell_setup = TD_sell_setup, 
          sell_ctdown = TD_sell_countdown, 
@@ -144,9 +144,9 @@ Make a list of going short (with )
 ```{r}
 xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
         'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA')
-xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
-        'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
-        'EQT', 'OVV', 'FCG') 
+xle = c('XOM', 'CVX', 'EOG', 'SU', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 
+        'VLO', 'WMB', 'OKE', 'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 
+        'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV', 'FCG')
 xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP', 'SCHW', 
         'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 'TRV', 
         'CBOE', 'CME', 'ICE', 'KRE') 

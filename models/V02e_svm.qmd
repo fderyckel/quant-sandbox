@@ -61,7 +61,7 @@ the_path <- here::here()
 ticker <- 'RIO'
 num_days <- '41d'
 
-yop <- glue('svm_v02a_short_', num_days, "_", ticker)
+yop <- glue('svm_v02e_', num_days, "_", ticker)
 ```
 
 ## Buidling df 
@@ -140,7 +140,7 @@ df <- df |>
          roll_sd_volu200_251d_lag17 = lag(roll_sd_volu200_251d, n = 17), 
          
          forw_ret = log(lead(close, n = parse_number(num_days)) / close), 
-         ord_class = as.factor(ntile(forw_ret, 3)))
+         ord_class = ntile(forw_ret, 100))
 
 df2 <- df |> 
   select(date, atr11_open, atr17_open, 
@@ -215,22 +215,19 @@ library(yardstick)
 
 model_svm_klab <- svm_rbf(cost = tune(), rbf_sigma = tune()) |> 
   set_engine('kernlab') |> 
-  set_mode('classification')
+  set_mode('regression')
 
-stopping_grid <-grid_latin_hypercube(cost(), rbf_sigma(), size = 19)
-#stopping_grid <-grid_regular(cost(), rbf_sigma(), levels = 5)
+stopping_grid <- grid_latin_hypercube(cost(), rbf_sigma(), size = 19)
 
 wf_klab <- workflow() |> add_recipe(recipe_base) |> add_model(model_svm_klab) 
-#wf_liq <- workflow() |> add_recipe(recipe_base) |> add_model(model_svm_liq)  
 
 library(future)
 plan(multisession)
-svm_klab_resampl <- tune_grid(wf_klab, time_slices, 
-                                grid = stopping_grid, 
-                                metrics = metric_set(accuracy, precision), 
-                                control = control_resamples(save_pred = TRUE, 
-                                                            save_workflow = TRUE))
-
+svm_klab_res <- tune_grid(wf_klab, time_slices, 
+                          grid = stopping_grid, 
+                          metrics = metric_set(rmse, huber_loss), 
+                          control = control_resamples(save_pred = TRUE, 
+                                                      save_workflow = TRUE))
 
 ```
 
@@ -242,59 +239,10 @@ svm_klab_resampl <- tune_grid(wf_klab, time_slices,
 ######################################################################
 ############# ESTABLISHING METRICS  ##################################
 ######################################################################
-
-df_pred <- svm_klab_resampl |> collect_predictions()
-yo_soft_acc <- df_pred |> 
-  mutate(soft_acc = case_when(.pred_class=="1" & ord_class == "1" ~ 1, 
-                              .pred_class=="2" & ord_class == "2" ~ 1, 
-                              .pred_class=="3" & ord_class == "3" ~ 1, 
-                              .pred_class=="1" & ord_class == "2" ~ 0.5, 
-                              .pred_class=="2" & ord_class == "3" ~ 0.5,
-                              TRUE ~ 0)) |> 
-  group_by(.config) |> 
-  summarize(mean_soft_acc = mean(soft_acc), 
-            cost = mean(cost), rbf_sigma = mean(rbf_sigma))
-
-# if I predict a 3, is it indeed a 3? Higher is better
-yo_precision <- df_pred |> 
-  mutate(spec_3 = if_else(.pred_class == "1" & ord_class == "1", 1, 0)) |> 
-  filter(.pred_class == "1") |> 
-  group_by(.config) |> 
-  summarize(mean_preci = sum(spec_3)/n())
-
-# if there is a "3" in the actual returns, do I manage to predict it! Higher is better
-yo_recall <- df_pred |>  
-  mutate(sens_3 = if_else(.pred_class == "1" & ord_class == "1", 1, 0)) |> 
-  #select(-mtry, -min_n, -learn_rate, -loss_reduction, -tree_depth) |> 
-  filter(ord_class == "1") |> 
-  group_by(.config) |> 
-  summarize(mean_recall = sum(sens_3)/n())
-
-# if I predict a 3, is it indeed a 3? Higher is better
-yo_soft_preci <- df_pred |> 
-  mutate(spec_3 = case_when(.pred_class=="1" & ord_class == "1" ~ 1, 
-                            .pred_class=="1" & ord_class == "2" ~ 0.5, 
-                            TRUE ~ 0)) %>% 
-  filter(.pred_class == "1") |>  
-  group_by(.config) |> 
-  summarize(mean_soft_preci = sum(spec_3)/n())
-
-yo_cost3 <- left_join(yo_precision, yo_recall, by = join_by(.config)) |> 
-  left_join(yo_soft_preci, by = join_by(.config)) |>  
-  left_join(yo_soft_acc, by = join_by(.config)) |>  
-  mutate(soft_acc_rank = percent_rank(mean_soft_acc), 
-         recall_rank = percent_rank(mean_recall), 
-         preci_rank = percent_rank(mean_preci), 
-         soft_preci_rank = percent_rank(mean_soft_preci), 
-         avg_rank = (0.25 * preci_rank) + (0.3 * soft_preci_rank) + 
-           (0.15 * soft_acc_rank) + (0.3 * recall_rank))
-
-yo_metric <- yo_cost3 |> 
-  select(.config, avg_rank, mean_preci, mean_soft_preci, mean_recall, 
-         mean_soft_acc, cost, rbf_sigma) |> 
-  arrange(desc(avg_rank), mean_preci)
-
-#rm(yo_sens, yo_spec, yo_cost3, yo_acc, yo_log, yo_cost_acc)
+svm_klab_res <- svm_klab_resampl
+yo_metric <- svm_klab_res |> 
+  collect_metrics() |> 
+  arrange(.metric, mean)
 
 write_csv(yo_metric, glue(the_path, "/models/model_metrics/", yop, ".csv"))
 ######################################################################
@@ -328,29 +276,20 @@ write_rds(model_base, glue(the_path, "/models/model_raw/", yop, ".rda"))
 library(DALEXtra)
 library(recipes)
 
-final_res <- mario_wf %>%
-  finalize_workflow(choose_tree) %>%
-  last_fit(mario_split)
-
 final_model <- wf_klab |> finalize_workflow(best_param) 
 final_fitted_model <- fit(object = final_model, data = df_model)
 yo <- predict(final_fitted_model, df_model)
 
-
 df_prep <- prep(recipe_base)
-yo = juice(df_prep) %>% select(-date)
+df_juiced <- juice(df_prep)
 
-var_importance <- final_model %>% 
-  set_engine("kernlab", importance = TRUE) %>% 
-  fit(ord_class ~ ., data = juice(df_prep) %>% select(-date)) %>%
-  vi()
-
-df_prep <- prep(recipe_base)
-explainer_svm <- explain_tidymodels(model = model_base, 
-                                    data = juice(df_prep), 
-                                    y = yo$ord_class, label = 'svm_model', 
+explainer_svm <- explain_tidymodels(model = final_fitted_model, 
+                                    data = df_juiced, 
+                                    y = df_model$ord_class, 
                                     verbose = TRUE)
-vip_svm <- model_parts(explainer = explainer_svm, loss_function = loss_cross_entropy)
+
+vip_svm <- model_parts(explainer = explainer_svm)
+plot(vip_svm)
 ```
 
 
@@ -358,21 +297,10 @@ vip_svm <- model_parts(explainer = explainer_svm, loss_function = loss_cross_ent
 # fitting model on new observations 
 
 ```{r}
-xgboost_final_fit <- read_rds('model_raw/xgboost_v03a_CVX_61d_CVX.rda')
-xgboost_pred <- predict(xgboost_final_fit, new_data = df_new_xgb3a)
-xgboost_pred_prob <- predict(xgboost_final_fit, new_data = df_new_xgb3a, type = 'prob')
-df_pred_xgboost <- bind_cols(df_new_xgb3a |> select(date, ord_class), 
-                                 xgboost_pred, xgboost_pred_prob)
-
-
-xgboost_final_fit2 <- read_rds('model_raw/svm_v02a_short_29d_CVX.rda')
-xgboost_pred2 <- predict(xgboost_final_fit2, new_data = df_new_svm)
-xgboost_pred_prob2 <- predict(xgboost_final_fit2, new_data = df_new_svm, type = 'prob')
-df_pred_svm <- bind_cols(df_new_svm |> select(date, ord_class), 
-                                 xgboost_pred2, xgboost_pred_prob2) |> 
-  rename(ord_class_61d = ord_class)
-
-yo <- left_join(df_pred_xgboost, df_pred_xgboost2, by = join_by(date))
+svm_final_fit <- read_rds('model_raw/svm_v02e_41d_RIO.rda')
+svm_pred <- predict(svm_final_fit, new_data = df_new_svm)
+svm_pred_prob <- predict(svm_final_fit, new_data = df_new_svm)
+df_pred_svm <- bind_cols(df_new_svm |> select(date, ord_class), svm_pred)
 ```
 
 # rsample

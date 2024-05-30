@@ -333,7 +333,8 @@ stopping_grid <- grid_latin_hypercube(trees(range = c(600, 1000)),
 
 wf <- workflow() |> add_recipe(recipe_base) |> add_model(model_catboost)  
 
-doParallel::registerDoParallel(cores = 3)
+library(future)
+plan(multisession)
 catboost_resampling <- tune_grid(wf, time_slices, grid = stopping_grid, 
                                  #metrics = metric_set(accuracy, mn_log_loss), 
                                  control = control_resamples(save_pred = TRUE, 
