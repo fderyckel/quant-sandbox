@@ -78,9 +78,9 @@ dev.off()
 
 # not working because too new:  
 # these 6 stocks make up for more than 40% of the XLV index. 
-xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
-        'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
-        'EQT', 'OVV', 'FCG') 
+xle = c('XOM', 'CVX', 'EOG', 'SU', 'COP', 'MPC', 'PSX', 'SLB', 
+        'VLO', 'WMB', 'OKE', 'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 
+        'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV', 'FCG') 
 etf1 =    c(rep('SPY', length(xle)))
 etf2 =    c(rep('XLE', length(xle)))
 
@@ -543,9 +543,9 @@ the_path <- here::here()
 xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
         'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 
         'FOXA', 'PARA')
-xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
-        'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
-        'EQT', 'OVV', 'FCG') 
+xle = c('XOM', 'CVX', 'EOG', 'SU', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 
+        'VLO', 'WMB', 'OKE', 'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 
+        'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV', 'FCG')
 xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP', 'SCHW', 
         'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 'TRV', 
         'CBOE', 'CME', 'ICE', 'KRE') 

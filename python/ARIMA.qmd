@@ -1,0 +1,29 @@
+---
+title: "ARIMA"
+author: "FdR"
+date: "3-12-2023"
+output: html
+---
+
+Autoregressive models 
+
+```{python}
+
+import numpy as np
+from statsmodels.tsa.arima_process import ArmaProcess
+import matplotlib.pyplot as plt
+
+ar1 = np.array([1, -0.9])
+ma1 = np.array([1])
+ar_obj1 = ArmaProcess(ar1, ma1)
+simu_obs = ar_obj1.generate_sample(nsample = 1000)
+plt.plot(simu_obs)
+plt.show()
+
+```
+
+the auto-correlation decays at a rate of $\phi$ for an AR model 
+
+
+
+

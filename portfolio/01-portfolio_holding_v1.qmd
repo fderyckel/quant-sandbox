@@ -218,9 +218,9 @@ df |> select(ticker, date, adjusted, starts_with('ret_'), starts_with('sd_abov_'
 #| echo: false
 
 # My positions 
-tickers = c('EWZ','GDXJ','RGLD', 'RIO', 'CLF', 'COP', 'PSX', 'XOM', 'SMH', 'IBM','DASH','META', 'GOOG') 
-etf1 =    c('UUP', 'UUP', 'UUP', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'QQQ', 'QQQ', 'QQQ', 'SPY', 'SPY')
-etf2 =    c('EEM', 'GLD', 'GDX', 'XME', 'XME', 'XLE', 'XLE', 'XLE', 'XLK', 'XLK', 'XLK', 'XLC', 'XLC')
+tickers = c('EWZ','GDXJ','RGLD', 'RIO', 'CLF', 'COP', 'PSX', 'XOM', 'SMH', 'IBM','DASH','META', 'GOOG', 'NVDA') 
+etf1 =    c('UUP', 'UUP', 'UUP', 'SPY', 'SPY', 'SPY', 'SPY', 'SPY', 'QQQ', 'QQQ', 'QQQ', 'SPY', 'SPY', 'QQQ')
+etf2 =    c('EEM', 'GLD', 'GDX', 'XME', 'XME', 'XLE', 'XLE', 'XLE', 'XLK', 'XLK', 'XLK', 'XLC', 'XLC', 'XLK')
 
 
 stock_tickers <- unique(c(tickers, 'UUP', 'EEM', 'GLD', 'GDX')) 

@@ -7,3 +7,5 @@ api_keys
 data_stock_fmpr/
 portfolio/etf/
 charts/
+model_raw/
+data_others/santander/
