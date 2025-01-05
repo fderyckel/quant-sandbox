@@ -1,0 +1,144 @@
+---
+title: "Modeling gaps up and down"
+format: html
+---
+
+Applying the idea of Kmeans from M5 to the sectors of XME / XLE / XLU / add in it GDX / TLT / UUP
+
+```{python}
+#| label: setup
+#| message: false
+#| warning: false
+
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import os
+
+tickers = ['TLT', 'GDX', 'XLE', 'XLU', 'XME']
+data_folder = 'data_stock_fmpr/'
+```
+
+Will need to calculate all the features. We'll put this into a functions.
+
+```{python}
+def create_features(df, window_1M = 21, window_1Y = 251): 
+     df['21d_ret'] = df['close'].pct_change(window_1M)
+     df['251d_ret'] = df['close'].pct_change(window_1Y)
+     df['5d_ret'] = df['close'].pct_change(5)
+     df['sma50'] = df['close'].rolling(50).mean()
+     df['sma200'] = df['close'].rolling(200).mean()
+     df['sma199'] = df['close'].rolling(199).mean()
+     df['pct_above_sma199'] = df['close'] / df['sma199']
+     df['std_pct_above_sma199'] = df['pct_above_sma199'].rolling(window_1Y).std()
+     df['sma200_vol'] = df['volume'].rolling(200).mean()
+
+     df['roll_sd_ret21d_1Y'] = df['21d_ret'].rolling(window_1Y).std()
+     df['roll_sd_volu200_1Y'] = df['sma200_vol'].rolling(window_1Y).std()
+     df['roll_sd_ret5d_143d'] = df['5d_ret'].rolling(143).std()
+     df['corr_sma50_sma200_1Y'] = df['sma50'].rolling(window = window_1Y).corr(df['sma200'])
+     df['above_sd_sma199_251d'] = df['pct_above_sma199'] / df['std_pct_above_sma199'] 
+     df['roll_skew_ret21d_1Y'] = df['21d_ret'].rolling(window_1Y).skew()
+     df['roll_kurt_ret21d_1Y'] = df['21d_ret'].rolling(window_1Y).kurt()
+
+
+     return df[['roll_sd_ret21d_1Y', 'roll_sd_volu200_1Y', 'roll_sd_ret5d_143d', 'corr_sma50_sma200_1Y', 
+                'above_sd_sma199_251d', '21d_ret', '251d_ret', 'roll_skew_ret21d_1Y']]
+     
+```
+
+```{python}
+
+results = {}
+
+for ticker in tickers: 
+     file_path = os.path.join(data_folder, f'{ticker}.csv')
+     print(file_path) 
+
+     try: 
+          df = pd.read_csv(file_path, index_col='date', parse_dates=True)
+          results[ticker] = create_features(df)
+     except FileNotFoundError: 
+          print(f'Could not find the data for ticker {ticker}') 
+
+df_results = pd.concat(results, axis = 1)
+
+ten_years_ago = pd.to_datetime('today') - pd.DateOffset(years = 10)
+df_results = df_results[df_results.index > ten_years_ago]
+df_results_thurs = df_results[df_results.index.weekday == 3]
+
+X = df_results.values.reshape(-1, len(tickers) * 8) # 8 features per ticker now
+
+```
+
+```{python}
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+kmeans = KMeans(n_clusters=3, random_state=0)
+kmeans.fit(X_scaled)
+
+labels = kmeans.labels_
+print(labels)
+```
+
+```{python}
+yo = pd.read_csv('data_stock_fmpr/AA.csv', index_col = 'date', parse_dates = True)
+yo = yo[['open', 'close']]
+yo = yo.sort_index()
+yo = yo.tail(200)
+yo['5d_ret'] = df['close'].pct_change(5)
+yo['sd_5d_ret'] = df['5d_ret'].rolling(10).std()
+
+print(yo.tail())
+print(yo.head())
+```
+
+
+```{python}
+yo = pd.Series(np.array([100, 102, 105, 104, 106, 108]))
+yo.pct_change(5)
+```
+
+
+
+
+```{python}
+import io 
+
+data = """open,close
+39.0,39.12
+38.68,39.47
+38.42,37.73
+37.34,38.44
+38.45,39.25
+40.65,41.02
+40.45,41.8
+41.34,41.3
+42.09,42.07
+42.8,40.35
+41.77,41.17"""
+
+# Create DataFrame from the provided data
+df = pd.read_csv(io.StringIO(data))
+
+# Calculate 5-day percentage change on 'close' prices
+df['5d_ret'] = df['close'].pct_change(5)
+
+# Calculate rolling standard deviation of 5-day returns (window=5)
+df['sd_5d_ret'] = df['5d_ret'].rolling(window=5).std()
+```
+
+
+
+
+
+
+```{python}
+import camelot
+import pandas as pd
+pdf1 = camelot.read_pdf('../../Downloads/Class of 2026 CEM Student Reports.pdf')
+```

@@ -1,0 +1,48 @@
+---
+title: "Correlation"
+format: html
+---
+
+Goal: identify assets that are little correlated with each other. Create a function that when you give a vector of assets as input, it generate a table with various correlation type as output.
+
+Problem:
+
+-   Correlation on what time frame?\
+    + immediate impression would be 3 months and 11 months? 
+    + but why not 3 years or 5 years?
+-   correlation of what variables? 
+     + immediate feelings would be daily returns, weekly returns, monthly returns 
+     + why not include correlation of volatility?
+-   Which assets? 
+     + first the different sectors 
+     +stocks within a sectors
+
+```{r}
+library(readr)
+library(dplyr)
+library(purrr)
+library(glue)
+
+the_path <- here::here()
+
+tickers <- c( "SPY", "RSP", "DIA", "QQQ", "TLT", "HYG", "GLD", "GDX", "GDXJ", "XLE", "VDE", "XOP", 
+              "DBB", "XME", "VAW", "XLB", "DBA", "XLF", "XLI", "XLY", "XLV", "XBI", "IYT", "XLC", 
+              "XLP", "FXG", "XLK", "HACK", "SMH", "IPAY", "ITB", "PBW", "IWD", "IWF")
+
+conform_data <- function(ticker) {
+     df <- read_csv(glue(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
+          select(date, close) |> 
+          arrange(date)
+     return(df)
+}
+
+get_returns <- function(ticker, lookback) {
+     df <- conform_data(ticker) |> 
+          mutate(ret_1d = log(close / lag(close, 1)), 
+                 ret_1W = log(close / lag(close, 5)), 
+                 ret_1M = log(close / lag(close, 21)), 
+                 ret_3M = log(close / lag(close, 63)), 
+                 ret_1Y = log(close / lag(close, 251)))
+}
+
+```

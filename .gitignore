@@ -10,3 +10,4 @@ charts/
 model_raw/
 data_others/santander/
 renv/
+.venv/

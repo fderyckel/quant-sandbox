@@ -134,7 +134,7 @@ GeomLinerangeBC <- ggproto("GeomLinerangeBC", GeomLinerange, default_aes = aes(s
 #####################################################
 ## Create standard Candlestick chart with PPO and RSI
 create_candlestick_chart <- function(df, tickerss, num_days = '41d', 
-                                     start_date = today()-365, end_date = today()) {
+                                     start_date = today()-700, end_date = today()) {
   df2 <- df |> 
     mutate(forw_ret = log(lead(adjusted, n = parse_number(num_days)) / adjusted), 
            ord_class = as.factor(ntile(forw_ret, n = 3))) |> 
@@ -209,7 +209,7 @@ create_candlestick_chart <- function(df, tickerss, num_days = '41d',
 
 #####################################################
 ## create candlestick chart with ATR and sd (EMA40)
-create_vol_candlestick_chart <- function(df, tickerss, start_date = today()-365, end_date = today()){
+create_vol_candlestick_chart <- function(df, tickerss, start_date = today()-700, end_date = today()){
   df2 <- df %>% filter(index >= start_date & index <= end_date)
   
   # The main chart with the moving averages
@@ -289,7 +289,7 @@ create_vol_candlestick_chart <- function(df, tickerss, start_date = today()-365,
 #####################################################
 ## create candlestick chart with ETF1 (market) and etf2 (sector)
 create_rel_candlestick_chart <- function(ticker, etf1, etf2, 
-                                         tickerss, start_date = today()-365, end_date = today()) {
+                                         tickerss, start_date = today()-700, end_date = today()) {
   df_ticker <- conform_data(ticker, interval = "Daily", provider = "fmpr") |>  
     select(index, adjusted) |> arrange(index) |> 
     mutate(adjusted_tic = as.numeric(adjusted)) 

@@ -18,7 +18,7 @@ library(knitr)
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 the_path <- here::here()
 
-source('../functions/chart_plotting_v1.R')
+source('functions/chart_plotting_v1.R')
 ```
 
 # Download data and charts - US sectors 
@@ -101,17 +101,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 550, 
+                           start_date = today() - 700, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 550, 
+                               start_date = today() - 700, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 550, 
+                               start_date = today() - 700, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -196,17 +196,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 550, 
+                           start_date = today() - 700, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 550, 
+                               start_date = today() - 700, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 550, 
+                               start_date = today() - 700, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -381,17 +381,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 365, 
+                           start_date = today() - 700, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 365, 
+                               start_date = today() - 700, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 365, 
+                               start_date = today() - 700, 
                                end_date = today())  
   Sys.sleep(2)
   }
@@ -503,17 +503,17 @@ for (i in 1:nrow(df)){
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
   create_candlestick_chart(yo$ext_df[[1]], yo$ticker, 
-                           start_date = today() - 530, 
+                           start_date = today() - 700, 
                            end_date = today())
   create_vol_candlestick_chart(yo$ext_df[[1]], 
                                yo$ticker, 
-                               start_date = today() - 530, 
+                               start_date = today() - 700, 
                                end_date = today())
   create_rel_candlestick_chart(df$ticker[i], 
                                df$etf1[i], 
                                df$etf2[i], 
                                df$ticker[i], 
-                               start_date = today() - 530, 
+                               start_date = today() - 700, 
                                end_date = today())  
   Sys.sleep(2)
   }

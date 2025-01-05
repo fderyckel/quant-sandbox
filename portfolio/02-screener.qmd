@@ -23,13 +23,14 @@ library(tidyr)
 the_path <- here::here()
 
 xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 'WBD', 
-        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 'FOXA', 'PARA')
-xle = c('XOM', 'CVX', 'EOG', 'COP', 'MPC', 'PSX', 'PXD', 'SLB', 'VLO', 'WMB', 'OKE', 
-        'OXY', 'HES', 'KMI', 'BKR', 'HAL', 'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 
-        'EQT', 'OVV') 
-xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 'AXP', 'SCHW', 
-        'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 'PNC', 'AON', 'TRV', 
-        'CBOE', 'CME', 'ICE', 'KRE') 
+        'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 'MTCH', 
+        'FOXA', 'PARA')
+xle = c('XOM', 'CVX', 'EOG', 'SU', 'COP', 'MPC', 'PSX', 'SLB', 
+        'VLO', 'WMB', 'OKE', 'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 
+        'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV', 'FCG') 
+xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 
+        'AXP', 'SCHW', 'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 
+        'PNC', 'AON', 'TRV', 'CBOE', 'CME', 'ICE', 'KRE') 
 xlk = c('ABNB', 'GOOG', 'META', 'AAPL', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 'AMZN', 
         'BABA', 'AVGO', 'ADBE', 'CRM', 'AMD', 'ACN', 'CSCO', 'INTC', 'TSM', 'MSFT', 'TER',  
         'ORCL', 'INTU', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'NVDA', 'PANW', 'PLTR') 
@@ -155,6 +156,8 @@ library(purrr)
 library(ggplot2)
 library(tidyr)
 
+the_path <- here::here()
+
 conform_data <- function(ticker){
     df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
                    show_col_types = FALSE) |>  
@@ -175,3 +178,55 @@ df <- conform_data('AA') |>
 
 ```
 
+# top 3 and bottom 3 on returns with volatility
+
+
+```{r}
+#| label: returns
+#| warning: false
+
+library(readr)
+library(dplyr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+library(timetk)
+library(tidyr)
+
+xle = c('XOM', 'CVX', 'EOG', 'SU', 'COP', 'MPC', 'PSX', 'SLB', 
+        'VLO', 'WMB', 'OKE', 'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 
+        'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV', 'FCG')
+
+
+conform_data <- function(ticker){
+    df <- read_csv(paste0(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+                   show_col_types = FALSE) |>  
+      select(date, adjusted=adjClose) |>  
+      arrange(date)
+    return(df)
+}
+
+sd_roll_21d = slidify(.f = sd, .period = 21, .align = 'right')
+sd_roll_211d = slidify(.f = sd, .period = 211, .align = 'right')
+
+calc_ret <- function(ticker) {
+  df <- conform_data(ticker) |> 
+    select(date, adjusted) |> 
+    mutate(ret_1d = log(adjusted / lag(adjusted, n = 1)), 
+           ret_1M = log(adjusted / lag(adjusted, n = 21)), 
+           ret_3M = log(adjusted / lag(adjusted, n = 63)), 
+           ret_11M = log(adjusted / lag(adjusted, n = 230)),
+           roll21d_sd_ret1d = sd_roll_21d(ret_1d), 
+           roll211d_sd_ret1d = sd_roll_211d(ret_1d),
+           weekly_vol_change = log(roll21d_sd_ret1d / lag(roll21d_sd_ret1d, n = 5))) |> 
+    slice_tail(n = 1)
+}
+
+df_ret <- tibble(ticker = c(xle)) |> 
+  unique() |> 
+  mutate(vol = map(ticker, calc_ret)) |> 
+  unnest(cols = c(vol)) 
+yo1 <- df_vol |> arrange(desc(roll211d_sd_ret1d)) |> slice_head(n = 19)
+yo2 <- df_vol |> arrange(desc(roll21d_sd_ret1d)) |> slice_head(n = 19)
+yo <- union(yo1, yo2)
+```
