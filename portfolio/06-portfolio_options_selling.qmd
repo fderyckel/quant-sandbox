@@ -1,0 +1,60 @@
+---
+title: "Create an income portfolio based on selling options"
+date-format: full
+format: 
+  html: 
+    toc: true
+    number_section: true
+    fig-width: 12
+    fig-height: 8
+---
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(glue)
+library(purrr)
+
+the_path <- here::here()
+
+# functions to download prices using the fmpr api
+get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) { 
+  base_url <- "https://financialmodelingprep.com/api/v3/"
+  endpoint <- 'historical-price-full/'
+  headers = c(`Upgrade-Insecure-Requests` = '1')
+  params = list(`datatype` = 'json', `from` = from, `to` = to, 
+                `apikey` = "085072758657f1c6e9f7d0acb8014d5b")
+  res <- httr::GET(url = glue(base_url, endpoint, ticker), 
+                   httr::add_headers(.headers = headers), query = params)
+  return_json <- httr::content(res, as = "text")
+  d <- jsonlite::fromJSON(return_json)
+  d <- tibble::as_tibble(d$historical)
+  write_csv(d, glue({the_path}, "/data_stock_fmpr/", {ticker}, ".csv"))
+}
+```
+
+# Selecting assets
+
+```{r}
+df_prices <- get_fmpr_prices(ticker)
+```
+
+```{r}
+ticker = 'GOOG'
+rfr = 0.0434
+
+# update the price and get last 3 years
+yo <- df_prices |> arrange(date) |> 
+     filter(date >= (today() - (3 *365))) |> 
+     mutate(daily_ret = log(adjClose / lag(adjClose))) |> 
+     select(date, close, adjClose, daily_ret, changePercent)
+
+mean_daily_ret = mean(yo$daily_ret, na.rm = T)
+sd_daily_ret = sd(yo$daily_ret, na.rm = T)
+sharpe_ratio = ((mean_daily_ret - (rfr/252)) * 252) / (sd_daily_ret * sqrt(252))
+print(sharpe_ratio)
+```
+
+
+## Get a shape ratio function to compare sharpe ratio for a list of stock

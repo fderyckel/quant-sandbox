@@ -465,8 +465,8 @@ for (i in 1:nrow(df)){
   yo <- tibble(ticker = df$ticker[i]) %>% 
     mutate(raw_df = map(ticker, function(.x) conform_data(.x, "Daily", "fmpr")), 
            ext_df = map(raw_df, create_plot_fin_df))
-  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-500, end_date = today())
-  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-500, end_date = today())
+  create_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-700, end_date = today())
+  create_vol_candlestick_chart(yo$ext_df[[1]], yo$ticker, start_date = today()-700, end_date = today())
   Sys.sleep(2)
   }
 dev.off()
