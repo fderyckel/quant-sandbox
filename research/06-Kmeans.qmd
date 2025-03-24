@@ -132,13 +132,3 @@ df['5d_ret'] = df['close'].pct_change(5)
 df['sd_5d_ret'] = df['5d_ret'].rolling(window=5).std()
 ```
 
-
-
-
-
-
-```{python}
-import camelot
-import pandas as pd
-pdf1 = camelot.read_pdf('../../Downloads/Class of 2026 CEM Student Reports.pdf')
-```

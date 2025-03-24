@@ -99,46 +99,96 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Goal: identify assets that are little correlated with each other. Create a function that when you give a vector of assets as input, it generate a table with various correlation type as output.</p>
 <p>Problem:</p>
 <ul>
-<li>Correlation on what time frame?<br>
-** immediate impression would be 3 months and 11 months? but why not 3 years or 5 years?</li>
-<li>correlation of what variables? ** immediate feelings would be daily returns, weekly returns, monthly returns ** why not include correlation of volatility?</li>
-<li>Which assets? ** first the different sectors ** stocks within a sectors</li>
+<li>Correlation on what time frame?
+<ul>
+<li>immediate impression would be 3 months and 11 months?</li>
+<li>but why not 3 years or 5 years?</li>
+</ul></li>
+<li>correlation of what variables?
+<ul>
+<li>immediate feelings would be daily returns, weekly returns, monthly returns</li>
+<li>why not include correlation of volatility?</li>
+</ul></li>
+<li>Which assets?
+<ul>
+<li>first the different sectors</li>
+<li>stocks within a sectors</li>
+</ul></li>
 </ul>
+<section id="create-the-vectors-of-tickers" class="level1">
+<h1>Create the vectors of tickers</h1>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>
-Attaching package: 'dplyr'</code></pre>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>xlc <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'META'</span>, <span class="st">'GOOG'</span>, <span class="st">'T'</span>, <span class="st">'VZ'</span>, <span class="st">'DIS'</span>, <span class="st">'CHTR'</span>, <span class="st">'NFLX'</span>, <span class="st">'CMCSA'</span>, <span class="st">'EA'</span>, </span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>        <span class="st">'WBD'</span>, <span class="st">'DASH'</span>, <span class="st">'Z'</span>, <span class="st">'PINS'</span>, <span class="st">'TTD'</span>, <span class="st">'TTWO'</span>, <span class="st">'OMC'</span>,  <span class="st">'LYV'</span>, <span class="st">'IPG'</span>, </span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">'MTCH'</span>, <span class="st">'FOXA'</span>, <span class="st">'PARA'</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>xle <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'XOM'</span>, <span class="st">'CVX'</span>, <span class="st">'EOG'</span>, <span class="st">'SU'</span>, <span class="st">'COP'</span>, <span class="st">'MPC'</span>, <span class="st">'PSX'</span>, <span class="st">'SLB'</span>, </span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">'VLO'</span>, <span class="st">'WMB'</span>, <span class="st">'OKE'</span>, <span class="st">'OXY'</span>, <span class="st">'LNG'</span>, <span class="st">'HES'</span>, <span class="st">'KMI'</span>, <span class="st">'BKR'</span>, <span class="st">'HAL'</span>, </span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">'DVN'</span>, <span class="st">'FANG'</span>, <span class="st">'TRGP'</span>, <span class="st">'AMR'</span>, <span class="st">'MRO'</span>, <span class="st">'EQT'</span>, <span class="st">'OVV'</span>, <span class="st">'FCG'</span>) </span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>xlf <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'BRK.B'</span>, <span class="st">'JPM'</span>, <span class="st">'V'</span>, <span class="st">'MA'</span>, <span class="st">'BAC'</span>, <span class="st">'WFC'</span>, <span class="st">'SPGI'</span>, <span class="st">'GS'</span>, <span class="st">'MS'</span>, <span class="st">'BLK'</span>, </span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">'AXP'</span>, <span class="st">'SCHW'</span>, <span class="st">'C'</span>, <span class="st">'MMC'</span>, <span class="st">'BX'</span>, <span class="st">'PGR'</span>, <span class="st">'CB'</span>, <span class="st">'USB'</span>, <span class="st">'PYPL'</span>, <span class="st">'MCO'</span>, </span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">'PNC'</span>, <span class="st">'AON'</span>, <span class="st">'TRV'</span>, <span class="st">'CBOE'</span>, <span class="st">'CME'</span>, <span class="st">'ICE'</span>, <span class="st">'KRE'</span>)        </span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>xlk <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'MSFT'</span>, <span class="st">'AAPL'</span>, <span class="st">'NVDA'</span>, <span class="st">'AVGO'</span>, <span class="st">'CRM'</span>, <span class="st">'ADBE'</span>, <span class="st">'AMD'</span>, <span class="st">'ACN'</span>, <span class="st">'CSCO'</span>, </span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>        <span class="st">'INTC'</span>, <span class="st">'INTU'</span>, <span class="st">'ORCL'</span>, <span class="st">'QCOM'</span>, <span class="st">'IBM'</span>, <span class="st">'NOW'</span>, <span class="st">'TXN'</span>, <span class="st">'AMAT'</span>, <span class="st">'PANW'</span>, </span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">'PLTR'</span>, <span class="st">'ABNB'</span>, <span class="st">'GOOG'</span>, <span class="st">'META'</span>, <span class="st">'NFLX'</span>, <span class="st">'SQ'</span>, <span class="st">'PYPL'</span>, <span class="st">'TSLA'</span>, <span class="st">'TWLO'</span>, </span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">'AMZN'</span>, <span class="st">'BABA'</span>, <span class="st">'TSM'</span>,  <span class="st">'TER'</span>) </span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>xlp <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'PG'</span>, <span class="st">'UL'</span>,  <span class="st">'WMT'</span>, <span class="st">'PEP'</span>, <span class="st">'PM'</span>, <span class="st">'MDLZ'</span>, <span class="st">'ADM'</span>, <span class="st">'KMB'</span>, <span class="st">'MO'</span>, <span class="st">'CL'</span>, </span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">'TGT'</span>, <span class="st">'STZ'</span>, <span class="st">'DEO'</span>, <span class="st">'GIS'</span>, <span class="st">'SYY'</span>, <span class="st">'KDP'</span>, <span class="st">'EL'</span>, <span class="st">'KR'</span>, <span class="st">'KHC'</span>, <span class="st">'DG'</span>, </span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">'HSY'</span>, <span class="st">'MKC'</span>, <span class="st">'DLTR'</span>, <span class="st">'HRL'</span>, <span class="st">'CHD'</span>, <span class="st">'CLX'</span>, <span class="st">'COTY'</span>, <span class="st">'ELF'</span>, <span class="st">'SJM'</span>, <span class="st">'K'</span>, </span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">'CAG'</span>) </span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>xlv <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'UNH'</span>, <span class="st">'LLY'</span>, <span class="st">'JNJ'</span>, <span class="st">'MRK'</span>, <span class="st">'ABBV'</span>, <span class="st">'ABT'</span>, <span class="st">'PFE'</span>, <span class="st">'RVTY'</span>, <span class="st">'TMO'</span>, </span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>        <span class="st">'DHR'</span>, <span class="st">'ISRG'</span>, <span class="st">'ELV'</span>, <span class="st">'MDT'</span>, <span class="st">'BMY'</span>, <span class="st">'CVS'</span>, <span class="st">'SYK'</span>, <span class="st">'ZTS'</span>, <span class="st">'CI'</span>, <span class="st">'BSX'</span>, </span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>        <span class="st">'BDX'</span>, <span class="st">'MCK'</span>, <span class="st">'HUM'</span>, <span class="st">'COR'</span>, <span class="st">'VRTX'</span>, <span class="st">'REGN'</span>, <span class="st">'AMGN'</span>, <span class="st">'GILD'</span>, <span class="st">'IQV'</span>, </span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>        <span class="st">'BIIB'</span>, <span class="st">'MRNA'</span>, <span class="st">'MTD'</span>, <span class="st">'ILMN'</span>, <span class="st">'ALNY'</span>) </span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>xly <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'AMZN'</span>, <span class="st">'TSLA'</span>, <span class="st">'MCD'</span>, <span class="st">'NKE'</span>, <span class="st">'HD'</span>, <span class="st">'LOW'</span>, <span class="st">'BKNG'</span>, <span class="st">'PAG'</span>, <span class="st">'SBUX'</span>, </span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>        <span class="st">'TJX'</span>, <span class="st">'CMG'</span>, <span class="st">'ABNB'</span>, <span class="st">'LULU'</span>, <span class="st">'ORLY'</span>, <span class="st">'MAR'</span>, <span class="st">'GM'</span>, <span class="st">'F'</span>, <span class="st">'HLT'</span>, <span class="st">'AZO'</span>, </span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>        <span class="st">'ROST'</span>, <span class="st">'DHI'</span>, <span class="st">'YUM'</span>, <span class="st">'RCL'</span>, <span class="st">'TSCO'</span>, <span class="st">'PHM'</span>, <span class="st">'EXPE'</span>, <span class="st">'DRI'</span>, <span class="st">'GRMN'</span>) </span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>xme <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'AA'</span>, <span class="st">'X'</span>, <span class="st">'MP'</span>, <span class="st">'CLF'</span>, <span class="st">'ATI'</span>, <span class="st">'AMR'</span>, <span class="st">'FCX'</span>, <span class="st">'NUE'</span>, <span class="st">'CRS'</span>, <span class="st">'NEM'</span>, <span class="st">'RS'</span>, </span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>        <span class="st">'STLD'</span>, <span class="st">'BTU'</span>, <span class="st">'HL'</span>, <span class="st">'RGLD'</span>, <span class="st">'GOLD'</span>, <span class="st">'AEM'</span>, <span class="st">'UEC'</span>, <span class="st">'ALB'</span>, <span class="st">'PAAS'</span>, </span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>        <span class="st">'FMC'</span>, <span class="st">'MOS'</span>, <span class="st">'SQM'</span>, <span class="st">'PBR'</span>, <span class="st">'RIO'</span>, <span class="st">'VALE'</span>, <span class="st">'TECK'</span>, <span class="st">'SCCO'</span>, <span class="st">'BHP'</span>) </span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>tickers <span class="ot">&lt;-</span> <span class="fu">c</span>(xlc, xle, xlf, xlk, xlp, xlv, xly, xme)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following objects are masked from 'package:stats':
-
-    filter, lag</code></pre>
+</section>
+<section id="weekly-returns---twice-a-week-sampled---5-years-lookback" class="level1">
+<h1>Weekly returns - twice a week sampled - 5 years lookback</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tickers <span class="ot">&lt;-</span> <span class="fu">c</span>( <span class="st">"SPY"</span>, <span class="st">"RSP"</span>, <span class="st">"DIA"</span>, <span class="st">"QQQ"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># function to read csv file, ordering date, select only date and adjClose</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>conform_data <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker) {</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>     df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">glue</span>(the_path, <span class="st">"/data_stock_fmpr/"</span>, ticker, <span class="st">".csv"</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>          <span class="fu">select</span>(date, adjClose) <span class="sc">|&gt;</span> </span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>          <span class="fu">arrange</span>(date)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>     <span class="fu">return</span>(df)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># function to compute weekly returns and filter Tues and Thurs</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>get_returns <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker) {</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>     df <span class="ot">&lt;-</span> <span class="fu">conform_data</span>(ticker) <span class="sc">|&gt;</span> </span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>          <span class="fu">mutate</span>(<span class="at">ret_1d =</span> <span class="fu">log</span>(adjClose <span class="sc">/</span> <span class="fu">lag</span>(adjClose, <span class="dv">1</span>)), </span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>                 <span class="at">ret_1W =</span> <span class="fu">log</span>(adjClose <span class="sc">/</span> <span class="fu">lag</span>(adjClose, <span class="dv">5</span>)), </span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>                 <span class="at">day_of_week =</span> <span class="fu">wday</span>(date, <span class="at">abbr =</span> <span class="cn">TRUE</span>, <span class="at">label =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>                 ) <span class="sc">|&gt;</span> </span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>          <span class="fu">filter</span>(day_of_week <span class="sc">==</span> <span class="st">"Tue"</span> <span class="sc">|</span> day_of_week <span class="sc">==</span> <span class="st">"Thu"</span>)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">ticker =</span> tickers) <span class="sc">|&gt;</span> </span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>     <span class="fu">mutate</span>(<span class="at">returns =</span> <span class="fu">map</span>(ticker, get_returns)) <span class="sc">|&gt;</span> </span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>     <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="fu">c</span>(returns)) <span class="sc">|&gt;</span> </span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>     <span class="fu">select</span>(ticker, date, ret_1W) </span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>     </span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a> df_wide <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> </span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>     <span class="fu">pivot_wider</span>(<span class="at">id_cols =</span> date, <span class="at">names_from =</span> ticker, <span class="at">values_from =</span> ret_1W)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(purrr)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glue)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>the_path <span class="ot">&lt;-</span> here<span class="sc">::</span><span class="fu">here</span>()</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>tickers <span class="ot">&lt;-</span> <span class="fu">c</span>( <span class="st">"SPY"</span>, <span class="st">"RSP"</span>, <span class="st">"DIA"</span>, <span class="st">"QQQ"</span>, <span class="st">"TLT"</span>, <span class="st">"HYG"</span>, <span class="st">"GLD"</span>, <span class="st">"GDX"</span>, <span class="st">"GDXJ"</span>, <span class="st">"XLE"</span>, <span class="st">"VDE"</span>, <span class="st">"XOP"</span>, </span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>              <span class="st">"DBB"</span>, <span class="st">"XME"</span>, <span class="st">"VAW"</span>, <span class="st">"XLB"</span>, <span class="st">"DBA"</span>, <span class="st">"XLF"</span>, <span class="st">"XLI"</span>, <span class="st">"XLY"</span>, <span class="st">"XLV"</span>, <span class="st">"XBI"</span>, <span class="st">"IYT"</span>, <span class="st">"XLC"</span>, </span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>              <span class="st">"XLP"</span>, <span class="st">"FXG"</span>, <span class="st">"XLK"</span>, <span class="st">"HACK"</span>, <span class="st">"SMH"</span>, <span class="st">"IPAY"</span>, <span class="st">"ITB"</span>, <span class="st">"PBW"</span>, <span class="st">"IWD"</span>, <span class="st">"IWF"</span>)</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>conform_data <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker) {</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>     df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">glue</span>(the_path, <span class="st">"/data_stock_fmpr/"</span>, ticker, <span class="st">".csv"</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>          <span class="fu">arrange</span>(date)</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>get_returns <span class="ot">&lt;-</span> <span class="cf">function</span>(ticker, lookback) {</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>     df <span class="ot">&lt;-</span> <span class="fu">conform_data</span>(ticker)</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
+</section>
 
 </main>
 <!-- /main column -->

@@ -37,12 +37,38 @@ get_fmpr_prices <- function(ticker, from = "2001-01-02", to = today()) {
 # Selecting assets
 
 ```{r}
-df_prices <- get_fmpr_prices(ticker)
+rfr = 0.0434
+
+#df_prices <- get_fmpr_prices(ticker)
 ```
 
+## Get a shape ratio function to compare sharpe ratio for a list of stock
+
 ```{r}
-ticker = 'GOOG'
-rfr = 0.0434
+list_of_assets <- c("FEZ", "GOOG", "PFE", "AMD", "ABNB", "UBER", "TXN", "IBM", "TSLA", "DASH")
+
+calculate_sharpe_ratio <- function(ticker) { 
+     df_prices <- get_fmpr_prices(ticker) |> 
+          arrange(date) |> 
+          filter(date >= (today() - (3 *365))) |> 
+          mutate(daily_ret = log(adjClose / lag(adjClose))) |> 
+          select(date, close, adjClose, daily_ret, changePercent)
+     mean_daily_ret = mean(df_prices$daily_ret, na.rm = T) 
+     sd_daily_ret = sd(df_prices$daily_ret, na.rm = T)
+     sharpe_ratio = ((mean_daily_ret - (rfr/252)) * 252) / (sd_daily_ret * sqrt(252))
+     return(sharpe_ratio)
+}
+
+df <- tibble(ticker = list_of_assets) |>
+     mutate(sharpe_ratio = round(map_dbl(ticker, calculate_sharpe_ratio, .progress = T) * 100, 3))
+```
+
+
+
+
+
+
+```{r}
 
 # update the price and get last 3 years
 yo <- df_prices |> arrange(date) |> 
@@ -58,3 +84,6 @@ print(sharpe_ratio)
 
 
 ## Get a shape ratio function to compare sharpe ratio for a list of stock
+
+
+

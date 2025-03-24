@@ -7,7 +7,7 @@ Goal: identify assets that are little correlated with each other. Create a funct
 
 Problem:
 
--   Correlation on what time frame?\
+-   Correlation on what time frame? 
     + immediate impression would be 3 months and 11 months? 
     + but why not 3 years or 5 years?
 -   correlation of what variables? 
@@ -15,34 +15,144 @@ Problem:
      + why not include correlation of volatility?
 -   Which assets? 
      + first the different sectors 
-     +stocks within a sectors
+     + stocks within a sectors
 
 ```{r}
+#| label: loading_libraries
+#| warning: false
+#| message: false
+#| echo: false
+
 library(readr)
 library(dplyr)
 library(purrr)
 library(glue)
+library(lubridate)
+library(tidyr)
 
 the_path <- here::here()
+```
 
-tickers <- c( "SPY", "RSP", "DIA", "QQQ", "TLT", "HYG", "GLD", "GDX", "GDXJ", "XLE", "VDE", "XOP", 
-              "DBB", "XME", "VAW", "XLB", "DBA", "XLF", "XLI", "XLY", "XLV", "XBI", "IYT", "XLC", 
-              "XLP", "FXG", "XLK", "HACK", "SMH", "IPAY", "ITB", "PBW", "IWD", "IWF")
+# Create the vectors of tickers 
 
+```{r}
+#| label: vectors_of_tickers
+
+xlc = c('META', 'GOOG', 'T', 'VZ', 'DIS', 'CHTR', 'NFLX', 'CMCSA', 'EA', 
+        'WBD', 'DASH', 'Z', 'PINS', 'TTD', 'TTWO', 'OMC',  'LYV', 'IPG', 
+        'MTCH', 'FOXA', 'PARA')
+
+xle = c('XOM', 'CVX', 'EOG', 'SU', 'COP', 'MPC', 'PSX', 'SLB', 
+        'VLO', 'WMB', 'OKE', 'OXY', 'LNG', 'HES', 'KMI', 'BKR', 'HAL', 
+        'DVN', 'FANG', 'TRGP', 'AMR', 'MRO', 'EQT', 'OVV', 'FCG') 
+        
+xlf = c('BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'SPGI', 'GS', 'MS', 'BLK', 
+        'AXP', 'SCHW', 'C', 'MMC', 'BX', 'PGR', 'CB', 'USB', 'PYPL', 'MCO', 
+        'PNC', 'AON', 'TRV', 'CBOE', 'CME', 'ICE', 'KRE')        
+
+xlk = c('MSFT', 'AAPL', 'NVDA', 'AVGO', 'CRM', 'ADBE', 'AMD', 'ACN', 'CSCO', 
+        'INTC', 'INTU', 'ORCL', 'QCOM', 'IBM', 'NOW', 'TXN', 'AMAT', 'PANW', 
+        'PLTR', 'ABNB', 'GOOG', 'META', 'NFLX', 'SQ', 'PYPL', 'TSLA', 'TWLO', 
+        'AMZN', 'BABA', 'TSM',  'TER') 
+
+xlp = c('PG', 'UL',  'WMT', 'PEP', 'PM', 'MDLZ', 'ADM', 'KMB', 'MO', 'CL', 
+        'TGT', 'STZ', 'DEO', 'GIS', 'SYY', 'KDP', 'EL', 'KR', 'KHC', 'DG', 
+        'HSY', 'MKC', 'DLTR', 'HRL', 'CHD', 'CLX', 'COTY', 'ELF', 'SJM', 'K', 
+        'CAG') 
+
+xlv = c('UNH', 'LLY', 'JNJ', 'MRK', 'ABBV', 'ABT', 'PFE', 'RVTY', 'TMO', 
+        'DHR', 'ISRG', 'ELV', 'MDT', 'BMY', 'CVS', 'SYK', 'ZTS', 'CI', 'BSX', 
+        'BDX', 'MCK', 'HUM', 'COR', 'VRTX', 'REGN', 'AMGN', 'GILD', 'IQV', 
+        'BIIB', 'MRNA', 'MTD', 'ILMN', 'ALNY') 
+
+xly = c('AMZN', 'TSLA', 'MCD', 'NKE', 'HD', 'LOW', 'BKNG', 'PAG', 'SBUX', 
+        'TJX', 'CMG', 'ABNB', 'LULU', 'ORLY', 'MAR', 'GM', 'F', 'HLT', 'AZO', 
+        'ROST', 'DHI', 'YUM', 'RCL', 'TSCO', 'PHM', 'EXPE', 'DRI', 'GRMN') 
+
+xme = c('AA', 'X', 'MP', 'CLF', 'ATI', 'AMR', 'FCX', 'NUE', 'CRS', 'NEM', 'RS', 
+        'STLD', 'BTU', 'HL', 'RGLD', 'GOLD', 'AEM', 'UEC', 'ALB', 'PAAS', 
+        'FMC', 'MOS', 'SQM', 'PBR', 'RIO', 'VALE', 'TECK', 'SCCO', 'BHP') 
+
+tickers <- c(xlc, xle, xlf, xlk, xlp, xlv, xly, xme) |> unique()
+```
+
+
+# Option 1: Weekly returns - twice a week sampled - 5 years lookback
+
+```{r}
+#| label: create functions
+
+#tickers <- c( "SPY", "RSP", "DIA", "QQQ")
+
+# function to read csv file, ordering date, select only date and adjClose
 conform_data <- function(ticker) {
-     df <- read_csv(glue(the_path, "/data_stock_fmpr/", ticker, ".csv"), show_col_types = FALSE) |> 
-          select(date, close) |> 
-          arrange(date)
+     df <- read_csv(
+               glue(the_path, "/data_stock_fmpr/", ticker, ".csv"), 
+               show_col_types = FALSE) |> 
+          select(date, adjClose) |> 
+          arrange(date) |> 
+          filter(date >= (today() - 5*365))
      return(df)
 }
 
-get_returns <- function(ticker, lookback) {
+# function to compute weekly returns and filter Tues and Thurs
+get_returns <- function(ticker) {
      df <- conform_data(ticker) |> 
-          mutate(ret_1d = log(close / lag(close, 1)), 
-                 ret_1W = log(close / lag(close, 5)), 
-                 ret_1M = log(close / lag(close, 21)), 
-                 ret_3M = log(close / lag(close, 63)), 
-                 ret_1Y = log(close / lag(close, 251)))
+          mutate(ret_1d = log(adjClose / lag(adjClose, 1)), 
+                 ret_1W = log(adjClose / lag(adjClose, 5)), 
+                 day_of_week = wday(date, abbr = TRUE, label = TRUE)
+                 ) |> 
+          filter(day_of_week == "Tue" | day_of_week == "Thu")
 }
+
+
+df <- tibble(ticker = tickers) |> 
+     mutate(returns = map(ticker, get_returns)) |> 
+     unnest(cols = c(returns)) |> 
+     select(ticker, date, ret_1W) |> 
+     drop_na()
+     
+ df_wider <- df |> 
+     pivot_wider(id_cols = date, names_from = ticker, values_from = ret_1W)
+
+```
+
+
+## Calculate Correlation Matrix 
+
+```{r}
+df_cor <- df_wider |> select(-date) |>
+     cor(use = "pairwise.complete.obs")
+```
+
+## Clustering for n least correlated assets 
+
+```{r}
+n = 20
+
+dist_matrix <- as.dist(sqrt(2 * (1 - df_cor)))
+
+hc <- hclust(dist_matrix, method = "complete")
+
+clusters <- cutree(hc, k = n)
+
+select_equities <- tibble(
+               equity = names(clusters), 
+               cluster = clusters) |> 
+     arrange(cluster) 
+     
+     |> 
+     group_by(cluster) |> 
+     slice(1) 
+     
+     |> 
+     pull(equity)
+
+```
+
+
+
+```{r}
+plot(hc, labels = colnames(df_cor), cex=0.5, main="Hierarchical Clustering Dendrogram")
 
 ```
